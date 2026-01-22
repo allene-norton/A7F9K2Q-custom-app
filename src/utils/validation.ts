@@ -1,5 +1,5 @@
-import { FormDataSchema, IdentificationSchema } from "../types"
-import type { BackgroundCheckFormData, Identification } from "../types"
+import { FormDataSchema, IdentificationSchema } from "../types/types-index"
+import type { BackgroundCheckFormData, Identification } from "../types/types-index"
 
 export interface ValidationError {
   field: string
