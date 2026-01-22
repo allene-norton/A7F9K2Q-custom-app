@@ -9,7 +9,7 @@ export function middleware(request: NextRequest) {
   // If you have a custom domain add it below to the
   // space separated frame-ancestors list.
    const cspHeader = `
-    frame-ancestors https://dashboard.copilot.app/ https://*.copilot.app/ https://dashboard.assembly.com https://*.spoken.so https://*.myassembly.com https://5xr2nw8h.vercel.app;
+    frame-ancestors https://dashboard.assembly.com/ https://*.myassembly.com/ https://a7-f9-k2-q-custom-pplusra4w-allenenortons-projects.vercel.app;
     block-all-mixed-content;
     upgrade-insecure-requests;
 `;
