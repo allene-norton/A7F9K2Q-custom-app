@@ -34,14 +34,14 @@ export interface Client {
   updatedAt?: string;
 }
 
-interface Company {
-  id: string;
-  object: "company";
-  createdAt: string;
-  name: string;
-  fallbackColor: string;
-  iconImageUrl: string;
-  isPlaceholder: boolean;
+export interface Company {
+  id?: string;
+  object?: string;
+  createdAt?: string;
+  name?: string;
+  fallbackColor?: string;
+  iconImageUrl?: string;
+  isPlaceholder?: boolean;
 }
 
 export interface ListCompaniesResponse {
@@ -313,7 +313,7 @@ export async function listClients(
 // listCompanies action
 export async function listCompanies(
   token?: string,
-): Promise<ListClientsResponse> {
+): Promise<ListCompaniesResponse> {
     console.log(`-----------APP KEY`, process.env.COPILOT_API_KEY)
 
   try {
@@ -323,7 +323,7 @@ export async function listCompanies(
         throw new Error('ASSEMBLY_API_KEY is required for dev mode');
       }
 
-      const response = await fetch(`${ASSEMBLY_BASE_URI}/clients`, {
+      const response = await fetch(`${ASSEMBLY_BASE_URI}/companies`, {
         method: 'GET',
         headers: {
           'X-API-KEY': assemblyApiKey,
@@ -336,7 +336,7 @@ export async function listCompanies(
 
       const data = await response.json();
       revalidatePath('/internal');
-      return { success: true, data };
+      return data;
     } else {
       // Prod mode: use Copilot SDK with token
       if (!token) {
@@ -344,16 +344,15 @@ export async function listCompanies(
       }
 
       const sdk = createSDK(token);
-      const clients = await sdk.listClients({ limit: 2000 });
+      const companies = await sdk.listCompanies({ limit: 2000, isPlaceholder: false});
       revalidatePath('/internal');
-      return { success: true, data: clients as ClientsData };
+      return companies as ListCompaniesResponse;
     }
   } catch (error) {
-    console.error('Error fetching clients:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch clients',
-    };
+    console.error('Error fetching companies:', error);
+    throw new Error(
+      error instanceof Error ? error.message : 'Failed to fetch companies'
+    );
   }
 }
 

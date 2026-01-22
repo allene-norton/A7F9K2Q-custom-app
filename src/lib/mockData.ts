@@ -214,3 +214,72 @@ export function searchCustomers(query: string): Customer[] {
       customer.address.toLowerCase().includes(lowerQuery)
   );
 }
+
+// Sample mock items that can be used for any company
+const sampleMockItems: AssessmentItem[] = [
+  {
+    id: "mock_item_1",
+    clickup_task_id: "mock_task_001",
+    location: "Main Entrance",
+    category: "Recommended",
+    issue: "Door hinges need lubrication",
+    recommendation: "Apply lubricant to all entrance door hinges. Schedule for routine maintenance.",
+    images: [
+      "https://images.unsplash.com/photo-1698244415220-3d1ca844ed67?w=800"
+    ],
+    estimated_cost_min: 50,
+    estimated_cost_max: 100,
+    tags: ["doors", "maintenance"],
+    comments: "Noticed squeaking during walkthrough",
+    created_date: new Date().toISOString().split('T')[0],
+    technician: "Billy Johnson"
+  },
+  {
+    id: "mock_item_2",
+    clickup_task_id: "mock_task_002",
+    location: "Parking Lot",
+    category: "Cosmetic",
+    issue: "Faded parking lot striping",
+    recommendation: "Repaint parking lot lines and directional arrows for improved visibility and safety.",
+    images: [
+      "https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=800"
+    ],
+    estimated_cost_min: 850,
+    estimated_cost_max: 1100,
+    tags: ["parking", "exterior", "cosmetic"],
+    comments: "Not urgent but should be done before next inspection",
+    created_date: new Date().toISOString().split('T')[0],
+    technician: "Billy Johnson"
+  },
+  {
+    id: "mock_item_3",
+    clickup_task_id: "mock_task_003",
+    location: "HVAC System",
+    category: "Urgent",
+    issue: "Air filter replacement needed",
+    recommendation: "Replace air filters and inspect system operation. Schedule for routine maintenance.",
+    images: [
+      "https://images.unsplash.com/photo-1581094271901-8022df4466f9?w=800"
+    ],
+    estimated_cost_min: 120,
+    estimated_cost_max: 180,
+    tags: ["hvac", "maintenance", "urgent"],
+    comments: "Part of quarterly maintenance schedule",
+    created_date: new Date().toISOString().split('T')[0],
+    technician: "Billy Johnson"
+  }
+];
+
+// Generate a mock assessment for any company (using real company data with mock assessment items)
+export function getMockAssessmentForCompany(companyId: string, companyName: string): Assessment {
+  return {
+    id: `assess_${companyId}`,
+    customer_id: companyId,
+    customer_name: companyName,
+    assessment_date: new Date().toISOString().split('T')[0],
+    technician: "Billy Johnson",
+    items: sampleMockItems,
+    status: "draft",
+    created_at: new Date().toISOString()
+  };
+}

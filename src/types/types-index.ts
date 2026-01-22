@@ -1,7 +1,7 @@
 // src/types/index.ts
 
 export interface Customer {
-  id: string;
+  id?: string;
   clickup_id: string;
   name: string;
   address: string;

@@ -9,23 +9,33 @@ const app = next({ dev: true });
 const handle = app.getRequestHandler();
 
 app.prepare().then(async () => {
-  createServer((req, res) => {
-    const parsedUrl = parse(req.url, true);
-    res.setHeader('Set-Cookie', `ngrokUrl=${ngrokUrl}`);
-    res.setHeader('X-Frame-Options', ``);
-    handle(req, res, parsedUrl);
-  }).listen(port);
-
-  console.log(`> Server listening at http://localhost:${port}`);
-  console.log('> Opening an ngrok tunnel to the server...');
+  console.log('> Opening an ngrok tunnel...');
 
   const listener = await ngrok.forward({
     authtoken: process.env.NGROK_AUTH_TOKEN,
     addr: port,
   });
 
-  console.log(`> Tunnel opened at ${listener.url()}`);
   const ngrokUrl = listener.url();
+  console.log(`> Tunnel opened at ${ngrokUrl}`);
+
+  createServer((req, res) => {
+    const parsedUrl = parse(req.url, true);
+    res.setHeader('Set-Cookie', `ngrokUrl=${ngrokUrl}`);
+    // res.setHeader('X-Frame-Options', ``);
+    handle(req, res, parsedUrl);
+  }).listen(port);
+
+  console.log(`> Server listening at http://localhost:${port}`);
+  // console.log('> Opening an ngrok tunnel to the server...');
+
+  // const listener = await ngrok.forward({
+  //   authtoken: process.env.NGROK_AUTH_TOKEN,
+  //   addr: port,
+  // });
+
+  // console.log(`> Tunnel opened at ${listener.url()}`);
+  // const ngrokUrl = listener.url();
 
   const { default: open, apps } = await import('open');
   const url = `https://dashboard.copilot.app/dev-mode?url=${encodeURIComponent(

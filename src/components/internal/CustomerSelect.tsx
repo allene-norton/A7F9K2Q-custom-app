@@ -3,21 +3,24 @@
 // src/components/internal/CustomerSelect.tsx
 
 import { useState, useMemo } from "react";
-import { Customer } from "@/types/types-index";
-import { getAllCustomers, searchCustomers } from "@/lib/mockData";
+import { Company } from "@/lib/assembly/client";
 
 interface CustomerSelectProps {
-  onSelect: (customer: Customer) => void;
+  companies: Company[];
+  loading?: boolean;
+  onSelect: (company: Company) => void;
 }
 
-export default function CustomerSelect({ onSelect }: CustomerSelectProps) {
+export default function CustomerSelect({ companies, loading, onSelect }: CustomerSelectProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const allCustomers = getAllCustomers();
 
-  const filteredCustomers = useMemo(() => {
-    if (!searchTerm.trim()) return allCustomers;
-    return searchCustomers(searchTerm);
-  }, [searchTerm, allCustomers]);
+  const filteredCompanies = useMemo(() => {
+    if (!searchTerm.trim()) return companies;
+    const lowerQuery = searchTerm.toLowerCase();
+    return companies.filter(
+      company => company.name?.toLowerCase().includes(lowerQuery)
+    );
+  }, [searchTerm, companies]);
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
@@ -62,60 +65,63 @@ export default function CustomerSelect({ onSelect }: CustomerSelectProps) {
 
         {/* Customer Cards */}
         <div className="space-y-4">
-          {filteredCustomers.length === 0 ? (
+          {loading ? (
             <div className="bg-white rounded-xl p-12 text-center border-2 border-gray-200">
-              <p className="text-gray-500 text-lg">No customers found matching "{searchTerm}"</p>
+              <p className="text-gray-500 text-lg">Loading companies...</p>
+            </div>
+          ) : filteredCompanies.length === 0 ? (
+            <div className="bg-white rounded-xl p-12 text-center border-2 border-gray-200">
+              <p className="text-gray-500 text-lg">
+                {searchTerm ? `No companies found matching "${searchTerm}"` : "No companies found"}
+              </p>
             </div>
           ) : (
-            filteredCustomers.map((customer) => (
+            filteredCompanies.map((company) => (
               <button
-                key={customer.id}
-                onClick={() => onSelect(customer)}
-                className="w-full bg-white p-6 rounded-xl border-2 border-gray-200 
+                key={company.id}
+                onClick={() => onSelect(company)}
+                className="w-full bg-white p-6 rounded-xl border-2 border-gray-200
                            hover:border-[#174887] hover:shadow-lg
                            transition-all duration-200 text-left group"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-5">
-                    {/* Icon */}
-                    <div className="p-4 rounded-lg group-hover:bg-[#174887] bg-blue-50 transition-colors">
-                      <svg
-                        className="w-8 h-8 text-[#174887] group-hover:text-white transition-colors"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                    {/* Icon or Company Image */}
+                    <div
+                      className="p-4 rounded-lg group-hover:bg-[#174887] transition-colors"
+                      style={{ backgroundColor: company.fallbackColor || '#EFF6FF' }}
+                    >
+                      {company.iconImageUrl ? (
+                        <img
+                          src={company.iconImageUrl}
+                          alt={company.name || ''}
+                          className="w-8 h-8 rounded object-cover"
                         />
-                      </svg>
+                      ) : (
+                        <svg
+                          className="w-8 h-8 text-[#174887] group-hover:text-white transition-colors"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                          />
+                        </svg>
+                      )}
                     </div>
 
-                    {/* Customer Info */}
+                    {/* Company Info */}
                     <div>
                       <h3 className="text-xl font-bold mb-1 text-gray-900 group-hover:text-[#174887] transition-colors">
-                        {customer.name}
+                        {company.name}
                       </h3>
-                      <p className="text-gray-600 mb-2">{customer.address}</p>
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                          </svg>
-                          {customer.units} units
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-                                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
-                          {customer.contact_name}
-                        </span>
-                      </div>
+                      <p className="text-gray-500 text-sm">
+                        Added {company.createdAt ? new Date(company.createdAt).toLocaleDateString() : 'N/A'}
+                      </p>
                     </div>
                   </div>
 
@@ -136,7 +142,7 @@ export default function CustomerSelect({ onSelect }: CustomerSelectProps) {
 
         {/* Footer */}
         <div className="mt-8 text-center text-sm text-gray-500">
-          Showing {filteredCustomers.length} of {allCustomers.length} customers
+          Showing {filteredCompanies.length} of {companies.length} companies
         </div>
       </div>
     </div>
