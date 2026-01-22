@@ -47,3 +47,8 @@ dbimplementation.md
 todo.md
 scratch.ts
 git-time-estimator.js
+
+#env
+.env.local
+.env.example
+.env
