@@ -50,7 +50,7 @@ export const mockAssessmentItems: Record<string, AssessmentItem[]> = {
       tags: ["plumbing", "urgent-review"],
       comments: "Tenant reported smell getting worse over past week",
       created_date: "2025-03-15",
-      technician: "Billy Johnson"
+      technician: "Sample Tech"
     },
     {
       id: "item_2",
@@ -67,7 +67,7 @@ export const mockAssessmentItems: Record<string, AssessmentItem[]> = {
       tags: ["gutters", "exterior", "winter-prep"],
       comments: "Noticed during routine walkthrough",
       created_date: "2025-03-15",
-      technician: "Billy Johnson"
+      technician: "Sample Tech"
     },
     {
       id: "item_3",
@@ -84,7 +84,7 @@ export const mockAssessmentItems: Record<string, AssessmentItem[]> = {
       tags: ["parking", "exterior", "cosmetic"],
       comments: "Not urgent but should be done before next inspection",
       created_date: "2025-03-15",
-      technician: "Billy Johnson"
+      technician: "Sample Tech"
     },
     {
       id: "item_4",
@@ -101,7 +101,7 @@ export const mockAssessmentItems: Record<string, AssessmentItem[]> = {
       tags: ["hvac", "maintenance"],
       comments: "Part of quarterly maintenance schedule",
       created_date: "2025-03-15",
-      technician: "Billy Johnson"
+      technician: "Sample Tech"
     },
     {
       id: "item_5",
@@ -118,7 +118,7 @@ export const mockAssessmentItems: Record<string, AssessmentItem[]> = {
       tags: ["appliances", "urgent"],
       comments: "Tenant reported issue yesterday, food spoiling",
       created_date: "2025-03-15",
-      technician: "Billy Johnson"
+      technician: "Sample Tech"
     }
   ],
   "cust_2": [
@@ -137,7 +137,7 @@ export const mockAssessmentItems: Record<string, AssessmentItem[]> = {
       tags: ["roofing", "urgent", "water-damage"],
       comments: "Tenant reported water stains on ceiling",
       created_date: "2025-03-14",
-      technician: "Billy Johnson"
+      technician: "Sample Tech"
     },
     {
       id: "item_7",
@@ -154,7 +154,7 @@ export const mockAssessmentItems: Record<string, AssessmentItem[]> = {
       tags: ["entrance", "doors"],
       comments: "Door occasionally sticks or opens slowly",
       created_date: "2025-03-14",
-      technician: "Billy Johnson"
+      technician: "Sample Tech"
     }
   ],
   "cust_3": [
@@ -173,7 +173,7 @@ export const mockAssessmentItems: Record<string, AssessmentItem[]> = {
       tags: ["flooring", "cosmetic"],
       comments: "Normal wear and tear from foot traffic",
       created_date: "2025-03-13",
-      technician: "Billy Johnson"
+      technician: "Sample Tech"
     }
   ]
 };
@@ -188,7 +188,7 @@ export function getAssessmentByCustomer(customerId: string): Assessment {
     customer_id: customerId,
     customer_name: customer?.name || "Unknown Customer",
     assessment_date: new Date().toISOString().split('T')[0],
-    technician: "Billy Johnson",
+    technician: "Sample Tech",
     items: items,
     status: "draft",
     created_at: new Date().toISOString()
@@ -232,7 +232,7 @@ const sampleMockItems: AssessmentItem[] = [
     tags: ["doors", "maintenance"],
     comments: "Noticed squeaking during walkthrough",
     created_date: new Date().toISOString().split('T')[0],
-    technician: "Billy Johnson"
+    technician: "Sample Tech"
   },
   {
     id: "mock_item_2",
@@ -249,7 +249,7 @@ const sampleMockItems: AssessmentItem[] = [
     tags: ["parking", "exterior", "cosmetic"],
     comments: "Not urgent but should be done before next inspection",
     created_date: new Date().toISOString().split('T')[0],
-    technician: "Billy Johnson"
+    technician: "Sample Tech"
   },
   {
     id: "mock_item_3",
@@ -266,7 +266,7 @@ const sampleMockItems: AssessmentItem[] = [
     tags: ["hvac", "maintenance", "urgent"],
     comments: "Part of quarterly maintenance schedule",
     created_date: new Date().toISOString().split('T')[0],
-    technician: "Billy Johnson"
+    technician: "Sample Tech"
   }
 ];
 
