@@ -22,6 +22,8 @@ export async function getSession(searchParams: SearchParams) {
         : undefined,
   });
 
+  console.log(apiKey)
+
   const data: {
     workspace: Awaited<ReturnType<typeof copilot.retrieveWorkspace>>;
     client?: Awaited<ReturnType<typeof copilot.retrieveClient>>;

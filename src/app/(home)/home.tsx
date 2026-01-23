@@ -16,6 +16,8 @@ async function Content({ searchParams }: { searchParams: SearchParams }) {
     apiKey: process.env.COPILOT_API_KEY ?? '',
     token: typeof token === 'string' ? token : undefined,
   });
+  console.log(token)
+  console.log(process.env.COPILOT_API_KEY)
   const workspace = await copilot.retrieveWorkspace();
   const session = await copilot.getTokenPayload?.();
   console.log({ workspace, session });

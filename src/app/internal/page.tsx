@@ -11,9 +11,20 @@ import CustomerSelect from "@/components/internal/CustomerSelect";
 import AssessmentItemCard from "@/components/internal/AssessmentItemCard";
 import { listCompanies, Company } from "@/lib/assembly/client";
 
-export default function InternalPage() {
-  const searchParams = useSearchParams();
-  const token = searchParams.get('token');
+interface InternalPageProps {
+  searchParams: { token?: string };
+}
+
+export default function InternalPage({ searchParams }: InternalPageProps) {
+  // const searchParams = useSearchParams();
+  // console.log(searchParams.get('token'))
+  // const token = searchParams.get('token');
+  console.log("running")
+  console.log(searchParams)
+    const token = typeof searchParams.token === 'string' ? searchParams.token : null;
+    console.log(token)
+
+
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(true);
@@ -21,10 +32,15 @@ export default function InternalPage() {
   const [assessment, setAssessment] = useState<Assessment | null>(null);
 
   useEffect(() => {
+    // Don't fetch until we have a token
+    if (!token) {
+      setCompaniesLoading(false);
+      return;
+    }
     const fetchCompanies = async () => {
       try {
         setCompaniesLoading(true);
-        const response = await listCompanies(token || undefined);
+        const response = await listCompanies(token);
 
         if (!response.data) {
           throw new Error('No company data returned from server');

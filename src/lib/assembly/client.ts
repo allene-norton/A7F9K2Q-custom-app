@@ -342,9 +342,10 @@ export async function listCompanies(
       if (!token) {
         throw new Error('Token is required in production');
       }
+      console.log(token)
 
       const sdk = createSDK(token);
-      const companies = await sdk.listCompanies({ limit: 2000, isPlaceholder: false});
+      const companies = await sdk.listCompanies({ limit: 10, isPlaceholder: false});
       revalidatePath('/internal');
       return companies as ListCompaniesResponse;
     }
