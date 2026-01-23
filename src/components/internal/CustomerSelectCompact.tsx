@@ -47,7 +47,7 @@ export default function CustomerSelect({ companies, loading, onSelect }: Custome
           <div className="relative">
             <input
               type="text"
-              placeholder="Search customers by name..."
+              placeholder="Search customers"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-4 py-4 pl-12 text-lg border-2 border-gray-300 rounded-xl 
