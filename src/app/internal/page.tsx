@@ -117,7 +117,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                 Preview
               </button>
               <button
-                onClick={() => alert(`Send to ${selectedCompany.name}?`)}
+                onClick={() => alert(`Send to ${selectedCompany.name}? [Click OK - nothing will be shared with clients at this time]`)}
                 className="px-5 py-3 rounded-lg text-white font-semibold
                            flex items-center gap-2 hover:opacity-90 transition-opacity"
                 style={{ backgroundColor: '#174887' }}
