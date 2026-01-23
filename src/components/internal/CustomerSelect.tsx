@@ -15,11 +15,18 @@ export default function CustomerSelect({ companies, loading, onSelect }: Custome
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredCompanies = useMemo(() => {
-    if (!searchTerm.trim()) return companies;
-    const lowerQuery = searchTerm.toLowerCase();
-    return companies.filter(
-      company => company.name?.toLowerCase().includes(lowerQuery)
-    );
+    const filtered = !searchTerm.trim() 
+      ? companies 
+      : companies.filter(
+          company => company.name?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    
+    // Sort by createdAt in descending order (most recent first)
+    return filtered.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA; // Descending order
+    });
   }, [searchTerm, companies]);
 
   return (
