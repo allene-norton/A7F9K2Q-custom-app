@@ -277,7 +277,7 @@ export function getMockAssessmentForCompany(companyId: string, companyName: stri
     customer_id: companyId,
     customer_name: companyName,
     assessment_date: new Date().toISOString().split('T')[0],
-    technician: "Billy Johnson",
+    technician: "Sample Tech",
     items: sampleMockItems,
     status: "draft",
     created_at: new Date().toISOString()
