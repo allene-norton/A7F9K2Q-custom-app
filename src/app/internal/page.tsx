@@ -16,13 +16,10 @@ interface InternalPageProps {
 }
 
 export default function InternalPage({ searchParams }: InternalPageProps) {
-  // const searchParams = useSearchParams();
-  // console.log(searchParams.get('token'))
-  // const token = searchParams.get('token');
-  console.log("running")
-  console.log(searchParams)
+  // console.log("running")
+  // console.log(searchParams)
     const token = typeof searchParams.token === 'string' ? searchParams.token : null;
-    console.log(token)
+    // console.log(token)
 
 
 

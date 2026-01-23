@@ -89,9 +89,9 @@ export default function CustomerSelect({ companies, loading, onSelect }: Custome
                     {/* Icon or Company Image */}
                     <div
                       className="p-4 rounded-lg group-hover:bg-[#174887] transition-colors"
-                      style={{ backgroundColor: company.fallbackColor || '#EFF6FF' }}
+                      style={{ backgroundColor: '#EFF6FF' }}
                     >
-                      {company.iconImageUrl ? (
+                      {company.iconImageUrl && !company.iconImageUrl.includes("clearbit") ? (
                         <img
                           src={company.iconImageUrl}
                           alt={company.name || ''}

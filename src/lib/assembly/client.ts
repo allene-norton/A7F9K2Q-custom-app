@@ -267,7 +267,7 @@ function createSDK(token: string) {
 export async function listClients(
   token?: string,
 ): Promise<ListClientsResponse> {
-    console.log(`-----------APP KEY`, process.env.COPILOT_API_KEY)
+    // console.log(`-----------APP KEY`, process.env.COPILOT_API_KEY)
 
   try {
     if (isDev) {
@@ -314,7 +314,7 @@ export async function listClients(
 export async function listCompanies(
   token?: string,
 ): Promise<ListCompaniesResponse> {
-    console.log(`-----------APP KEY`, process.env.COPILOT_API_KEY)
+    // console.log(`-----------APP KEY`, process.env.COPILOT_API_KEY)
 
   try {
     if (isDev) {
@@ -342,10 +342,10 @@ export async function listCompanies(
       if (!token) {
         throw new Error('Token is required in production');
       }
-      console.log(token)
+      // console.log(token)
 
       const sdk = createSDK(token);
-      const companies = await sdk.listCompanies({ limit: 10, isPlaceholder: false});
+      const companies = await sdk.listCompanies({ limit: 50, isPlaceholder: false});
       revalidatePath('/internal');
       return companies as ListCompaniesResponse;
     }
