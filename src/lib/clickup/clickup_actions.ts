@@ -42,6 +42,7 @@ export interface ClickUpTask {
   } | null;
   tags: Array<{ name: string }>;
   assignees: Array<{ username: string }>;
+  creator?: { username: string };
   date_created: string;
   list: {
     id: string;
@@ -51,10 +52,21 @@ export interface ClickUpTask {
     id: string;
     name: string;
   };
+  parent?: string | null;
+  subtasks?: ClickUpTask[];
   attachments?: Array<{
     id: string;
     url: string;
     thumbnail_large?: string;
+    mimetype?: string;
+  }>;
+  custom_fields?: Array<{
+    id: string;
+    name: string;
+    value?: string | number;
+    type_config?: {
+      options?: Array<{ id: string; name: string; color: string }>;
+    };
   }>;
 }
 
