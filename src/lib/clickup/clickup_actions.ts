@@ -106,12 +106,25 @@ export async function getFolderLists(folderId: string): Promise<ClickUpList[]> {
   return data.lists;
 }
 
-// Get tasks from a specific list
-export async function getListTasks(listId: string): Promise<ClickUpTask[]> {
+// Get tasks from a specific list (includes subtasks in response)
+export async function getListTasks(listId: string, includeSubtasks = true): Promise<ClickUpTask[]> {
   const data = await clickupFetch<{ tasks: ClickUpTask[] }>(
-    `/list/${listId}/task?include_closed=false&subtasks=true`
+    `/list/${listId}/task?include_closed=false&subtasks=${includeSubtasks}`
   );
   return data.tasks;
+}
+
+// Get a single task with full details
+export async function getTask(taskId: string): Promise<ClickUpTask> {
+  return clickupFetch<ClickUpTask>(
+    `/task/${taskId}?include_subtasks=true`
+  );
+}
+
+// Check if a task is an assessment task based on name
+function isAssessmentTask(taskName: string): boolean {
+  const name = taskName.toLowerCase();
+  return name.includes('assessment') || name.includes('on site');
 }
 
 // Get all tasks for a folder (customer) across all lists
@@ -125,6 +138,38 @@ export async function getFolderTasks(folderId: string): Promise<ClickUpTask[]> {
   }
 
   return allTasks;
+}
+
+// Get assessment tasks for a folder (tasks containing "assessment" or "on site" in name)
+export async function getAssessmentTasks(folderId: string): Promise<ClickUpTask[]> {
+  const allTasks = await getFolderTasks(folderId);
+
+  // Filter for assessment tasks only (not subtasks, and name matches)
+  const assessmentTasks = allTasks.filter(task =>
+    !task.parent && isAssessmentTask(task.name)
+  );
+
+  // Sort by date_created descending (most recent first)
+  assessmentTasks.sort((a, b) =>
+    parseInt(b.date_created) - parseInt(a.date_created)
+  );
+
+  return assessmentTasks;
+}
+
+// Get full assessment task with subtasks
+export async function getAssessmentWithSubtasks(taskId: string): Promise<ClickUpTask> {
+  const task = await getTask(taskId);
+
+  // If subtasks exist but don't have full details, fetch each one
+  if (task.subtasks && task.subtasks.length > 0) {
+    const fullSubtasks = await Promise.all(
+      task.subtasks.map(subtask => getTask(subtask.id))
+    );
+    task.subtasks = fullSubtasks;
+  }
+
+  return task;
 }
 
 // Normalize string for fuzzy matching (remove punctuation, lowercase)
