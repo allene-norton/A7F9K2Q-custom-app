@@ -39,7 +39,7 @@ export interface ClickUpTask {
   priority?: {
     id: string;
     priority: string;
-  } | null;
+  } | null ;
   tags: Array<{ name: string }>;
   assignees: Array<{ username: string }>;
   creator?: { username: string };
@@ -122,9 +122,12 @@ export async function getTask(taskId: string): Promise<ClickUpTask> {
 }
 
 // Check if a task is an assessment task based on name
+// Flexible pattern matching for Kasey's naming variations
 function isAssessmentTask(taskName: string): boolean {
   const name = taskName.toLowerCase();
-  return name.includes('assessment') || name.includes('on site');
+  return name.includes('assessment') ||
+         name.includes('on site') ||
+         name.includes('on-site');
 }
 
 // Get all tasks for a folder (customer) across all lists
@@ -212,11 +215,41 @@ export async function findMatchingFolder(companyName: string): Promise<ClickUpFo
   return match || null;
 }
 
-// Map ClickUp priority to AssessmentItem category
-function mapPriorityToCategory(priority: ClickUpTask['priority']): AssessmentItem['category'] {
-  if (!priority) return 'No Issue';
+// Extract category from ClickUp custom field or fall back to priority
+function extractCategory(task: ClickUpTask): AssessmentItem['category'] {
+  // First try to get from custom field named "Category"
+  const categoryField = task.custom_fields?.find(
+    field => field.name.toLowerCase() === 'category'
+  );
 
-  switch (priority.priority.toLowerCase()) {
+  if (categoryField?.value) {
+    const categoryValue = String(categoryField.value).toLowerCase();
+
+    // Check if it's a dropdown field with options
+    if (categoryField.type_config?.options) {
+      const option = categoryField.type_config.options.find(
+        opt => opt.id === categoryField.value
+      );
+      if (option) {
+        const normalizedName = option.name.toLowerCase();
+        if (normalizedName.includes('urgent')) return 'Urgent';
+        if (normalizedName.includes('recommended')) return 'Recommended';
+        if (normalizedName.includes('cosmetic')) return 'Cosmetic';
+        if (normalizedName.includes('included maintenance')) return 'Included Maintenance';
+      }
+    }
+
+    // Direct string value matching
+    if (categoryValue.includes('urgent')) return 'Urgent';
+    if (categoryValue.includes('recommended')) return 'Recommended';
+    if (categoryValue.includes('cosmetic')) return 'Cosmetic';
+    if (categoryValue.includes('included maintenance')) return 'Included Maintenance';
+  }
+
+  // Fall back to priority if no custom field
+  if (!task.priority) return 'No Issue';
+
+  switch (task.priority.priority.toLowerCase()) {
     case 'urgent':
       return 'Urgent';
     case 'high':
@@ -235,7 +268,7 @@ function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
     id: task.id,
     clickup_task_id: task.id,
     location: task.list.name,
-    category: mapPriorityToCategory(task.priority),
+    category: extractCategory(task),
     issue: task.name,
     recommendation: task.text_content || task.description || '',
     images: (task.attachments || [])
@@ -271,18 +304,42 @@ export async function getAssessmentForCompany(
     };
   }
 
-  const tasks = await getFolderTasks(folder.id);
-  const items = tasks.map(transformTaskToAssessmentItem);
+  // Get assessment tasks (parent tasks with "assessment" in name)
+  const assessmentTasks = await getAssessmentTasks(folder.id);
+  
+  if (assessmentTasks.length === 0) {
+    // No assessments found for this company
+    return {
+      id: `assess_${companyId}`,
+      customer_id: companyId,
+      customer_name: companyName,
+      assessment_date: new Date().toISOString().split('T')[0],
+      technician: 'N/A',
+      items: [],
+      status: 'draft',
+      created_at: new Date().toISOString(),
+    };
+  }
+
+  // Get the most recent assessment with all subtasks
+  const mostRecentAssessment = assessmentTasks[0]; // Already sorted by date (most recent first)
+  const assessmentWithSubtasks = await getAssessmentWithSubtasks(mostRecentAssessment.id);
+  
+  // Transform subtasks to assessment items
+  const allItems = (assessmentWithSubtasks.subtasks || []).map(transformTaskToAssessmentItem);
+  
+  // Filter out "Included Maintenance" items (already completed on-site)
+  const customerItems = allItems.filter(item => item.category !== 'Included Maintenance');
 
   return {
     id: `assess_${companyId}`,
     customer_id: companyId,
     customer_name: companyName,
-    assessment_date: new Date().toISOString().split('T')[0],
-    technician: items[0]?.technician || 'N/A',
-    items,
+    assessment_date: new Date(parseInt(mostRecentAssessment.date_created)).toISOString().split('T')[0],
+    technician: mostRecentAssessment.assignees?.[0]?.username || mostRecentAssessment.creator?.username || 'N/A',
+    items: customerItems,
     status: 'draft',
-    created_at: new Date().toISOString(),
+    created_at: mostRecentAssessment.date_created,
   };
 }
 
