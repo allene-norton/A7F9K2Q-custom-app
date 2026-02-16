@@ -36,7 +36,7 @@ export interface Assessment {
   assessment_date: string | undefined;
   description: string; 
   location: string;
-  technician: string;
+  technician: string | null;
   items: AssessmentItem[];
   status: string;
   created_at: string;

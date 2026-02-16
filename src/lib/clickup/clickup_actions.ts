@@ -304,7 +304,7 @@ function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
     created_date: new Date(parseInt(task.date_created))
       .toISOString()
       .split('T')[0],
-    technician: task.assignees[0]?.username || 'Unassigned',
+    technician: task.assignees[0]?.username || "",
   };
 }
 
