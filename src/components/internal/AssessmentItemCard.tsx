@@ -1,7 +1,7 @@
 // src/components/internal/AssessmentItemCard.tsx
 
 import { AssessmentItem } from "@/types/types-index";
-import { getCategoryColor, formatCostRange } from "@/lib/utils";
+import { getCategoryColor, formatCostRange, getPriorityColor } from "@/lib/utils";
 
 interface AssessmentItemCardProps {
   item: AssessmentItem;
@@ -47,7 +47,24 @@ export default function AssessmentItemCard({ item, index }: AssessmentItemCardPr
                 >
                   {item.category}
                 </span>
+                {item.priority? 
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-semibold border ${getPriorityColor(
+                    item.priority
+                  )}`}
+                >
+                  {item.priority?.toUpperCase()}
+                </span> : null }
+                {item.status? 
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-semibold border ${getPriorityColor(
+                    item.status
+                  )}`}
+                >
+                  {item.status?.toUpperCase()}
+                </span> : null }
                 <span className="text-sm text-gray-600 font-medium">{item.location}</span>
+                
               </div>
               <h4 className="text-lg font-bold text-gray-900 mb-2">{item.issue}</h4>
             </div>
