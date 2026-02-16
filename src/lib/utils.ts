@@ -1,7 +1,7 @@
 // src/lib/utils.ts
 
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 /**
  * Merge Tailwind classes with proper precedence
@@ -18,7 +18,7 @@ export function formatDate(date: Date | string): string {
   return d.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
   });
 }
 
@@ -30,7 +30,7 @@ export function formatCurrency(amount: number): string {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0
+    maximumFractionDigits: 0,
   }).format(amount);
 }
 
@@ -47,13 +47,15 @@ export function formatCostRange(min: number, max: number): string {
 export function getCategoryColor(category: string): string {
   switch (category) {
     case 'Urgent':
-      return 'bg-red-100 text-red-800 border-red-200';
+      return 'text-white border-[#FF4081]' + ' ' + 'bg-[#FF4081]';
     case 'Recommended':
-      return 'bg-blue-100 text-blue-800 border-blue-200';
+      return 'text-black border-[#ffc53d]' + ' ' + 'bg-[#ffc53d]';
     case 'Cosmetic':
-      return 'bg-gray-100 text-gray-800 border-gray-200';
+      return 'text-white border-[#6647f0]' + ' ' + 'bg-[#6647f0]';
+    case 'Included Maintenance':
+      return 'text-white border-[#3e63dd]' + ' ' + 'bg-[#3e63dd]';
     case 'No Issue':
-      return 'bg-green-100 text-green-800 border-green-200';
+      return 'text-white border-[#30a46c]' + ' ' + 'bg-[#30a46c]';
     default:
       return 'bg-gray-100 text-gray-800 border-gray-200';
   }
@@ -88,30 +90,40 @@ export function truncate(text: string, length: number): string {
 /**
  * Group items by category
  */
-export function groupByCategory<T extends { category: string }>(items: T[]): Record<string, T[]> {
-  return items.reduce((acc, item) => {
-    const category = item.category;
-    if (!acc[category]) {
-      acc[category] = [];
-    }
-    acc[category].push(item);
-    return acc;
-  }, {} as Record<string, T[]>);
+export function groupByCategory<T extends { category: string }>(
+  items: T[],
+): Record<string, T[]> {
+  return items.reduce(
+    (acc, item) => {
+      const category = item.category;
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(item);
+      return acc;
+    },
+    {} as Record<string, T[]>,
+  );
 }
 
 /**
- * Sort items by priority (Urgent > Recommended > Cosmetic > No Issue)
+ * Sort items by priority (Urgent > Recommended > Cosmetic > Included Maintenance > No Issue)
  */
-export function sortByPriority<T extends { category: string }>(items: T[]): T[] {
+export function sortByPriority<T extends { category: string }>(
+  items: T[],
+): T[] {
   const priorityOrder: Record<string, number> = {
-    'Urgent': 1,
-    'Recommended': 2,
-    'Cosmetic': 3,
-    'No Issue': 4
+    Urgent: 1,
+    Recommended: 2,
+    Cosmetic: 3,
+    'Included Maintenance': 4,
+    'No Issue': 5,
   };
-  
+
   return [...items].sort((a, b) => {
-    return (priorityOrder[a.category] || 99) - (priorityOrder[b.category] || 99);
+    return (
+      (priorityOrder[a.category] || 99) - (priorityOrder[b.category] || 99)
+    );
   });
 }
 
@@ -120,10 +132,10 @@ export function sortByPriority<T extends { category: string }>(items: T[]): T[] 
  */
 export function debounce<T extends (...args: any[]) => any>(
   func: T,
-  wait: number
+  wait: number,
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout | null = null;
-  
+
   return (...args: Parameters<T>) => {
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);

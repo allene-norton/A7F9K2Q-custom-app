@@ -65,7 +65,7 @@ export interface ClickUpTask {
     name: string;
     value?: string | number;
     type_config?: {
-      options?: Array<{ id: string; name: string; color: string }>;
+      options?: Array<{ id: string; name: string; color: string; orderindex: number }>;
     };
   }>;
 }
@@ -235,17 +235,19 @@ export async function findMatchingFolder(
 // Extract category from ClickUp custom field or fall back to priority
 function extractCategory(task: ClickUpTask): AssessmentItem['category'] {
   // First try to get from custom field named "Category"
-  const categoryField = task.custom_fields?.find(
-    (field) => field.name.toLowerCase() === 'category',
-  );
+  const categoryField = task.custom_fields?.filter(
+    (field) => field.id === '3188285b-248d-4f23-b84d-58baddbaba0b',
+  )[0];
+
+  console.log(`CAT FIELD:`, categoryField)
 
   if (categoryField?.value) {
-    const categoryValue = String(categoryField.value).toLowerCase();
+    const categoryValue = categoryField.value
 
     // Check if it's a dropdown field with options
     if (categoryField.type_config?.options) {
       const option = categoryField.type_config.options.find(
-        (opt) => opt.id === categoryField.value,
+        (opt) => opt.orderindex === categoryField.value,
       );
       if (option) {
         const normalizedName = option.name.toLowerCase();
@@ -258,11 +260,11 @@ function extractCategory(task: ClickUpTask): AssessmentItem['category'] {
     }
 
     // Direct string value matching
-    if (categoryValue.includes('urgent')) return 'Urgent';
-    if (categoryValue.includes('recommended')) return 'Recommended';
-    if (categoryValue.includes('cosmetic')) return 'Cosmetic';
-    if (categoryValue.includes('included maintenance'))
-      return 'Included Maintenance';
+    // if (categoryValue.includes('urgent')) return 'Urgent';
+    // if (categoryValue.includes('recommended')) return 'Recommended';
+    // if (categoryValue.includes('cosmetic')) return 'Cosmetic';
+    // if (categoryValue.includes('included maintenance'))
+    //   return 'Included Maintenance';
   }
 
   // Fall back to priority if no custom field
