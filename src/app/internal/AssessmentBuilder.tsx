@@ -128,9 +128,9 @@ export default function AssessmentBuilder({ company, assessment, onBack }: Asses
           <div className="flex flex-wrap items-center gap-4">
             {/* Search */}
             <div className="flex-1 min-w-[200px]">
-              <div className="relative">
+              <div className="relative flex items-center">
                 <svg
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+                  className="absolute left-3 w-4 h-4 text-gray-400 pointer-events-none"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"

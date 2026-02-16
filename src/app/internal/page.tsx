@@ -4,11 +4,9 @@
 // This is your main internal team page
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
 import { Assessment } from "@/types/types-index";
 import { getMockAssessmentForCompany } from "@/lib/mockData";
 import CustomerSelect from "@/components/internal/CustomerSelect";
-import AssessmentItemCard from "@/components/internal/AssessmentItemCard";
 import { listCompanies, Company } from "@/lib/assembly/client";
 import AssessmentBuilder from "@/app/internal/AssessmentBuilder";
 
