@@ -14,19 +14,21 @@ interface AssessmentBuilderProps {
 type CategoryFilter = "All" | AssessmentItem["category"];
 type SortOption = "default" | "urgency-high" | "urgency-low";
 
-const CATEGORIES: AssessmentItem["category"][] = ["Urgent", "Recommended", "Cosmetic", "No Issue"];
+const CATEGORIES: AssessmentItem["category"][] = ["Urgent", "Recommended", "Cosmetic", "Included Maintenance", "No Issue"];
 
 const URGENCY_ORDER: Record<AssessmentItem["category"], number> = {
   "Urgent": 0,
   "Recommended": 1,
   "Cosmetic": 2,
-  "No Issue": 3,
+  "Included Maintenance": 3,
+  "No Issue": 4,
 };
 
 export default function AssessmentBuilder({ company, assessment, onBack }: AssessmentBuilderProps) {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
   const [sortOption, setSortOption] = useState<SortOption>("default");
   const [searchQuery, setSearchQuery] = useState("");
+
 
   const filteredAndSortedItems = useMemo(() => {
     let items = [...assessment.items];

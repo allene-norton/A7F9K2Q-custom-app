@@ -24,6 +24,8 @@ export interface AssessmentItem {
   comments: string;
   created_date: string;
   technician: string;
+  // Store full ClickUp task data for access to all properties
+  raw_clickup_data?: any;
 }
 
 export interface Assessment {
