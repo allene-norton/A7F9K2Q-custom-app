@@ -30,7 +30,8 @@ export interface Assessment {
   id: string;
   customer_id: string;
   customer_name: string;
-  assessment_name: string; 
+  assessment_name: string;
+  assessment_date: string | undefined;
   description: string; 
   location: string;
   technician: string;

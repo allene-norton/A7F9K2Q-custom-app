@@ -301,8 +301,6 @@ function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
       .toISOString()
       .split('T')[0],
     technician: task.assignees[0]?.username || 'Unassigned',
-    // Store full ClickUp task data for access to ALL properties
-    raw_clickup_data: task,
   };
 }
 
@@ -400,7 +398,6 @@ export async function getAssessmentForCompany(
     items: customerItems,
     status: 'draft',
     created_at: mostRecentAssessment.date_created,
-    raw_clickup_data: assessmentWithSubtasks,
   };
 }
 
