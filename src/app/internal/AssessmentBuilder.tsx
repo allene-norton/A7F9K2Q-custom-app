@@ -94,7 +94,7 @@ export default function AssessmentBuilder({ company, assessment, onBack }: Asses
                 Assessment Date: {assessment.assessment_date}
               </p>
               <p className="text-sm text-gray-500 mt-1">
-                Mock data • {assessment.items.length} items found
+                {assessment.items.length} assessment items found
               </p>
             </div>
             <div className="flex gap-3">

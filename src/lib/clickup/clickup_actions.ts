@@ -280,6 +280,8 @@ function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
     comments: '',
     created_date: new Date(parseInt(task.date_created)).toISOString().split('T')[0],
     technician: task.assignees[0]?.username || 'Unassigned',
+    // Store full ClickUp task data for access to ALL properties
+    raw_clickup_data: task,
   };
 }
 
@@ -306,6 +308,16 @@ export async function getAssessmentForCompany(
 
   // Get assessment tasks (parent tasks with "assessment" in name)
   const assessmentTasks = await getAssessmentTasks(folder.id);
+
+  console.log(`Found ${assessmentTasks.length} assessment tasks for ${companyName}`);
+  if (assessmentTasks.length > 0) {
+    console.log('Most recent assessment:', {
+      id: assessmentTasks[0].id,
+      name: assessmentTasks[0].name,
+      date_created: assessmentTasks[0].date_created,
+      converted_date: new Date(parseInt(assessmentTasks[0].date_created)).toISOString().split('T')[0]
+    });
+  }
   
   if (assessmentTasks.length === 0) {
     // No assessments found for this company
