@@ -41,6 +41,23 @@ export function formatCostRange(min: number, max: number): string {
   return `${formatCurrency(min)}-${formatCurrency(max)}`;
 }
 
+export function getPriorityColor(priority: string | null): string {
+  if (!priority) return 'bg-gray-100 text-gray-700 border-gray-300';
+
+  switch (priority.toLowerCase()) {
+    case 'urgent':
+      return 'text-red-800 border-red-300';
+    case 'high':
+      return 'text-orange-800 border-orange-300';
+    case 'normal':
+      return 'text-blue-800 border-blue-300';
+    case 'low':
+      return 'text-green-800 border-green-300';
+    default:
+      return 'text-gray-700 border-gray-300';
+  }
+}
+
 /**
  * Get category color classes for badges
  */

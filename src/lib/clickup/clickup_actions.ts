@@ -290,7 +290,9 @@ function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
     clickup_task_id: task.id,
     location: task.list.name,
     category: extractCategory(task),
+    priority: task.priority?.priority.toLowerCase() as AssessmentItem['priority'] || null,
     issue: task.name,
+    status: task.status.status,
     recommendation: task.text_content || task.description || '',
     images: (task.attachments || [])
       .filter((a) => a.url)
@@ -302,7 +304,7 @@ function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
     created_date: new Date(parseInt(task.date_created))
       .toISOString()
       .split('T')[0],
-    technician: task.assignees[0]?.username || 'Unassigned',
+    technician: task.assignees[0]?.username || "",
   };
 }
 

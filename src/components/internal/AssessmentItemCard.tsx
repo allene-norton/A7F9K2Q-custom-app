@@ -1,7 +1,7 @@
 // src/components/internal/AssessmentItemCard.tsx
 
 import { AssessmentItem } from "@/types/types-index";
-import { getCategoryColor, formatCostRange } from "@/lib/utils";
+import { getCategoryColor, formatCostRange, getPriorityColor } from "@/lib/utils";
 
 interface AssessmentItemCardProps {
   item: AssessmentItem;
@@ -32,7 +32,7 @@ export default function AssessmentItemCard({ item, index }: AssessmentItemCardPr
         )}
 
         {/* Content */}
-        <div className="flex-1">
+        <div className="flex-1 relative">
           {/* Header */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
@@ -40,23 +40,38 @@ export default function AssessmentItemCard({ item, index }: AssessmentItemCardPr
                 <span className="text-sm font-semibold text-gray-500">
                   #{index + 1}
                 </span>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-semibold border ${getCategoryColor(
-                    item.category
-                  )}`}
-                >
-                  {item.category}
-                </span>
                 <span className="text-sm text-gray-600 font-medium">{item.location}</span>
               </div>
+              
               <h4 className="text-lg font-bold text-gray-900 mb-2">{item.issue}</h4>
+              
+              {/* Priority Badge under item name */}
+              {item.priority && (
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+                    Priority:
+                  </span>
+                  <span
+                    className={`px-3 py-1 text-sm font-semibold ${getPriorityColor(
+                      item.priority
+                    )}`}
+                  >
+                    {item.priority?.toLocaleUpperCase()}
+                  </span>
+                </div>
+              )}
             </div>
-          </div>
-
-          {/* Recommendation */}
-          <div className="mb-4">
-            <p className="text-sm font-semibold text-gray-700 mb-1">Recommendation:</p>
-            <p className="text-gray-700 leading-relaxed">{item.recommendation}</p>
+            
+            {/* Category Badge - Top Right */}
+            <div className="flex items-center gap-2 ml-4">
+              <span
+                className={`px-4 py-2 rounded-lg text-sm font-bold border-2 ${getCategoryColor(
+                  item.category
+                )}`}
+              >
+                {item.category}
+              </span>
+            </div>
           </div>
 
           {/* Cost and Meta */}
@@ -66,8 +81,26 @@ export default function AssessmentItemCard({ item, index }: AssessmentItemCardPr
                 Estimated Cost: {formatCostRange(item.estimated_cost_min, item.estimated_cost_max)}
               </span>
             </div>
-            <div className="text-xs text-gray-500">
-              <span>From ClickUp • {item.technician}</span>
+            <div className="flex items-center gap-3">
+              <div className="text-xs text-gray-500">
+                {item.technician ! == "" ? <span> Technician • {item.technician}</span> : null}
+              </div>
+              
+              {/* Status Badge - Lower Right */}
+              {item.status && (
+                <div className="flex items-center gap-1">
+                  <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+                    Status:
+                  </span>
+                  <span
+                    className={`px-2 py-1 rounded-md text-xs font-semibold tracking-wide uppercase ${getPriorityColor(
+                      item.status
+                    )}`}
+                  >
+                    {item.status}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

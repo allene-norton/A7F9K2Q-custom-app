@@ -15,6 +15,8 @@ export interface AssessmentItem {
   clickup_task_id: string;
   location: string;
   category: "Urgent" | "Recommended" | "Cosmetic" | "Included Maintenance" | "No Issue";
+  priority: "Urgent" | "High" | "Normal" | "Low" | null;
+  status: string | null;
   issue: string;
   recommendation: string;
   images: string[];
@@ -34,9 +36,9 @@ export interface Assessment {
   assessment_date: string | undefined;
   description: string; 
   location: string;
-  technician: string;
+  technician: string | null;
   items: AssessmentItem[];
-  status: "draft" | "sent" | "approved";
+  status: string;
   created_at: string;
 }
 
