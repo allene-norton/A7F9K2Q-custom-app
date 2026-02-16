@@ -8,7 +8,10 @@ interface AssessmentItemCardProps {
   index: number;
 }
 
+
 export default function AssessmentItemCard({ item, index }: AssessmentItemCardProps) {
+  console.log(item)
+
   return (
     <div className="bg-white border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
       <div className="flex gap-6">
