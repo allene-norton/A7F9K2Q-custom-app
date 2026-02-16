@@ -90,9 +90,13 @@ export default function AssessmentBuilder({ company, assessment, onBack }: Asses
               <h2 className="text-3xl font-bold mb-2" style={{ color: '#174887' }}>
                 {company.name}
               </h2>
+              <h3 className="text-xl font-bold text-gray-600">
+                {assessment.assessment_name}
+              </h3>
               <p className="text-gray-600">
-                Assessment Date: {assessment.assessment_date}
+                Date: {assessment.assessment_date}
               </p>
+              
               <p className="text-sm text-gray-500 mt-1">
                 {assessment.items.length} assessment items found
               </p>

@@ -32,11 +32,16 @@ export interface Assessment {
   id: string;
   customer_id: string;
   customer_name: string;
+  assessment_name: string; // Name of the assessment task (e.g., "On Site Assessment - July")
   assessment_date: string;
+  description: string; // Description/notes from the parent assessment task
+  location: string; // Which list/location (e.g., "Marengo", "General / Multi Unit")
   technician: string;
   items: AssessmentItem[];
   status: "draft" | "sent" | "approved";
   created_at: string;
+  // Store full parent assessment task data
+  raw_clickup_data?: any;
 }
 
 export interface WorkOrder {
