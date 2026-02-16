@@ -375,11 +375,6 @@ export async function getAssessmentForCompany(
     transformTaskToAssessmentItem,
   );
 
-  // Filter out "Included Maintenance" items (already completed on-site)
-  const customerItems = allItems.filter(
-    (item) => item.category !== 'Included Maintenance',
-  );
-
   return {
     id: `assess_${companyId}`,
     customer_id: companyId,
@@ -397,7 +392,7 @@ export async function getAssessmentForCompany(
       mostRecentAssessment.assignees?.[0]?.username ||
       mostRecentAssessment.creator?.username ||
       'N/A',
-    items: customerItems,
+    items: allItems,
     status: 'draft',
     created_at: mostRecentAssessment.date_created,
   };
