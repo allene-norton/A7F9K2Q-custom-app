@@ -76,11 +76,11 @@ export default function AssessmentItemCard({ item, index }: AssessmentItemCardPr
 
           {/* Cost and Meta */}
           <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-            <div>
+            {/* <div>
               <span className="text-sm font-semibold text-gray-900">
                 Estimated Cost: {formatCostRange(item.estimated_cost_min, item.estimated_cost_max)}
               </span>
-            </div>
+            </div> */}
             <div className="flex items-center gap-3">
               <div className="text-xs text-gray-500">
                 {item.technician ! == "" ? <span> Technician • {item.technician}</span> : null}

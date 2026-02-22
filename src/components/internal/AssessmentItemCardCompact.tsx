@@ -48,9 +48,9 @@ export default function AssessmentItemCompact({ item, index, onExpand }: Assessm
 
         {/* Cost & Arrow */}
         <div className="flex-shrink-0 text-right">
-          <div className="text-sm font-semibold text-gray-900 mb-1">
+          {/* <div className="text-sm font-semibold text-gray-900 mb-1">
             {formatCostRange(item.estimated_cost_min, item.estimated_cost_max)}
-          </div>
+          </div> */}
           <div className="text-xs text-gray-500">{item.technician}</div>
           <div className="text-gray-400 mt-1">→</div>
         </div>

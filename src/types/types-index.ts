@@ -20,8 +20,8 @@ export interface AssessmentItem {
   issue: string;
   recommendation: string;
   images: string[];
-  estimated_cost_min: number;
-  estimated_cost_max: number;
+  estimated_cost_min: number; // remove
+  estimated_cost_max: number; // remove
   tags: string[];
   comments: string;
   created_date: string;
