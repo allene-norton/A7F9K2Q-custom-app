@@ -1,16 +1,22 @@
 // src/components/internal/AssessmentItemCard.tsx
 
-import { AssessmentItem } from "@/types/types-index";
-import { getCategoryColor, formatCostRange, getPriorityColor } from "@/lib/utils";
+import { AssessmentItem } from '@/types/types-index';
+import {
+  getCategoryColor,
+  formatCostRange,
+  getPriorityColor,
+} from '@/lib/utils';
 
 interface AssessmentItemCardProps {
   item: AssessmentItem;
   index: number;
 }
 
-
-export default function AssessmentItemCard({ item, index }: AssessmentItemCardProps) {
-  console.log(item)
+export default function AssessmentItemCard({
+  item,
+  index,
+}: AssessmentItemCardProps) {
+  console.log(item);
 
   return (
     <div className="bg-white border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
@@ -40,11 +46,22 @@ export default function AssessmentItemCard({ item, index }: AssessmentItemCardPr
                 <span className="text-sm font-semibold text-gray-500">
                   #{index + 1}
                 </span>
-                <span className="text-sm text-gray-600 font-medium">{item.location}</span>
+                <span className="text-sm text-gray-600 font-medium">
+                  {item.location}
+                </span>
               </div>
-              
-              <h4 className="text-lg font-bold text-gray-900 mb-2">{item.issue}</h4>
-              
+
+              <h4 className="text-lg font-bold text-gray-900 mb-2">
+                {item.issue}
+              </h4>
+
+              {/* Description from ClickUp task */}
+              {item.description && (
+                <p className="text-sm text-gray-700 mb-3 leading-relaxed">
+                  {item.description}
+                </p>
+              )}
+
               {/* Priority Badge under item name */}
               {item.priority && (
                 <div className="flex items-center gap-2 mb-2">
@@ -53,7 +70,7 @@ export default function AssessmentItemCard({ item, index }: AssessmentItemCardPr
                   </span>
                   <span
                     className={`px-3 py-1 text-sm font-semibold ${getPriorityColor(
-                      item.priority
+                      item.priority,
                     )}`}
                   >
                     {item.priority?.toLocaleUpperCase()}
@@ -61,12 +78,12 @@ export default function AssessmentItemCard({ item, index }: AssessmentItemCardPr
                 </div>
               )}
             </div>
-            
+
             {/* Category Badge - Top Right */}
             <div className="flex items-center gap-2 ml-4">
               <span
                 className={`px-4 py-2 rounded-lg text-sm font-bold border-2 ${getCategoryColor(
-                  item.category
+                  item.category,
                 )}`}
               >
                 {item.category}
@@ -83,9 +100,11 @@ export default function AssessmentItemCard({ item, index }: AssessmentItemCardPr
             </div> */}
             <div className="flex items-center gap-3">
               <div className="text-xs text-gray-500">
-                {item.technician ! == "" ? <span> Technician • {item.technician}</span> : null}
+                {item.technician! == '' ? (
+                  <span> Technician • {item.technician}</span>
+                ) : null}
               </div>
-              
+
               {/* Status Badge - Lower Right */}
               {item.status && (
                 <div className="flex items-center gap-1">
@@ -94,7 +113,7 @@ export default function AssessmentItemCard({ item, index }: AssessmentItemCardPr
                   </span>
                   <span
                     className={`px-2 py-1 rounded-md text-xs font-semibold tracking-wide uppercase ${getPriorityColor(
-                      item.status
+                      item.status,
                     )}`}
                   >
                     {item.status}
@@ -121,7 +140,9 @@ export default function AssessmentItemCard({ item, index }: AssessmentItemCardPr
           {/* Comments */}
           {item.comments && (
             <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-              <p className="text-xs font-semibold text-blue-900 mb-1">Technician Notes:</p>
+              <p className="text-xs font-semibold text-blue-900 mb-1">
+                Technician Notes:
+              </p>
               <p className="text-sm text-blue-800">{item.comments}</p>
             </div>
           )}
