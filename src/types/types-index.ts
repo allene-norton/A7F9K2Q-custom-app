@@ -18,10 +18,11 @@ export interface AssessmentItem {
   priority: "Urgent" | "High" | "Normal" | "Low" | null;
   status: string | null;
   issue: string;
+  description: string | undefined;
   recommendation: string;
   images: string[];
-  estimated_cost_min: number;
-  estimated_cost_max: number;
+  estimated_cost_min: number; // remove
+  estimated_cost_max: number; // remove
   tags: string[];
   comments: string;
   created_date: string;

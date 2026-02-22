@@ -294,11 +294,12 @@ function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
     issue: task.name,
     status: task.status.status,
     recommendation: task.text_content || task.description || '',
+    description: task.description || '',
     images: (task.attachments || [])
       .filter((a) => a.url)
       .map((a) => a.thumbnail_large || a.url),
     estimated_cost_min: 0, // Not available without custom fields
-    estimated_cost_max: 0,
+    estimated_cost_max: 0, // remove
     tags: task.tags.map((t) => t.name),
     comments: '',
     created_date: new Date(parseInt(task.date_created))
