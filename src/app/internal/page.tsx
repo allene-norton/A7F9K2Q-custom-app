@@ -1,11 +1,16 @@
 "use client";
 
 // src/app/internal/page.tsx
-// This is your main internal team page
 
 import { useState, useEffect } from "react";
-import { Assessment } from "@/types/types-index";
-import { getAssessmentForCompany } from "@/lib/clickup/clickup_actions";
+import { Assessment, AssessmentParent } from "@/types/types-index";
+import {
+  getCommercialAssessmentLocations,
+  buildCommercialAssessment,
+  getHourlyFolders,
+  getHourlyAssessmentForFolder,
+  ClickUpFolder,
+} from "@/lib/clickup/clickup_actions";
 import CustomerSelect from "@/components/internal/CustomerSelect";
 import { listCompanies, Company } from "@/lib/assembly/client";
 import AssessmentBuilder from "@/app/internal/AssessmentBuilder";
@@ -14,23 +19,41 @@ interface InternalPageProps {
   searchParams: { token?: string };
 }
 
+type ActiveTab = "commercial" | "hourly";
+
 export default function InternalPage({ searchParams }: InternalPageProps) {
-  // console.log("running")
-  // console.log(searchParams)
-    const token = typeof searchParams.token === 'string' ? searchParams.token : null;
-    // console.log(token)
+  const token =
+    typeof searchParams.token === "string" ? searchParams.token : null;
 
+  const [activeTab, setActiveTab] = useState<ActiveTab>("commercial");
 
-
+  // Commercial state
   const [companies, setCompanies] = useState<Company[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(true);
+
+  // Hourly state
+  const [hourlyFolders, setHourlyFolders] = useState<ClickUpFolder[]>([]);
+  const [hourlyLoading, setHourlyLoading] = useState(false);
+  const [hourlyLoaded, setHourlyLoaded] = useState(false);
+
+  // Shared selection state
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [selectedHourlyFolder, setSelectedHourlyFolder] =
+    useState<ClickUpFolder | null>(null);
+
+  // Location selector state (commercial multi-location)
+  const [assessmentLocations, setAssessmentLocations] = useState<
+    AssessmentParent[] | null
+  >(null);
+  const [locationsLoading, setLocationsLoading] = useState(false);
+
+  // Assessment state
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [assessmentLoading, setAssessmentLoading] = useState(false);
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
 
+  // Fetch Assembly companies on mount
   useEffect(() => {
-    // Don't fetch until we have a token
     if (!token) {
       setCompaniesLoading(false);
       return;
@@ -39,101 +62,294 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
       try {
         setCompaniesLoading(true);
         const response = await listCompanies(token);
-
-        if (!response.data) {
-          throw new Error('No company data returned from server');
-        }
-
+        if (!response.data) throw new Error("No company data returned");
         setCompanies(response.data);
       } catch (error) {
-        console.error('Failed to fetch companies:', error);
+        console.error("Failed to fetch companies:", error);
       } finally {
         setCompaniesLoading(false);
       }
     };
-
     fetchCompanies();
   }, [token]);
 
-  // When company is selected, fetch real ClickUp assessment
-  const handleCompanySelect = async (company: Company) => {
+  // Lazily fetch hourly folders when the tab is first activated
+  useEffect(() => {
+    if (activeTab !== "hourly" || hourlyLoaded) return;
+    const fetchHourly = async () => {
+      try {
+        setHourlyLoading(true);
+        const folders = await getHourlyFolders();
+        setHourlyFolders(folders);
+        setHourlyLoaded(true);
+      } catch (error) {
+        console.error("Failed to fetch hourly folders:", error);
+      } finally {
+        setHourlyLoading(false);
+      }
+    };
+    fetchHourly();
+  }, [activeTab, hourlyLoaded]);
+
+  // Commercial company selected → fetch assessment locations
+  const handleCommercialSelect = async (company: Company) => {
     setSelectedCompany(company);
-    setAssessmentLoading(true);
+    setAssessmentLocations(null);
+    setAssessment(null);
     setAssessmentError(null);
+    setLocationsLoading(true);
 
     try {
-      const companyAssessment = await getAssessmentForCompany(
-        company.id || '',
-        company.name || 'Unknown'
+      const locations = await getCommercialAssessmentLocations(
+        company.name || ""
       );
-      setAssessment(companyAssessment);
+      if (locations.length === 0) {
+        setAssessmentError("No assessments found in ClickUp for this company.");
+        return;
+      }
+      if (locations.length === 1) {
+        // Auto-select the only location
+        await loadCommercialAssessment(locations[0], company);
+      } else {
+        setAssessmentLocations(locations);
+      }
     } catch (error) {
-      console.error('Failed to fetch assessment:', error);
-      setAssessmentError(error instanceof Error ? error.message : 'Failed to load assessment');
+      console.error("Failed to fetch assessment locations:", error);
+      setAssessmentError(
+        error instanceof Error ? error.message : "Failed to load assessments"
+      );
+    } finally {
+      setLocationsLoading(false);
+    }
+  };
+
+  // Location selected from the selector
+  const handleLocationSelect = async (location: AssessmentParent) => {
+    if (!selectedCompany) return;
+    await loadCommercialAssessment(location, selectedCompany);
+  };
+
+  const loadCommercialAssessment = async (
+    location: AssessmentParent,
+    company: Company
+  ) => {
+    setAssessmentLoading(true);
+    setAssessmentError(null);
+    try {
+      const result = await buildCommercialAssessment(
+        location,
+        company.id || "",
+        company.name || "Unknown"
+      );
+      setAssessment(result);
+    } catch (error) {
+      console.error("Failed to build assessment:", error);
+      setAssessmentError(
+        error instanceof Error ? error.message : "Failed to load assessment"
+      );
     } finally {
       setAssessmentLoading(false);
     }
   };
 
-  // Back to company selection
+  // Hourly folder selected
+  const handleHourlySelect = async (folder: ClickUpFolder) => {
+    setSelectedHourlyFolder(folder);
+    setAssessment(null);
+    setAssessmentError(null);
+    setAssessmentLoading(true);
+    try {
+      const result = await getHourlyAssessmentForFolder(folder.id, folder.name);
+      setAssessment(result);
+    } catch (error) {
+      console.error("Failed to fetch hourly assessment:", error);
+      setAssessmentError(
+        error instanceof Error ? error.message : "Failed to load assessment"
+      );
+    } finally {
+      setAssessmentLoading(false);
+    }
+  };
+
+  const handleBackToAssessments = () => {
+      setAssessment(null);
+      setAssessmentError(null);
+    };
+
   const handleBack = () => {
     setSelectedCompany(null);
+    setSelectedHourlyFolder(null);
     setAssessment(null);
+    setAssessmentLocations(null);
     setAssessmentError(null);
   };
 
-  // If no company selected, show company selection
-  if (!selectedCompany) {
+  // --- Render: assessment builder ---
+  if (assessment) {
+    const company: Company = selectedCompany || {
+      id: selectedHourlyFolder?.id,
+      name: selectedHourlyFolder?.name,
+    };
     return (
-      <CustomerSelect
-        companies={companies}
-        loading={companiesLoading}
-        onSelect={handleCompanySelect}
+      <AssessmentBuilder
+        company={company}
+        assessment={assessment}
+        onBack={handleBack}
+        onBackToAssessments={
+            assessmentLocations && assessmentLocations.length > 1
+              ? handleBackToAssessments
+              : undefined
+          }
       />
     );
   }
 
-  // If company selected but loading assessment
-  if (assessmentLoading) {
+  // --- Render: loading states ---
+  if (assessmentLoading || locationsLoading) {
+    const name =
+      selectedCompany?.name || selectedHourlyFolder?.name || "customer";
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#174887] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading assessment for {selectedCompany.name}...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#174887] mx-auto mb-4" />
+          <p className="text-gray-600">Loading assessment for {name}...</p>
         </div>
       </div>
     );
   }
 
-  // If error loading assessment
+  // --- Render: error state ---
   if (assessmentError) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center max-w-md">
-          <div className="text-red-600 text-xl mb-4">⚠️ Error Loading Assessment</div>
+          <div className="text-red-600 text-xl mb-4">
+            ⚠️ Error Loading Assessment
+          </div>
           <p className="text-gray-600 mb-4">{assessmentError}</p>
           <button
             onClick={handleBack}
             className="px-4 py-2 bg-[#174887] text-white rounded hover:bg-[#0f3661]"
           >
-            Back to Companies
+            Back
           </button>
         </div>
       </div>
     );
   }
 
-  // If no assessment loaded yet
-  if (!assessment) {
-    return null;
+  // --- Render: location selector (commercial multi-location) ---
+  if (assessmentLocations && selectedCompany) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-3xl mx-auto py-8 px-4">
+          <button
+            onClick={handleBack}
+            className="flex items-center gap-2 text-gray-600 hover:text-[#174887] mb-6 transition-colors font-medium"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+            Back to companies
+          </button>
+
+          <h2
+            className="text-2xl font-bold mb-2"
+            style={{ color: "#174887" }}
+          >
+            {selectedCompany.name}
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Multiple assessments found. Select a location to view:
+          </p>
+
+          <div className="space-y-3">
+            {assessmentLocations.map((loc) => (
+              <button
+                key={loc.taskId}
+                onClick={() => handleLocationSelect(loc)}
+                className="w-full text-left bg-white border-2 border-gray-200 rounded-xl p-5
+                           hover:border-[#174887] hover:shadow-md transition-all"
+              >
+                <div className="flex items-center gap-3">
+                    <span className="font-semibold text-gray-900 text-lg">
+                      {loc.taskName}
+                    </span>
+                    <span
+                      className="px-2 py-0.5 rounded-full text-xs font-semibold text-white capitalize"
+                      style={{ backgroundColor: loc.statusColor }}
+                    >
+                      {loc.status}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-500 mt-1">
+                    {loc.location} &middot; {loc.date}
+                  </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  // Show assessment builder
+  // --- Render: customer/folder selection with tabs ---
+  // Convert hourly folders to Company-shaped objects for CustomerSelect
+  const hourlyAsCompanies: Company[] = hourlyFolders.map((f) => ({
+    id: f.id,
+    name: f.name,
+  }));
+
   return (
-    <AssessmentBuilder
-      company={selectedCompany}
-      assessment={assessment}
-      onBack={handleBack}
-    />
+    <div className="min-h-screen bg-gray-50">
+      {/* Tab bar */}
+      <div className="border-b border-gray-200 bg-white">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex gap-0">
+            {(["commercial", "hourly"] as ActiveTab[]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
+                  activeTab === tab
+                    ? "border-[#174887] text-[#174887]"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {tab === "commercial" ? "Commercial Customers" : "Hourly Customers"}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Customer list */}
+      {activeTab === "commercial" ? (
+        <CustomerSelect
+          companies={companies}
+          loading={companiesLoading}
+          onSelect={handleCommercialSelect}
+        />
+      ) : (
+        <CustomerSelect
+          companies={hourlyAsCompanies}
+          loading={hourlyLoading}
+          onSelect={(company) => {
+            const folder = hourlyFolders.find((f) => f.id === company.id);
+            if (folder) handleHourlySelect(folder);
+          }}
+        />
+      )}
+    </div>
   );
 }

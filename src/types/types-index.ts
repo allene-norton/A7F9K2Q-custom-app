@@ -43,6 +43,15 @@ export interface Assessment {
   created_at: string;
 }
 
+export interface AssessmentParent {
+  taskId: string;
+  taskName: string;
+  location: string;
+  date: string;
+  status: string;
+  statusColor: string;
+}
+
 export interface WorkOrder {
   id: string;
   customer_id: string;
