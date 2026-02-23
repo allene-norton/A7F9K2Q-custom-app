@@ -10,11 +10,13 @@ import {
 interface AssessmentItemCardProps {
   item: AssessmentItem;
   index: number;
+  onExpand?: (item: AssessmentItem) => void;
 }
 
 export default function AssessmentItemCard({
   item,
   index,
+  onExpand,
 }: AssessmentItemCardProps) {
   console.log(item);
   {
@@ -22,7 +24,10 @@ export default function AssessmentItemCard({
   }
 
   return (
-    <div className="bg-white border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
+    <div
+      className="bg-white border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow cursor-pointer"
+      onClick={() => onExpand?.(item)}
+    >
       <div className="flex gap-6">
         {/* Image */}
         {item.images.length > 0 && (

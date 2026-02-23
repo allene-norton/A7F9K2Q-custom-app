@@ -388,7 +388,10 @@ export async function buildCommercialAssessment(
   const approvedSubtasks = (fullTask.subtasks || []).filter(
     extractApprovalNeeded,
   );
-  const items = approvedSubtasks.map(transformTaskToAssessmentItem);
+  const items = approvedSubtasks.map((t) => ({
+    ...transformTaskToAssessmentItem(t),
+    location: parent.location,
+  }));
 
   return {
     id: `assess_${companyId}_${parent.taskId}`,
