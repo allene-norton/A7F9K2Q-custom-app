@@ -4,7 +4,7 @@ import { AssessmentItem } from '@/types/types-index';
 import {
   getCategoryColor,
   formatCostRange,
-  getPriorityColor,
+  // getPriorityColor,
 } from '@/lib/utils';
 
 interface AssessmentItemCardProps {
@@ -65,8 +65,8 @@ export default function AssessmentItemCard({
                 </p>
               )}
 
-              {/* Priority Badge under item name */}
-              {item.priority && (
+              {/* Priority Badge under item name --- REMOVE - UNUSED*/}
+              {/* {item.priority && (
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">
                     Priority:
@@ -79,7 +79,7 @@ export default function AssessmentItemCard({
                     {item.priority?.toLocaleUpperCase()}
                   </span>
                 </div>
-              )}
+              )} */}
             </div>
 
             {/* Category Badge - Top Right */}
@@ -115,9 +115,7 @@ export default function AssessmentItemCard({
                     Status:
                   </span>
                   <span
-                    className={`px-2 py-1 rounded-md text-xs font-semibold tracking-wide uppercase ${getPriorityColor(
-                      item.status,
-                    )}`}
+                    className={`px-2 py-1 rounded-md text-xs font-semibold tracking-wide uppercase`} // removed getPriorityColor for now
                   >
                     {item.status}
                   </span>

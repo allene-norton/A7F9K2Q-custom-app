@@ -14,7 +14,7 @@ export interface AssessmentItem {
   id: string;
   clickup_task_id: string;
   location: string;
-  category: "Urgent" | "Recommended" | "Cosmetic" | "Included Maintenance" | "No Issue";
+  category: string;
   priority: "Urgent" | "High" | "Normal" | "Low" | null;
   status: string | null;
   issue: string;

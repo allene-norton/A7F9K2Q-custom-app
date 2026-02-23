@@ -65,7 +65,12 @@ export interface ClickUpTask {
     name: string;
     value?: string | number;
     type_config?: {
-      options?: Array<{ id: string; name: string; color: string; orderindex: number }>;
+      options?: Array<{
+        id: string;
+        name: string;
+        color: string;
+        orderindex: number;
+      }>;
     };
   }>;
 }
@@ -239,10 +244,8 @@ function extractCategory(task: ClickUpTask): AssessmentItem['category'] {
     (field) => field.id === '3188285b-248d-4f23-b84d-58baddbaba0b',
   )[0];
 
-  console.log(`CAT FIELD:`, categoryField)
-
   if (categoryField?.value) {
-    const categoryValue = categoryField.value
+    const categoryValue = categoryField.value;
 
     // Check if it's a dropdown field with options
     if (categoryField.type_config?.options) {
@@ -250,37 +253,16 @@ function extractCategory(task: ClickUpTask): AssessmentItem['category'] {
         (opt) => opt.orderindex === categoryField.value,
       );
       if (option) {
-        const normalizedName = option.name.toLowerCase();
-        if (normalizedName.includes('urgent')) return 'Urgent';
-        if (normalizedName.includes('recommended')) return 'Recommended';
-        if (normalizedName.includes('cosmetic')) return 'Cosmetic';
-        if (normalizedName.includes('included maintenance'))
-          return 'Included Maintenance';
+        return option.name;
       }
     }
-
-    // Direct string value matching
-    // if (categoryValue.includes('urgent')) return 'Urgent';
-    // if (categoryValue.includes('recommended')) return 'Recommended';
-    // if (categoryValue.includes('cosmetic')) return 'Cosmetic';
-    // if (categoryValue.includes('included maintenance'))
-    //   return 'Included Maintenance';
   }
 
   // Fall back to priority if no custom field
-  if (!task.priority) return 'No Issue';
+  if (!task.priority) return 'Uncategorized';
 
-  switch (task.priority.priority.toLowerCase()) {
-    case 'urgent':
-      return 'Urgent';
-    case 'high':
-      return 'Recommended';
-    case 'normal':
-      return 'Cosmetic';
-    case 'low':
-    default:
-      return 'No Issue';
-  }
+  return task.priority.priority;
+
 }
 
 // Transform ClickUp task to AssessmentItem
@@ -290,7 +272,9 @@ function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
     clickup_task_id: task.id,
     location: task.list.name,
     category: extractCategory(task),
-    priority: task.priority?.priority.toLowerCase() as AssessmentItem['priority'] || null,
+    priority:
+      (task.priority?.priority.toLowerCase() as AssessmentItem['priority']) ||
+      null,
     issue: task.name,
     status: task.status.status,
     recommendation: task.text_content || task.description || '',
@@ -305,7 +289,7 @@ function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
     created_date: new Date(parseInt(task.date_created))
       .toISOString()
       .split('T')[0],
-    technician: task.assignees[0]?.username || "",
+    technician: task.assignees[0]?.username || '',
   };
 }
 
