@@ -332,12 +332,19 @@ function extractApprovalNeeded(task: ClickUpTask): boolean {
 
 // Returns the Location custom field value, falling back to the task name
 function extractLocationField(task: ClickUpTask): string {
-  const field = task.custom_fields?.find((f) => f.id === LOCATION_FIELD_ID);
-  if (field?.value && typeof field.value === 'string' && field.value.trim()) {
-    return field.value.trim();
+    const field = task.custom_fields?.find((f) => f.id === LOCATION_FIELD_ID);
+    if (field?.value !== undefined && field?.value !== null && field.type_config?.options) {
+      const valueAsNumber =
+        typeof field.value === 'string'
+          ? parseInt(field.value, 10)
+          : Number(field.value);
+      const option = field.type_config.options.find(
+        (opt) => opt.orderindex === valueAsNumber,
+      );
+      if (option) return option.name;
+    }
+    return task.name;
   }
-  return task.name;
-}
 
 // Get all assessment parent tasks (locations) for a commercial company.
 // Looks for the "Assessments" list in the matching folder.

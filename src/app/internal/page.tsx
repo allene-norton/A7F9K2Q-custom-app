@@ -142,7 +142,6 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
         company.name || "Unknown"
       );
       setAssessment(result);
-      setAssessmentLocations(null);
     } catch (error) {
       console.error("Failed to build assessment:", error);
       setAssessmentError(
@@ -172,6 +171,11 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     }
   };
 
+  const handleBackToAssessments = () => {
+      setAssessment(null);
+      setAssessmentError(null);
+    };
+
   const handleBack = () => {
     setSelectedCompany(null);
     setSelectedHourlyFolder(null);
@@ -191,6 +195,11 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
         company={company}
         assessment={assessment}
         onBack={handleBack}
+        onBackToAssessments={
+            assessmentLocations && assessmentLocations.length > 1
+              ? handleBackToAssessments
+              : undefined
+          }
       />
     );
   }
@@ -272,10 +281,20 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                 className="w-full text-left bg-white border-2 border-gray-200 rounded-xl p-5
                            hover:border-[#174887] hover:shadow-md transition-all"
               >
-                <div className="font-semibold text-gray-900 text-lg">
-                  {loc.location}
-                </div>
-                <div className="text-sm text-gray-500 mt-1">{loc.date}</div>
+                <div className="flex items-center gap-3">
+                    <span className="font-semibold text-gray-900 text-lg">
+                      {loc.taskName}
+                    </span>
+                    <span
+                      className="px-2 py-0.5 rounded-full text-xs font-semibold text-white capitalize"
+                      style={{ backgroundColor: loc.statusColor }}
+                    >
+                      {loc.status}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-500 mt-1">
+                    {loc.location} &middot; {loc.date}
+                  </div>
               </button>
             ))}
           </div>

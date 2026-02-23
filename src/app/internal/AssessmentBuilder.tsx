@@ -9,6 +9,7 @@ interface AssessmentBuilderProps {
   company: Company;
   assessment: Assessment;
   onBack: () => void;
+  onBackToAssessments?: () => void;
 }
 
 type CategoryFilter = 'All' | AssessmentItem['category'];
@@ -35,6 +36,7 @@ export default function AssessmentBuilder({
   company,
   assessment,
   onBack,
+  onBackToAssessments,
 }: AssessmentBuilderProps) {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('All');
   const [tagFilter, setTagFilter] = useState<TagFilter>('All');
@@ -110,27 +112,30 @@ export default function AssessmentBuilder({
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto py-8 px-4">
-        {/* Back Button */}
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-gray-600 hover:text-[#174887] mb-6
-                     transition-colors font-medium"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        {/* Breadcrumbs */}
+        <nav className="flex items-center gap-2 text-sm mb-6">
+          <button
+            onClick={onBack}
+            className="text-[#174887] hover:underline font-medium"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-          Back to companies
-        </button>
+            Companies
+          </button>
+          {onBackToAssessments && (
+            <>
+              <span className="text-gray-400">/</span>
+              <button
+                onClick={onBackToAssessments}
+                className="text-[#174887] hover:underline font-medium"
+              >
+                {company.name}
+              </button>
+            </>
+          )}
+          <span className="text-gray-400">/</span>
+          <span className="text-gray-700 font-medium">
+            {assessment.assessment_name}
+          </span>
+        </nav>
 
         {/* Header Card */}
         <div className="bg-white rounded-xl border-2 border-gray-200 p-6 mb-8 shadow-sm">
@@ -306,7 +311,8 @@ export default function AssessmentBuilder({
                   No items marked for approval found.
                 </p>
                 <p className="text-sm text-gray-400 mt-2">
-                  Only tasks with &ldquo;Approval Needed&rdquo; checked in ClickUp will appear here.
+                  Only tasks with &ldquo;Approval Needed&rdquo; checked in
+                  ClickUp will appear here.
                 </p>
               </>
             ) : (
