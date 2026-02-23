@@ -245,8 +245,7 @@ function extractCategory(task: ClickUpTask): AssessmentItem['category'] {
   )[0];
 
   if (categoryField?.value) {
-    const categoryValue = categoryField.value;
-
+    
     // Check if it's a dropdown field with options
     if (categoryField.type_config?.options) {
       const option = categoryField.type_config.options.find(
