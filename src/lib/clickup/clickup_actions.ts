@@ -12,7 +12,7 @@ const HOURLY_SPACE_ID = '32286697';
 
 // Custom field IDs
 const APPROVAL_NEEDED_FIELD_ID = 'cad5546f-2c00-40b2-98f0-142efd801b0b';
-const LOCATION_FIELD_ID = '445deb12-2dd9-4cac-9b68-6a3754a3a8c1';
+const LOCATION_FIELD_ID = '307c69e8-44ba-49e6-a244-1c870000211d';
 
 // ClickUp API types
 export interface ClickUpFolder {
@@ -41,6 +41,7 @@ export interface ClickUpTask {
   status: {
     status: string;
     type: string;
+    color?: string;
   };
   priority?: {
     id: string;
@@ -359,11 +360,13 @@ export async function getCommercialAssessmentLocations(
   );
 
   return parentTasks.map((t) => ({
-    taskId: t.id,
-    taskName: t.name,
-    location: extractLocationField(t),
-    date: new Date(parseInt(t.date_created)).toISOString().split('T')[0],
-  }));
+      taskId: t.id,
+      taskName: t.name,
+      location: extractLocationField(t),
+      date: new Date(parseInt(t.date_created)).toISOString().split('T')[0],
+      status: t.status.status,
+      statusColor: t.status.color || '#6b7280',
+    }));
 }
 
 // Build an Assessment from a selected commercial parent task.

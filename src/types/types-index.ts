@@ -48,6 +48,8 @@ export interface AssessmentParent {
   taskName: string;
   location: string;
   date: string;
+  status: string;
+  statusColor: string;
 }
 
 export interface WorkOrder {
