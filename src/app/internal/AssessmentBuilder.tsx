@@ -41,8 +41,13 @@ export default function AssessmentBuilder({
 
   // Get unique tags for filter dropdown
   const availableTags = useMemo(() => {
-    const tags = assessment.items.flatMap((item) => item.tags || []);
-    return [...new Set(tags)].filter(Boolean).sort();
+    const tagMap = new Map<string, { name: string; fg: string; bg: string }>();
+    assessment.items.forEach((item) => {
+      item.tags.forEach((tag) => {
+        if (!tagMap.has(tag.name)) tagMap.set(tag.name, tag);
+      });
+    });
+    return [...tagMap.values()].sort((a, b) => a.name.localeCompare(b.name));
   }, [assessment.items]);
   const [sortOption, setSortOption] = useState<SortOption>('default');
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,7 +63,7 @@ export default function AssessmentBuilder({
     // Filter by tags
     if (tagFilter !== 'All') {
       items = items.filter(
-        (item) => item.tags && item.tags.includes(tagFilter),
+        (item) => item.tags && item.tags.some((t) => t.name === tagFilter),
       );
     }
 
@@ -70,7 +75,7 @@ export default function AssessmentBuilder({
           item.location.toLowerCase().includes(query) ||
           item.issue.toLowerCase().includes(query) ||
           item.recommendation.toLowerCase().includes(query) ||
-          item.tags.some((tag) => tag.toLowerCase().includes(query)) ||
+          item.tags.some((tag) => tag.name.toLowerCase().includes(query)) ||
           item.comments.toLowerCase().includes(query),
       );
     }
@@ -248,8 +253,8 @@ export default function AssessmentBuilder({
               >
                 <option value="All">All Tags</option>
                 {availableTags.map((tag) => (
-                  <option key={tag} value={tag}>
-                    {tag}
+                  <option key={tag.name} value={tag.name}>
+                    {tag.name}
                   </option>
                 ))}
               </select>

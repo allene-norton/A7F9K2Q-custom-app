@@ -1,6 +1,7 @@
 'use server';
 
 import { AssessmentItem, Assessment } from '@/types/types-index';
+import { hexToRgba } from '@/lib/utils';
 
 const CLICKUP_API_KEY = process.env.CLICKUP_KEY;
 const CLICKUP_BASE_URL = 'https://api.clickup.com/api/v2';
@@ -40,7 +41,7 @@ export interface ClickUpTask {
     id: string;
     priority: string;
   } | null;
-  tags: Array<{ name: string }>;
+  tags: Array<{ name: string; tag_fg: string; tag_bg: string }>;
   assignees: Array<{ username: string }>;
   creator?: { username: string };
   date_created: string;
@@ -245,7 +246,7 @@ function extractCategory(task: ClickUpTask): AssessmentItem['category'] {
   )[0];
 
   if (categoryField?.value) {
-    
+
     // Check if it's a dropdown field with options
     if (categoryField.type_config?.options) {
       const option = categoryField.type_config.options.find(
@@ -283,7 +284,7 @@ function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
       .map((a) => a.thumbnail_large || a.url),
     estimated_cost_min: 0, // Not available without custom fields
     estimated_cost_max: 0, // remove
-    tags: task.tags.map((t) => t.name),
+    tags: task.tags.map((t) => ({ name: t.name, fg: "#1a1c1f", bg: hexToRgba(t.tag_bg, 0.15) })),
     comments: '',
     created_date: new Date(parseInt(task.date_created))
       .toISOString()
@@ -360,6 +361,8 @@ export async function getAssessmentForCompany(
   const allItems = (assessmentWithSubtasks.subtasks || []).map(
     transformTaskToAssessmentItem,
   );
+
+  console.log(`ALL ITEMS:`, allItems.map(item => item.tags))
 
   return {
     id: `assess_${companyId}`,

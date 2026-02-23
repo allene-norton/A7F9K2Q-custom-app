@@ -103,7 +103,7 @@ export default function AssessmentItemCard({
             </div> */}
             <div className="flex items-center gap-3">
               <div className="text-xs text-gray-500">
-                {item.technician! == " " ? (
+                {item.technician! == ' ' ? (
                   <span> Technician • {item.technician}</span>
                 ) : null}
               </div>
@@ -129,10 +129,11 @@ export default function AssessmentItemCard({
             <div className="flex flex-wrap gap-2 mt-3">
               {item.tags.map((tag) => (
                 <span
-                  key={tag}
-                  className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md font-medium"
+                  key={tag.name}
+                  style={{ backgroundColor: tag.bg, color: tag.fg }}
+                  className="px-2 py-1 text-xs rounded-md font-medium"
                 >
-                  {tag}
+                  {tag.name}
                 </span>
               ))}
             </div>
