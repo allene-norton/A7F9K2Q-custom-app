@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { Assessment, AssessmentItem } from '@/types/types-index';
 import { Company } from '@/lib/assembly/client';
 import AssessmentItemCard from '@/components/internal/AssessmentItemCard';
+import AssessmentItemDetail from '@/components/internal/AssessmentItemDetail';
 
 interface AssessmentBuilderProps {
   company: Company;
@@ -53,6 +54,7 @@ export default function AssessmentBuilder({
   // }, [assessment.items]);
   const [sortOption, setSortOption] = useState<SortOption>('default');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedItem, setSelectedItem] = useState<AssessmentItem | null>(null);
 
   const filteredAndSortedItems = useMemo(() => {
     let items = [...assessment.items];
@@ -332,9 +334,22 @@ export default function AssessmentBuilder({
         ) : (
           <div className="space-y-6">
             {filteredAndSortedItems.map((item, index) => (
-              <AssessmentItemCard key={item.id} item={item} index={index} />
+              <AssessmentItemCard
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  onExpand={setSelectedItem}
+                />
             ))}
           </div>
+        )}
+
+        {/* Item Detail Modal */}
+        {selectedItem && (
+          <AssessmentItemDetail
+            item={selectedItem}
+            onClose={() => setSelectedItem(null)}
+          />
         )}
 
         {/* Footer Actions */}
