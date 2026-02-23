@@ -40,15 +40,15 @@ export default function AssessmentBuilder({
   const [tagFilter, setTagFilter] = useState<TagFilter>('All');
 
   // Get unique tags for filter dropdown
-  const availableTags = useMemo(() => {
-    const tagMap = new Map<string, { name: string; fg: string; bg: string }>();
-    assessment.items.forEach((item) => {
-      item.tags.forEach((tag) => {
-        if (!tagMap.has(tag.name)) tagMap.set(tag.name, tag);
-      });
-    });
-    return [...tagMap.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [assessment.items]);
+  // const availableTags = useMemo(() => {
+  //   const tagMap = new Map<string, { name: string; fg: string; bg: string }>();
+  //   assessment.items.forEach((item) => {
+  //     item.tags.forEach((tag) => {
+  //       if (!tagMap.has(tag.name)) tagMap.set(tag.name, tag);
+  //     });
+  //   });
+  //   return [...tagMap.values()].sort((a, b) => a.name.localeCompare(b.name));
+  // }, [assessment.items]);
   const [sortOption, setSortOption] = useState<SortOption>('default');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -61,11 +61,11 @@ export default function AssessmentBuilder({
     }
 
     // Filter by tags
-    if (tagFilter !== 'All') {
-      items = items.filter(
-        (item) => item.tags && item.tags.some((t) => t.name === tagFilter),
-      );
-    }
+    // if (tagFilter !== 'All') {
+    //   items = items.filter(
+    //     (item) => item.tags && item.tags.some((t) => t.name === tagFilter),
+    //   );
+    // }
 
     // Filter by search query
     if (searchQuery.trim()) {
@@ -96,14 +96,14 @@ export default function AssessmentBuilder({
 
   const clearFilters = () => {
     setCategoryFilter('All');
-    setTagFilter('All');
+    // setTagFilter('All');
     setSortOption('default');
     setSearchQuery('');
   };
 
   const hasActiveFilters =
     categoryFilter !== 'All' ||
-    tagFilter !== 'All' ||
+    // tagFilter !== 'All' ||
     sortOption !== 'default' ||
     searchQuery.trim() !== '';
 
@@ -243,7 +243,7 @@ export default function AssessmentBuilder({
             </div>
 
             {/* Tag Filter */}
-            <div className="flex items-center gap-2">
+            {/* <div className="flex items-center gap-2">
               <label className="text-sm font-medium text-gray-700">Tag:</label>
               <select
                 value={tagFilter}
@@ -258,7 +258,7 @@ export default function AssessmentBuilder({
                   </option>
                 ))}
               </select>
-            </div>
+            </div> */}
 
             {/* Urgency Sort */}
             <div className="flex items-center gap-2">
