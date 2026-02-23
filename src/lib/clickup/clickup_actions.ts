@@ -1,6 +1,7 @@
 'use server';
 
 import { AssessmentItem, Assessment } from '@/types/types-index';
+import { hexToRgba } from '@/lib/utils';
 
 const CLICKUP_API_KEY = process.env.CLICKUP_KEY;
 const CLICKUP_BASE_URL = 'https://api.clickup.com/api/v2';
@@ -40,7 +41,7 @@ export interface ClickUpTask {
     id: string;
     priority: string;
   } | null;
-  tags: Array<{ name: string }>;
+  tags: Array<{ name: string; tag_fg: string; tag_bg: string }>;
   assignees: Array<{ username: string }>;
   creator?: { username: string };
   date_created: string;
@@ -65,7 +66,12 @@ export interface ClickUpTask {
     name: string;
     value?: string | number;
     type_config?: {
-      options?: Array<{ id: string; name: string; color: string; orderindex: number }>;
+      options?: Array<{
+        id: string;
+        name: string;
+        color: string;
+        orderindex: number;
+      }>;
     };
   }>;
 }
@@ -234,53 +240,52 @@ export async function findMatchingFolder(
 
 // Extract category from ClickUp custom field or fall back to priority
 function extractCategory(task: ClickUpTask): AssessmentItem['category'] {
-  // First try to get from custom field named "Category"
   const categoryField = task.custom_fields?.filter(
     (field) => field.id === '3188285b-248d-4f23-b84d-58baddbaba0b',
   )[0];
 
-  console.log(`CAT FIELD:`, categoryField)
-
-  if (categoryField?.value) {
-    const categoryValue = categoryField.value
+  if (categoryField?.value !== undefined && categoryField?.value !== null) {
+    console.log(
+      `Task: ${task.name} - categoryField.value:`,
+      categoryField.value,
+      `(type: ${typeof categoryField.value})`,
+    );
+    console.log(`categoryField.name:`, categoryField.name);
 
     // Check if it's a dropdown field with options
     if (categoryField.type_config?.options) {
+      console.log(`OPTS`, categoryField.type_config?.options);
+
+      // Convert value to number for comparison since orderindex is a number
+      const valueAsNumber =
+        typeof categoryField.value === 'string'
+          ? parseInt(categoryField.value, 10)
+          : categoryField.value;
+
       const option = categoryField.type_config.options.find(
-        (opt) => opt.orderindex === categoryField.value,
+        (opt) => opt.orderindex === valueAsNumber,
       );
       if (option) {
-        const normalizedName = option.name.toLowerCase();
-        if (normalizedName.includes('urgent')) return 'Urgent';
-        if (normalizedName.includes('recommended')) return 'Recommended';
-        if (normalizedName.includes('cosmetic')) return 'Cosmetic';
-        if (normalizedName.includes('included maintenance'))
-          return 'Included Maintenance';
+        console.log(`Found matching option:`, option.name);
+        return option.name;
+      } else {
+        console.log(`No matching option found for orderindex ${valueAsNumber}`);
       }
     }
-
-    // Direct string value matching
-    // if (categoryValue.includes('urgent')) return 'Urgent';
-    // if (categoryValue.includes('recommended')) return 'Recommended';
-    // if (categoryValue.includes('cosmetic')) return 'Cosmetic';
-    // if (categoryValue.includes('included maintenance'))
-    //   return 'Included Maintenance';
+  } else {
+    console.log(`Task: ${task.name} - No category field value found`);
   }
 
   // Fall back to priority if no custom field
-  if (!task.priority) return 'No Issue';
-
-  switch (task.priority.priority.toLowerCase()) {
-    case 'urgent':
-      return 'Urgent';
-    case 'high':
-      return 'Recommended';
-    case 'normal':
-      return 'Cosmetic';
-    case 'low':
-    default:
-      return 'No Issue';
+  if (!task.priority) {
+    console.log(
+      `Task: ${task.name} - No priority found, returning Uncategorized`,
+    );
+    return 'Uncategorized';
   }
+
+  console.log(`Task: ${task.name} - Using priority: ${task.priority.priority}`);
+  return task.priority.priority;
 }
 
 // Transform ClickUp task to AssessmentItem
@@ -290,7 +295,9 @@ function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
     clickup_task_id: task.id,
     location: task.list.name,
     category: extractCategory(task),
-    priority: task.priority?.priority.toLowerCase() as AssessmentItem['priority'] || null,
+    priority:
+      (task.priority?.priority.toLowerCase() as AssessmentItem['priority']) ||
+      null,
     issue: task.name,
     status: task.status.status,
     recommendation: task.text_content || task.description || '',
@@ -300,12 +307,16 @@ function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
       .map((a) => a.thumbnail_large || a.url),
     estimated_cost_min: 0, // Not available without custom fields
     estimated_cost_max: 0, // remove
-    tags: task.tags.map((t) => t.name),
+    tags: task.tags.map((t) => ({
+      name: t.name,
+      fg: '#1a1c1f',
+      bg: hexToRgba(t.tag_bg, 0.15),
+    })),
     comments: '',
     created_date: new Date(parseInt(task.date_created))
       .toISOString()
       .split('T')[0],
-    technician: task.assignees[0]?.username || "",
+    technician: task.assignees[0]?.username || '',
   };
 }
 
@@ -376,6 +387,11 @@ export async function getAssessmentForCompany(
   // Transform subtasks to assessment items
   const allItems = (assessmentWithSubtasks.subtasks || []).map(
     transformTaskToAssessmentItem,
+  );
+
+  console.log(
+    `ALL ITEMS:`,
+    allItems.map((item) => item.category),
   );
 
   return {

@@ -61,6 +61,26 @@ export default function AssessmentItemCompact({
           <p className="text-sm text-gray-600 line-clamp-2">
             {item.recommendation}
           </p>
+
+          {/* Tags - compact display */}
+          {item.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {item.tags.slice(0, 3).map((tag) => (
+                <span
+                  key={tag.name}
+                  style={{ backgroundColor: tag.bg, color: tag.fg }}
+                  className="px-1.5 py-0.5 text-xs rounded-md font-medium"
+                >
+                  {tag.name}
+                </span>
+              ))}
+              {item.tags.length > 3 && (
+                <span className="px-1.5 py-0.5 text-gray-500 text-xs">
+                  +{item.tags.length - 3}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Cost & Arrow */}

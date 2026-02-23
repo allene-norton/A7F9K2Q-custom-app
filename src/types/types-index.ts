@@ -14,7 +14,7 @@ export interface AssessmentItem {
   id: string;
   clickup_task_id: string;
   location: string;
-  category: "Urgent" | "Recommended" | "Cosmetic" | "Included Maintenance" | "No Issue";
+  category: string;
   priority: "Urgent" | "High" | "Normal" | "Low" | null;
   status: string | null;
   issue: string;
@@ -23,7 +23,7 @@ export interface AssessmentItem {
   images: string[];
   estimated_cost_min: number; // remove
   estimated_cost_max: number; // remove
-  tags: string[];
+  tags: Array<{ name: string; fg: string; bg: string }>;
   comments: string;
   created_date: string;
   technician: string;

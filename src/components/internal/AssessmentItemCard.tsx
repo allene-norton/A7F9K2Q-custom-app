@@ -4,7 +4,7 @@ import { AssessmentItem } from '@/types/types-index';
 import {
   getCategoryColor,
   formatCostRange,
-  getPriorityColor,
+  // getPriorityColor,
 } from '@/lib/utils';
 
 interface AssessmentItemCardProps {
@@ -17,6 +17,9 @@ export default function AssessmentItemCard({
   index,
 }: AssessmentItemCardProps) {
   console.log(item);
+  {
+    console.log(item.technician);
+  }
 
   return (
     <div className="bg-white border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
@@ -62,8 +65,8 @@ export default function AssessmentItemCard({
                 </p>
               )}
 
-              {/* Priority Badge under item name */}
-              {item.priority && (
+              {/* Priority Badge under item name --- REMOVE - UNUSED*/}
+              {/* {item.priority && (
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">
                     Priority:
@@ -76,7 +79,7 @@ export default function AssessmentItemCard({
                     {item.priority?.toLocaleUpperCase()}
                   </span>
                 </div>
-              )}
+              )} */}
             </div>
 
             {/* Category Badge - Top Right */}
@@ -100,7 +103,7 @@ export default function AssessmentItemCard({
             </div> */}
             <div className="flex items-center gap-3">
               <div className="text-xs text-gray-500">
-                {item.technician! == '' ? (
+                {item.technician! == ' ' ? (
                   <span> Technician • {item.technician}</span>
                 ) : null}
               </div>
@@ -112,9 +115,7 @@ export default function AssessmentItemCard({
                     Status:
                   </span>
                   <span
-                    className={`px-2 py-1 rounded-md text-xs font-semibold tracking-wide uppercase ${getPriorityColor(
-                      item.status,
-                    )}`}
+                    className={`px-2 py-1 rounded-md text-xs font-semibold tracking-wide uppercase`} // removed getPriorityColor for now
                   >
                     {item.status}
                   </span>
@@ -128,10 +129,11 @@ export default function AssessmentItemCard({
             <div className="flex flex-wrap gap-2 mt-3">
               {item.tags.map((tag) => (
                 <span
-                  key={tag}
-                  className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md font-medium"
+                  key={tag.name}
+                  style={{ backgroundColor: tag.bg, color: tag.fg }}
+                  className="px-2 py-1 text-xs rounded-md font-medium"
                 >
-                  {tag}
+                  {tag.name}
                 </span>
               ))}
             </div>

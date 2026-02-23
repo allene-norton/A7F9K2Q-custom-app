@@ -41,22 +41,22 @@ export function formatCostRange(min: number, max: number): string {
   return `${formatCurrency(min)}-${formatCurrency(max)}`;
 }
 
-export function getPriorityColor(priority: string | null): string {
-  if (!priority) return 'bg-gray-100 text-gray-700 border-gray-300';
+// export function getPriorityColor(priority: string | null): string {
+//   if (!priority) return 'bg-gray-100 text-gray-700 border-gray-300';
 
-  switch (priority.toLowerCase()) {
-    case 'urgent':
-      return 'text-red-800 border-red-300';
-    case 'high':
-      return 'text-orange-800 border-orange-300';
-    case 'normal':
-      return 'text-blue-800 border-blue-300';
-    case 'low':
-      return 'text-green-800 border-green-300';
-    default:
-      return 'text-gray-700 border-gray-300';
-  }
-}
+//   switch (priority.toLowerCase()) {
+//     case 'urgent':
+//       return 'text-red-800 border-red-300';
+//     case 'high':
+//       return 'text-orange-800 border-orange-300';
+//     case 'normal':
+//       return 'text-blue-800 border-blue-300';
+//     case 'low':
+//       return 'text-green-800 border-green-300';
+//     default:
+//       return 'text-gray-700 border-gray-300';
+//   }
+// }
 
 /**
  * Get category color classes for badges
@@ -94,6 +94,14 @@ export function getStatusColor(status: string): string {
     default:
       return 'bg-gray-100 text-gray-800';
   }
+}
+
+// convert hex to rgba
+export function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 /**
