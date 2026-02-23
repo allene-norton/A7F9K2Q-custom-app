@@ -17,6 +17,9 @@ export default function AssessmentItemCard({
   index,
 }: AssessmentItemCardProps) {
   console.log(item);
+  {
+    console.log(item.technician);
+  }
 
   return (
     <div className="bg-white border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
@@ -100,7 +103,7 @@ export default function AssessmentItemCard({
             </div> */}
             <div className="flex items-center gap-3">
               <div className="text-xs text-gray-500">
-                {item.technician! == '' ? (
+                {item.technician! == " " ? (
                   <span> Technician • {item.technician}</span>
                 ) : null}
               </div>
