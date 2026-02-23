@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getLoggedInUser } from '@/lib/assembly/client';
 import { StoredAssessment } from '@/lib/store';
@@ -8,7 +8,7 @@ import { AssessmentItem } from '@/types/types-index';
 import { getCategoryColor } from '@/lib/utils';
 import { CUSTOMER_SELECTION_OPTIONS } from '@/lib/constants';
 
-export default function CustomerPage() {
+function CustomerPageInner() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? undefined;
 
@@ -24,7 +24,6 @@ export default function CustomerPage() {
         setLoading(true);
         setError(null);
 
-        // Get the logged-in user's company
         const userData = await getLoggedInUser(undefined, token);
         if (!userData || 'error' in userData) {
           setError('Unable to verify your session. Please reload the page.');
@@ -37,7 +36,6 @@ export default function CustomerPage() {
           return;
         }
 
-        // Fetch stored assessment
         const res = await fetch(`/api/assessments/${companyId}`);
         const data = await res.json();
         setAssessment(data);
@@ -97,7 +95,6 @@ export default function CustomerPage() {
   if (!assessment) {
     return (
       <div className="min-h-screen bg-gray-50">
-        {/* Brand header */}
         <div className="py-5 px-6 shadow-sm" style={{ backgroundColor: '#174887' }}>
           <h1 className="text-xl font-bold text-white">Maintenance Matters</h1>
         </div>
@@ -128,13 +125,11 @@ export default function CustomerPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Brand header */}
       <div className="py-5 px-6 shadow-sm" style={{ backgroundColor: '#174887' }}>
         <h1 className="text-xl font-bold text-white">Maintenance Matters</h1>
       </div>
 
       <div className="max-w-2xl mx-auto py-8 px-4">
-        {/* Assessment header */}
         <div className="bg-white rounded-xl border-2 border-gray-200 p-6 mb-6 shadow-sm">
           <h2 className="text-2xl font-bold mb-1" style={{ color: '#174887' }}>
             {assessment.companyName}
@@ -152,20 +147,16 @@ export default function CustomerPage() {
           </p>
         </div>
 
-        {/* Items */}
         <div className="space-y-4 mb-8">
           {assessment.items.map((item: AssessmentItem, index: number) => (
             <div
               key={item.id}
               className="bg-white rounded-xl border-2 border-gray-200 p-5 shadow-sm"
             >
-              {/* Item header */}
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-semibold text-gray-400">
-                      #{index + 1}
-                    </span>
+                    <span className="text-xs font-semibold text-gray-400">#{index + 1}</span>
                     <span className="text-xs text-gray-500">{item.location}</span>
                   </div>
                   <h3 className="text-base font-bold text-gray-900">{item.issue}</h3>
@@ -177,7 +168,6 @@ export default function CustomerPage() {
                 </span>
               </div>
 
-              {/* Image */}
               {item.images.length > 0 && (
                 <div className="mb-3">
                   <img
@@ -194,21 +184,16 @@ export default function CustomerPage() {
               )}
 
               {item.description && (
-                <p className="text-sm text-gray-700 mb-3 leading-relaxed">
-                  {item.description}
-                </p>
+                <p className="text-sm text-gray-700 mb-3 leading-relaxed">{item.description}</p>
               )}
 
               {item.recommendation && (
                 <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                  <p className="text-xs font-semibold text-gray-600 mb-1">
-                    Recommendation
-                  </p>
+                  <p className="text-xs font-semibold text-gray-600 mb-1">Recommendation</p>
                   <p className="text-sm text-gray-800">{item.recommendation}</p>
                 </div>
               )}
 
-              {/* Selection dropdown */}
               <div>
                 <label className="text-sm font-semibold text-gray-700 block mb-1.5">
                   Your Selection <span className="text-red-500">*</span>
@@ -231,9 +216,7 @@ export default function CustomerPage() {
                       : undefined
                   }
                 >
-                  <option value="" disabled>
-                    Choose an option…
-                  </option>
+                  <option value="" disabled>Choose an option…</option>
                   {CUSTOMER_SELECTION_OPTIONS.map((opt) => (
                     <option key={opt.orderindex} value={String(opt.orderindex)}>
                       {opt.name}
@@ -245,7 +228,6 @@ export default function CustomerPage() {
           ))}
         </div>
 
-        {/* Submit CTA */}
         {submitted ? (
           <div className="bg-green-50 border-2 border-green-200 rounded-xl p-6 text-center">
             <svg
@@ -281,5 +263,22 @@ export default function CustomerPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function CustomerPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <svg className="w-10 h-10 animate-spin text-[#174887]" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          </svg>
+        </div>
+      }
+    >
+      <CustomerPageInner />
+    </Suspense>
   );
 }
