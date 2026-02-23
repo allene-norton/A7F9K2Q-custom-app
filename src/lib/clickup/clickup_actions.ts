@@ -1,13 +1,18 @@
 'use server';
 
-import { AssessmentItem, Assessment } from '@/types/types-index';
+import { AssessmentItem, Assessment, AssessmentParent } from '@/types/types-index';
 import { hexToRgba } from '@/lib/utils';
 
 const CLICKUP_API_KEY = process.env.CLICKUP_KEY;
 const CLICKUP_BASE_URL = 'https://api.clickup.com/api/v2';
 
-// Commercial Customers space ID
+// Space IDs
 const COMMERCIAL_SPACE_ID = '26324040';
+const HOURLY_SPACE_ID = '32286697';
+
+// Custom field IDs
+const APPROVAL_NEEDED_FIELD_ID = 'cad5546f-2c00-40b2-98f0-142efd801b0b';
+const LOCATION_FIELD_ID = '445deb12-2dd9-4cac-9b68-6a3754a3a8c1';
 
 // ClickUp API types
 export interface ClickUpFolder {
@@ -64,7 +69,7 @@ export interface ClickUpTask {
   custom_fields?: Array<{
     id: string;
     name: string;
-    value?: string | number;
+    value?: string | number | boolean;
     type_config?: {
       options?: Array<{
         id: string;
@@ -98,12 +103,22 @@ async function clickupFetch<T>(endpoint: string): Promise<T> {
   return response.json();
 }
 
-// Get all folders (customers) from Commercial Customers space
-export async function getCommercialFolders(): Promise<ClickUpFolder[]> {
+// Get all non-archived folders from any space
+async function getSpaceFolders(spaceId: string): Promise<ClickUpFolder[]> {
   const data = await clickupFetch<{ folders: ClickUpFolder[] }>(
-    `/space/${COMMERCIAL_SPACE_ID}/folder`,
+    `/space/${spaceId}/folder`,
   );
   return data.folders.filter((f) => !f.archived);
+}
+
+// Get all folders (customers) from Commercial Customers space
+export async function getCommercialFolders(): Promise<ClickUpFolder[]> {
+  return getSpaceFolders(COMMERCIAL_SPACE_ID);
+}
+
+// Get all folders (customers) from Hourly Customers space
+export async function getHourlyFolders(): Promise<ClickUpFolder[]> {
+  return getSpaceFolders(HOURLY_SPACE_ID);
 }
 
 // Get lists for a specific folder
@@ -128,49 +143,6 @@ export async function getListTasks(
 // Get a single task with full details
 export async function getTask(taskId: string): Promise<ClickUpTask> {
   return clickupFetch<ClickUpTask>(`/task/${taskId}?include_subtasks=true`);
-}
-
-// Check if a task is an assessment task based on name
-// Flexible pattern matching for Kasey's naming variations
-function isAssessmentTask(taskName: string): boolean {
-  const name = taskName.toLowerCase();
-  return (
-    name.includes('assessment') ||
-    name.includes('on site') ||
-    name.includes('on-site')
-  );
-}
-
-// Get all tasks for a folder (customer) across all lists
-export async function getFolderTasks(folderId: string): Promise<ClickUpTask[]> {
-  const lists = await getFolderLists(folderId);
-  const allTasks: ClickUpTask[] = [];
-
-  for (const list of lists) {
-    const tasks = await getListTasks(list.id);
-    allTasks.push(...tasks);
-  }
-
-  return allTasks;
-}
-
-// Get assessment tasks for a folder (tasks containing "assessment" or "on site" in name)
-export async function getAssessmentTasks(
-  folderId: string,
-): Promise<ClickUpTask[]> {
-  const allTasks = await getFolderTasks(folderId);
-
-  // Filter for assessment tasks only (not subtasks, and name matches)
-  const assessmentTasks = allTasks.filter(
-    (task) => !task.parent && isAssessmentTask(task.name),
-  );
-
-  // Sort by date_created descending (most recent first)
-  assessmentTasks.sort(
-    (a, b) => parseInt(b.date_created) - parseInt(a.date_created),
-  );
-
-  return assessmentTasks;
 }
 
 // Get full assessment task with subtasks
@@ -320,103 +292,6 @@ function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
   };
 }
 
-// Get assessment for a company by matching to ClickUp folder
-export async function getAssessmentForCompany(
-  companyId: string,
-  companyName: string,
-): Promise<Assessment> {
-  const folder = await findMatchingFolder(companyName);
-
-  if (!folder) {
-    // Return empty assessment if no matching folder found
-    return {
-      id: `assess_${companyId}`,
-      customer_id: companyId,
-      customer_name: companyName,
-      assessment_name: 'No ClickUp Folder Found',
-      assessment_date: new Date().toISOString().split('T')[0],
-      description: '',
-      location: '',
-      technician: 'N/A',
-      items: [],
-      status: 'draft',
-      created_at: new Date().toISOString(),
-    };
-  }
-
-  // Get assessment tasks (parent tasks with "assessment" in name)
-  const assessmentTasks = await getAssessmentTasks(folder.id);
-
-  console.log(
-    `Found ${assessmentTasks.length} assessment tasks for ${companyName}`,
-  );
-  if (assessmentTasks.length > 0) {
-    console.log('Most recent assessment:', {
-      id: assessmentTasks[0].id,
-      name: assessmentTasks[0].name,
-      date_created: assessmentTasks[0].date_created,
-      converted_date: new Date(parseInt(assessmentTasks[0].date_created))
-        .toISOString()
-        .split('T')[0],
-    });
-  }
-
-  if (assessmentTasks.length === 0) {
-    // No assessments found for this company
-    return {
-      id: `assess_${companyId}`,
-      customer_id: companyId,
-      customer_name: companyName,
-      assessment_name: 'No Assessment Found',
-      assessment_date: new Date().toISOString().split('T')[0],
-      description: '',
-      location: '',
-      technician: 'N/A',
-      items: [],
-      status: 'draft',
-      created_at: new Date().toISOString(),
-    };
-  }
-
-  // Get the most recent assessment with all subtasks
-  const mostRecentAssessment = assessmentTasks[0]; // Already sorted by date (most recent first)
-  const assessmentWithSubtasks = await getAssessmentWithSubtasks(
-    mostRecentAssessment.id,
-  );
-
-  // Transform subtasks to assessment items
-  const allItems = (assessmentWithSubtasks.subtasks || []).map(
-    transformTaskToAssessmentItem,
-  );
-
-  console.log(
-    `ALL ITEMS:`,
-    allItems.map((item) => item.category),
-  );
-
-  return {
-    id: `assess_${companyId}`,
-    customer_id: companyId,
-    customer_name: companyName,
-    assessment_name: mostRecentAssessment.name,
-    assessment_date: new Date(parseInt(mostRecentAssessment.date_created))
-      .toISOString()
-      .split('T')[0],
-    description:
-      mostRecentAssessment.text_content ||
-      mostRecentAssessment.description ||
-      '',
-    location: mostRecentAssessment.list.name,
-    technician:
-      mostRecentAssessment.assignees?.[0]?.username ||
-      mostRecentAssessment.creator?.username ||
-      'N/A',
-    items: allItems,
-    status: 'draft',
-    created_at: mostRecentAssessment.date_created,
-  };
-}
-
 // Get all commercial customers (folders) with task counts
 export async function getCommercialCustomers(): Promise<
   Array<{
@@ -431,4 +306,126 @@ export async function getCommercialCustomers(): Promise<
     name: f.name,
     taskCount: parseInt(f.task_count) || 0,
   }));
+}
+
+// --- NEW ARCHITECTURE ---
+
+// Find the "Assessments" list within a folder
+async function getAssessmentListForFolder(
+  folderId: string,
+): Promise<ClickUpList | null> {
+  const lists = await getFolderLists(folderId);
+  return (
+    lists.find((l) => l.name.toLowerCase().includes('assessments')) || null
+  );
+}
+
+// Returns true if the Approval Needed custom field is checked on a task
+function extractApprovalNeeded(task: ClickUpTask): boolean {
+  const field = task.custom_fields?.find(
+    (f) => f.id === APPROVAL_NEEDED_FIELD_ID,
+  );
+  if (!field) return false;
+  return field.value === true || field.value === 'true' || field.value === 1;
+}
+
+// Returns the Location custom field value, falling back to the task name
+function extractLocationField(task: ClickUpTask): string {
+  const field = task.custom_fields?.find((f) => f.id === LOCATION_FIELD_ID);
+  if (field?.value && typeof field.value === 'string' && field.value.trim()) {
+    return field.value.trim();
+  }
+  return task.name;
+}
+
+// Get all assessment parent tasks (locations) for a commercial company.
+// Looks for the "Assessments" list in the matching folder.
+export async function getCommercialAssessmentLocations(
+  companyName: string,
+): Promise<AssessmentParent[]> {
+  const folder = await findMatchingFolder(companyName);
+  if (!folder) return [];
+
+  const assessmentList = await getAssessmentListForFolder(folder.id);
+  if (!assessmentList) return [];
+
+  const tasks = await getListTasks(assessmentList.id, false);
+  const parentTasks = tasks.filter(
+    (t) => !t.parent && t.name.toLowerCase().includes('assessment'),
+  );
+
+  parentTasks.sort(
+    (a, b) => parseInt(b.date_created) - parseInt(a.date_created),
+  );
+
+  return parentTasks.map((t) => ({
+    taskId: t.id,
+    taskName: t.name,
+    location: extractLocationField(t),
+    date: new Date(parseInt(t.date_created)).toISOString().split('T')[0],
+  }));
+}
+
+// Build an Assessment from a selected commercial parent task.
+// Only subtasks where Approval Needed = true are included.
+export async function buildCommercialAssessment(
+  parent: AssessmentParent,
+  companyId: string,
+  companyName: string,
+): Promise<Assessment> {
+  const fullTask = await getAssessmentWithSubtasks(parent.taskId);
+
+  const approvedSubtasks = (fullTask.subtasks || []).filter(
+    extractApprovalNeeded,
+  );
+  const items = approvedSubtasks.map(transformTaskToAssessmentItem);
+
+  return {
+    id: `assess_${companyId}_${parent.taskId}`,
+    customer_id: companyId,
+    customer_name: companyName,
+    assessment_name: parent.taskName,
+    assessment_date: parent.date,
+    description: fullTask.text_content || fullTask.description || '',
+    location: parent.location,
+    technician:
+      fullTask.assignees?.[0]?.username || fullTask.creator?.username || 'N/A',
+    items,
+    status: 'draft',
+    created_at: fullTask.date_created,
+  };
+}
+
+// Build an Assessment from all tasks across all lists in an hourly customer folder.
+// Only tasks where Approval Needed = true are included.
+export async function getHourlyAssessmentForFolder(
+  folderId: string,
+  folderName: string,
+): Promise<Assessment> {
+  const lists = await getFolderLists(folderId);
+
+  const allTasks: ClickUpTask[] = [];
+  for (const list of lists) {
+    const tasks = await getListTasks(list.id, false);
+    allTasks.push(...tasks);
+  }
+
+  const approvedTasks = allTasks.filter(
+    (t) => !t.parent && extractApprovalNeeded(t),
+  );
+  const items = approvedTasks.map(transformTaskToAssessmentItem);
+
+  return {
+    id: `assess_hourly_${folderId}`,
+    customer_id: folderId,
+    customer_name: folderName,
+    assessment_name: `${folderName} — Approval Needed`,
+    assessment_date: new Date().toISOString().split('T')[0],
+    description: '',
+    location: '',
+    technician: null,
+    items,
+    status: 'draft',
+    created_at: Date.now().toString(),
+  };
 }

@@ -303,10 +303,10 @@ export default function AssessmentBuilder({
             {assessment.items.length === 0 ? (
               <>
                 <p className="text-gray-500 text-lg">
-                  No assessment items found for this customer.
+                  No items marked for approval found.
                 </p>
                 <p className="text-sm text-gray-400 mt-2">
-                  In production, this would pull from ClickUp API.
+                  Only tasks with &ldquo;Approval Needed&rdquo; checked in ClickUp will appear here.
                 </p>
               </>
             ) : (
