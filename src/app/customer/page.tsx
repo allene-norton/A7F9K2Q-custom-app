@@ -8,6 +8,8 @@ import { AssessmentItem } from '@/types/types-index';
 import { getCategoryColor } from '@/lib/utils';
 import { CUSTOMER_SELECTION_OPTIONS } from '@/lib/constants';
 
+const CATEGORY_OPTIONS = ['All', 'Urgent', 'Recommended', 'Cosmetic', 'Included Maintenance', 'No Issue'];
+
 function CustomerPageInner() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? undefined;
@@ -15,8 +17,13 @@ function CustomerPageInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [assessment, setAssessment] = useState<StoredAssessment | null>(null);
+  const [companyId, setCompanyId] = useState<string | null>(null);
   const [selections, setSelections] = useState<Record<string, string>>({});
+  const [comments, setComments] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('All');
 
   useEffect(() => {
     async function load() {
@@ -30,13 +37,14 @@ function CustomerPageInner() {
           return;
         }
 
-        const companyId = userData.company?.id;
-        if (!companyId) {
+        const id = userData.company?.id;
+        if (!id) {
           setError('No company found for your account.');
           return;
         }
 
-        const res = await fetch(`/api/assessments/${companyId}`);
+        setCompanyId(id);
+        const res = await fetch(`/api/assessments/${id}`);
         const data = await res.json();
         setAssessment(data);
       } catch (e) {
@@ -50,23 +58,47 @@ function CustomerPageInner() {
     load();
   }, [token]);
 
-  const handleSubmit = () => {
-    if (!assessment) return;
-    const summary = assessment.items
-      .map((item: AssessmentItem) => {
-        const sel = selections[item.id];
-        const option = CUSTOMER_SELECTION_OPTIONS.find((o) => String(o.orderindex) === sel);
-        return `${item.issue}: ${option?.name ?? 'No selection'}`;
-      })
-      .join('\n');
-    alert(`Selections submitted!\n\nWill update ClickUp:\n${summary}`);
-    setSubmitted(true);
+  const handleSubmit = async () => {
+    if (!assessment || !companyId) return;
+    setIsSubmitting(true);
+    try {
+      const payload = assessment.items.map((item: AssessmentItem) => ({
+        clickup_task_id: item.clickup_task_id,
+        orderindex: Number(selections[item.id]),
+        comment: comments[item.id] ?? '',
+      }));
+      const res = await fetch(`/api/assessments/${companyId}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: payload }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSubmitted(true);
+      } else {
+        alert('Some items failed to update. Please try again.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const allSelected =
     assessment !== null &&
     assessment.items.length > 0 &&
     assessment.items.every((item: AssessmentItem) => selections[item.id] !== undefined);
+
+  const filteredItems = assessment?.items.filter((item: AssessmentItem) => {
+    const q = searchQuery.toLowerCase();
+    const matchesSearch =
+      !q ||
+      item.issue?.toLowerCase().includes(q) ||
+      item.location?.toLowerCase().includes(q) ||
+      item.description?.toLowerCase().includes(q) ||
+      item.recommendation?.toLowerCase().includes(q);
+    const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  }) ?? [];
 
   if (loading) {
     return (
@@ -147,8 +179,34 @@ function CustomerPageInner() {
           </p>
         </div>
 
+        {/* Search + Filter */}
+        <div className="bg-white rounded-xl border-2 border-gray-200 p-4 mb-4 shadow-sm flex flex-col sm:flex-row gap-3">
+          <input
+            type="text"
+            placeholder="Search items…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]"
+          />
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]"
+          >
+            {CATEGORY_OPTIONS.map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+        </div>
+
+        {(searchQuery || categoryFilter !== 'All') && (
+          <p className="text-xs text-gray-500 mb-3 px-1">
+            Showing {filteredItems.length} of {assessment.items.length} item{assessment.items.length !== 1 ? 's' : ''}
+          </p>
+        )}
+
         <div className="space-y-4 mb-8">
-          {assessment.items.map((item: AssessmentItem, index: number) => (
+          {filteredItems.map((item: AssessmentItem, index: number) => (
             <div
               key={item.id}
               className="bg-white rounded-xl border-2 border-gray-200 p-5 shadow-sm"
@@ -223,9 +281,29 @@ function CustomerPageInner() {
                     </option>
                   ))}
                 </select>
+
+                {selections[item.id] !== undefined && (
+                  <textarea
+                    value={comments[item.id] ?? ''}
+                    onChange={(e) =>
+                      setComments((prev) => ({ ...prev, [item.id]: e.target.value }))
+                    }
+                    placeholder="Add a note for our team (optional)"
+                    rows={2}
+                    className="mt-2 w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm
+                               focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]
+                               resize-none placeholder-gray-400"
+                  />
+                )}
               </div>
             </div>
           ))}
+
+          {filteredItems.length === 0 && (
+            <div className="text-center py-12 text-gray-400">
+              <p className="text-sm">No items match your search.</p>
+            </div>
+          )}
         </div>
 
         {submitted ? (
@@ -252,12 +330,12 @@ function CustomerPageInner() {
             )}
             <button
               onClick={handleSubmit}
-              disabled={!allSelected}
+              disabled={!allSelected || isSubmitting}
               className="px-8 py-3 rounded-lg text-white font-bold text-base hover:opacity-90
                          transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ backgroundColor: '#174887' }}
             >
-              Submit Selections
+              {isSubmitting ? 'Submitting…' : 'Submit Selections'}
             </button>
           </div>
         )}
