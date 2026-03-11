@@ -35,6 +35,7 @@ export function middleware(request: NextRequest) {
     'Content-Security-Policy',
     contentSecurityPolicyHeaderValue,
   );
+  response.headers.delete('X-Frame-Options');
 
   return response;
 }
