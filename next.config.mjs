@@ -10,10 +10,6 @@ const nextConfig = {
         source: '/(.*)',
         headers: [
           {
-            key: 'X-Frame-Options',
-            value: '',
-          },
-          {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
           },
