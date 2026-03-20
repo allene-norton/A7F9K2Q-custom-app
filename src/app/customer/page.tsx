@@ -687,7 +687,7 @@ function CustomerPageInner() {
         )}
 
         {/* Item cards */}
-        <div className="space-y-3 mb-8">
+        <div className="space-y-5 mb-8">
           {filteredAndSortedItems.map((item: AssessmentItem, index: number) => {
             const sel = selections[item.id];
             const chosenOption =
@@ -698,100 +698,154 @@ function CustomerPageInner() {
                 : undefined;
 
             return (
-              <button
+              <div
                 key={item.id}
-                onClick={() => !submitted && setActiveItem(item)}
-                disabled={submitted}
-                className={`w-full text-left bg-white rounded-xl border-2 shadow-sm p-4 transition-all ${
-                  submitted
-                    ? 'opacity-60 cursor-not-allowed'
-                    : 'hover:shadow-md hover:border-gray-300 active:scale-[0.99]'
-                }`}
-                style={{ borderColor: chosenOption?.color ?? '#e5e7eb' }}
+                className={`bg-white rounded-xl border shadow-sm transition-all ${
+                  submitted ? 'opacity-60' : 'hover:shadow-lg'
+                } ${chosenOption ? 'ring-2' : 'border-gray-200'}`}
+                style={{
+                  borderColor: chosenOption?.color ?? '#e5e7eb',
+                  ringColor: chosenOption?.color,
+                }}
               >
-                <div className="flex items-center gap-3">
-                  {/* Index + content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-xs font-semibold text-gray-400">
-                        #{index + 1}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        {item.location}
-                      </span>
+                {/* Card Header: Item number + location → title + urgency badge */}
+                <div className="p-5 pb-0">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      {/* Item number + location */}
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="inline-flex items-center justify-center w-6 h-6 bg-gray-100 text-gray-600 text-xs font-bold rounded-full">
+                          {index + 1}
+                        </span>
+                        <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                          {item.location}
+                        </span>
+                      </div>
+
+                      {/* Title */}
+                      <h3 className="text-base font-bold text-gray-900 leading-tight pr-4">
+                        {item.issue}
+                      </h3>
                     </div>
-                    <p className="text-sm font-bold text-gray-900 truncate">
-                      {item.issue}
-                    </p>
 
-                    {/* Description */}
-                    {item.description && (
-                      <div className="mt-1">
-                        <p className="text-xs font-medium text-gray-500 mb-0.5">
-                          Description/Recommendation:
-                        </p>
-                        <p className="text-xs text-gray-600 line-clamp-2">
-                          {item.description}
-                        </p>
-                      </div>
-                    )}
-
-                    {chosenOption ? (
-                      <p
-                        className="text-xs font-medium mt-1"
-                        style={{ color: chosenOption.color }}
+                    {/* Urgency Badge */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 ${getCategoryColor(item.category)}`}
                       >
-                        {chosenOption.name}
-                      </p>
-                    ) : (
-                      <p className="text-xs text-gray-400 mt-1">
-                        Tap to review →
-                      </p>
-                    )}
-
-                    {/* Tags */}
-                    {item.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {item.tags.map((tag) => (
-                          <span
-                            key={tag.name}
-                            style={{
-                              backgroundColor: tag.bg,
-                              color: '#1a1c1f',
-                            }}
-                            className="px-1.5 py-0.5 text-xs rounded-md font-medium"
+                        {item.category}
+                      </span>
+                      {chosenOption && (
+                        <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                          <svg
+                            className="w-4 h-4 text-green-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
                           >
-                            {tag.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2.5}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Right side: category + check/arrow */}
-                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                    <span
-                      className={`px-2 py-0.5 rounded-md text-xs font-bold border ${getCategoryColor(item.category)}`}
-                    >
-                      {item.category}
-                    </span>
-                    {chosenOption ? (
-                      <svg
-                        className="w-4 h-4 text-green-500"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                  {/* Tags */}
+                  {item.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {item.tags.map((tag) => (
+                        <span
+                          key={tag.name}
+                          className="px-2.5 py-1 text-xs font-medium rounded-full border"
+                          style={{
+                            backgroundColor: hexToRgba(tag.bg, 0.1),
+                            borderColor: hexToRgba(tag.bg, 0.2),
+                            color: '#374151',
+                          }}
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Description/Recommendation Section */}
+                {item.description && (
+                  <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                      Recommendation
+                    </p>
+                    <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
+                      {item.description}
+                    </p>
+                  </div>
+                )}
+
+                {/* Image Section */}
+                {item.images.length > 0 && (
+                  <div className="px-5 pt-4">
+                    <div className="relative">
+                      <img
+                        src={item.images[0]}
+                        alt={item.issue}
+                        className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                      />
+                      {item.images.length > 1 && (
+                        <div className="absolute top-2 right-2 bg-black/70 text-white text-xs font-medium px-2 py-1 rounded-full">
+                          +{item.images.length - 1} more
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Selection Status or CTA Button */}
+                <div className="p-5 pt-4">
+                  {chosenOption ? (
+                    <div className="text-center py-2">
+                      <div
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2"
+                        style={{
+                          borderColor: chosenOption.color,
+                          backgroundColor: hexToRgba(chosenOption.color, 0.05),
+                        }}
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2.5}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    ) : (
+                        <svg
+                          className="w-4 h-4 text-green-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2.5}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                        <span
+                          className="text-sm font-semibold"
+                          style={{ color: chosenOption.color }}
+                        >
+                          {chosenOption.name}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => !submitted && setActiveItem(item)}
+                      disabled={submitted}
+                      className="w-full py-3.5 px-4 bg-gradient-to-r from-[#174887] to-[#1e5a9b] hover:from-[#0f3d73] hover:to-[#174887] text-white font-semibold rounded-lg transition-all duration-200 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+                    >
+                      <span>Tap to Review</span>
                       <svg
-                        className="w-4 h-4 text-gray-300"
+                        className="w-4 h-4"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -803,21 +857,10 @@ function CustomerPageInner() {
                           d="M9 5l7 7-7 7"
                         />
                       </svg>
-                    )}
-                  </div>
+                    </button>
+                  )}
                 </div>
-
-                {/* Thumbnail strip */}
-                {item.images.length > 0 && !chosenOption && (
-                  <div className="mt-3">
-                    <img
-                      src={item.images[0]}
-                      alt={item.issue}
-                      className="w-full h-32 object-cover rounded-lg border border-gray-100"
-                    />
-                  </div>
-                )}
-              </button>
+              </div>
             );
           })}
 
