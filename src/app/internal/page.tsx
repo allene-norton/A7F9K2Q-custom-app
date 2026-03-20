@@ -137,8 +137,12 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     setAssessmentLoading(true);
     setAssessmentError(null);
     try {
+      const resolvedParent: AssessmentParent = {
+        ...location,
+        location: location.location || company.name || '',
+      };
       const result = await buildCommercialAssessment(
-        location,
+        resolvedParent,
         company.id || "",
         company.name || "Unknown"
       );
@@ -295,7 +299,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                     </span>
                   </div>
                   <div className="text-sm text-gray-500 mt-1">
-                    {loc.location} &middot; {loc.date}
+                    {loc.location ? `${loc.location} · ` : ''}{loc.date}
                   </div>
               </button>
             ))}
