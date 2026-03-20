@@ -106,17 +106,6 @@ export default function AssessmentItemDetail({
             </div>
           )}
 
-          {/* Recommendation */}
-          {item.recommendation && (
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                Recommendation
-              </p>
-              <p className="text-sm text-gray-700 leading-relaxed">
-                {item.recommendation}
-              </p>
-            </div>
-          )}
 
           {/* Tags */}
           {item.tags.length > 0 && (

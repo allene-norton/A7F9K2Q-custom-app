@@ -138,13 +138,13 @@ function ItemModal({
             </div>
           )}
 
-          {/* Recommendation */}
-          {item.recommendation && (
+          {/* Description */}
+          {item.description && (
             <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
               <p className="text-xs font-semibold text-gray-500 mb-1">
-                Recommendation
+                Description
               </p>
-              <p className="text-sm text-gray-800">{item.recommendation}</p>
+              <p className="text-sm text-gray-800">{item.description}</p>
             </div>
           )}
 
@@ -360,7 +360,6 @@ function CustomerPageInner() {
           item.issue?.toLowerCase().includes(q) ||
           item.location?.toLowerCase().includes(q) ||
           item.description?.toLowerCase().includes(q) ||
-          item.recommendation?.toLowerCase().includes(q) ||
           item.tags.some((tag) => tag.name.toLowerCase().includes(q)),
       );
     }

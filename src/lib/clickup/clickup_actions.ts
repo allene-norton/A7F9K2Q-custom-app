@@ -306,8 +306,7 @@ function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
       null,
     issue: task.name,
     status: task.status.status,
-    recommendation: task.text_content || task.description || '',
-    description: task.description || '',
+    description: task.text_content || task.description || '',
     images: (task.attachments || [])
       .filter((a) => a.url)
       .map((a) => a.thumbnail_large || a.url),

@@ -73,12 +73,6 @@ export default function AssessmentPreview({
                   <p className="text-sm text-gray-700 mb-3 leading-relaxed">{item.description}</p>
                 )}
 
-                {item.recommendation && (
-                  <div className="mb-3 p-3 bg-white border border-gray-200 rounded-lg">
-                    <p className="text-xs font-semibold text-gray-600 mb-1">Recommendation</p>
-                    <p className="text-sm text-gray-800">{item.recommendation}</p>
-                  </div>
-                )}
 
                 {/* Customer Selection (disabled in preview) */}
                 <div className="mt-3">

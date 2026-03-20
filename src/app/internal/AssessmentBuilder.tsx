@@ -119,7 +119,7 @@ export default function AssessmentBuilder({
         (item) =>
           item.location.toLowerCase().includes(query) ||
           item.issue.toLowerCase().includes(query) ||
-          item.recommendation.toLowerCase().includes(query) ||
+          (item.description ?? '').toLowerCase().includes(query) ||
           item.tags.some((tag) => tag.name.toLowerCase().includes(query)) ||
           item.comments.toLowerCase().includes(query),
       );

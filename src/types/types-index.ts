@@ -19,7 +19,6 @@ export interface AssessmentItem {
   status: string | null;
   issue: string;
   description: string | undefined;
-  recommendation: string;
   images: string[];
   estimated_cost_min: number; // remove
   estimated_cost_max: number; // remove
