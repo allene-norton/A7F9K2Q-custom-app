@@ -539,7 +539,7 @@ function CustomerPageInner() {
                 </svg>
                 <input
                   type="text"
-                  placeholder="Search items…"
+                  placeholder="Search items by title, tag, description, etc..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm
