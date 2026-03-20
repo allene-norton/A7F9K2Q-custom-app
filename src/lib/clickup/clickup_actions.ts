@@ -1,6 +1,10 @@
 'use server';
 
-import { AssessmentItem, Assessment, AssessmentParent } from '@/types/types-index';
+import {
+  AssessmentItem,
+  Assessment,
+  AssessmentParent,
+} from '@/types/types-index';
 import { hexToRgba } from '@/lib/utils';
 
 const CLICKUP_API_KEY = process.env.CLICKUP_KEY;
@@ -332,19 +336,23 @@ function extractApprovalNeeded(task: ClickUpTask): boolean {
 
 // Returns the Location custom field value, falling back to the task name
 function extractLocationField(task: ClickUpTask): string {
-    const field = task.custom_fields?.find((f) => f.id === LOCATION_FIELD_ID);
-    if (field?.value !== undefined && field?.value !== null && field.type_config?.options) {
-      const valueAsNumber =
-        typeof field.value === 'string'
-          ? parseInt(field.value, 10)
-          : Number(field.value);
-      const option = field.type_config.options.find(
-        (opt) => opt.orderindex === valueAsNumber,
-      );
-      if (option) return option.name;
-    }
-    return task.name;
+  const field = task.custom_fields?.find((f) => f.id === LOCATION_FIELD_ID);
+  if (
+    field?.value !== undefined &&
+    field?.value !== null &&
+    field.type_config?.options
+  ) {
+    const valueAsNumber =
+      typeof field.value === 'string'
+        ? parseInt(field.value, 10)
+        : Number(field.value);
+    const option = field.type_config.options.find(
+      (opt) => opt.orderindex === valueAsNumber,
+    );
+    if (option) return option.name;
   }
+  return task.name;
+}
 
 // Get all assessment parent tasks (locations) for a commercial company.
 // Looks for the "Assessments" list in the matching folder.
@@ -352,7 +360,9 @@ export async function getCommercialAssessmentLocations(
   companyName: string,
 ): Promise<AssessmentParent[]> {
   const folder = await findMatchingFolder(companyName);
+
   if (!folder) return [];
+  
 
   const assessmentList = await getAssessmentListForFolder(folder.id);
   if (!assessmentList) return [];
@@ -366,14 +376,16 @@ export async function getCommercialAssessmentLocations(
     (a, b) => parseInt(b.date_created) - parseInt(a.date_created),
   );
 
+  console.log("PARENT TASKS")
+
   return parentTasks.map((t) => ({
-      taskId: t.id,
-      taskName: t.name,
-      location: extractLocationField(t),
-      date: new Date(parseInt(t.date_created)).toISOString().split('T')[0],
-      status: t.status.status,
-      statusColor: t.status.color || '#6b7280',
-    }));
+    taskId: t.id,
+    taskName: t.name,
+    location: extractLocationField(t),
+    date: new Date(parseInt(t.date_created)).toISOString().split('T')[0],
+    status: t.status.status,
+    statusColor: t.status.color || '#6b7280',
+  }));
 }
 
 // Build an Assessment from a selected commercial parent task.
