@@ -232,7 +232,8 @@ function CustomerPageInner() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [assessment, setAssessment] = useState<StoredAssessment | null>(null);
+  const [assessments, setAssessments] = useState<StoredAssessment[]>([]);
+  const [selectedAssessment, setSelectedAssessment] = useState<StoredAssessment | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [comments, setComments] = useState<Record<string, string>>({});
@@ -270,8 +271,9 @@ function CustomerPageInner() {
 
         setCompanyId(id);
         const res = await fetch(`/api/assessments/${id}`);
-        const data = await res.json();
-        setAssessment(data);
+        const list: StoredAssessment[] = await res.json();
+        setAssessments(list ?? []);
+        if (list?.length === 1) setSelectedAssessment(list[0]);
       } catch (e) {
         setError('Failed to load assessment. Please try again.');
         console.error(e);
@@ -297,11 +299,22 @@ function CustomerPageInner() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  const handleSelectAssessment = (a: StoredAssessment) => {
+    setSelectedAssessment(a);
+    setSelections({});
+    setComments({});
+    setSubmitted(false);
+    setCategoryFilter('All');
+    setSortOption('default');
+    setSearchQuery('');
+    setSelectedTags([]);
+  };
+
   const handleSubmit = async () => {
-    if (!assessment || !companyId) return;
+    if (!selectedAssessment || !companyId) return;
     setIsSubmitting(true);
     try {
-      const payload = assessment.items.map((item: AssessmentItem) => ({
+      const payload = selectedAssessment.items.map((item: AssessmentItem) => ({
         clickup_task_id: item.clickup_task_id,
         orderindex: Number(selections[item.id]),
         comment: comments[item.id] ?? '',
@@ -309,7 +322,7 @@ function CustomerPageInner() {
       const res = await fetch(`/api/assessments/${companyId}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: payload }),
+        body: JSON.stringify({ assessmentId: selectedAssessment.assessmentId, items: payload }),
       });
       const data = await res.json();
       if (data.success) {
@@ -323,18 +336,18 @@ function CustomerPageInner() {
   };
 
   const allSelected =
-    assessment !== null &&
-    assessment.items.length > 0 &&
-    assessment.items.every(
+    selectedAssessment !== null &&
+    selectedAssessment.items.length > 0 &&
+    selectedAssessment.items.every(
       (item: AssessmentItem) => selections[item.id] !== undefined,
     );
 
   // Derive unique tags from assessment items
   const itemTags = useMemo(() => {
-    if (!assessment) return [];
+    if (!selectedAssessment) return [];
     const seen = new Set<string>();
     const tags: AssessmentItem['tags'] = [];
-    for (const item of assessment.items) {
+    for (const item of selectedAssessment.items) {
       for (const tag of item.tags) {
         if (!seen.has(tag.name)) {
           seen.add(tag.name);
@@ -343,11 +356,11 @@ function CustomerPageInner() {
       }
     }
     return tags;
-  }, [assessment]);
+  }, [selectedAssessment]);
 
   const filteredAndSortedItems = useMemo(() => {
-    if (!assessment) return [];
-    let items = [...assessment.items];
+    if (!selectedAssessment) return [];
+    let items = [...selectedAssessment.items];
 
     if (categoryFilter !== 'All') {
       items = items.filter((item) => item.category === categoryFilter);
@@ -383,7 +396,7 @@ function CustomerPageInner() {
     }
 
     return items;
-  }, [assessment, categoryFilter, searchQuery, selectedTags, sortOption]);
+  }, [selectedAssessment, categoryFilter, searchQuery, selectedTags, sortOption]);
 
   const clearFilters = () => {
     setCategoryFilter('All');
@@ -443,41 +456,73 @@ function CustomerPageInner() {
     );
   }
 
-  if (!assessment) {
+  // No assessments
+  if (assessments.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div
-          className="py-5 px-6 shadow-sm"
-          style={{ backgroundColor: '#174887' }}
-        >
+        <div className="py-5 px-6 shadow-sm" style={{ backgroundColor: '#174887' }}>
           <h1 className="text-xl font-bold text-white">Maintenance Matters</h1>
         </div>
         <div className="max-w-2xl mx-auto py-16 px-4 text-center">
-          <svg
-            className="w-16 h-16 text-gray-300 mx-auto mb-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-            />
+          <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">
-            No assessments currently available for review
-          </h2>
-          <p className="text-gray-500">
-            Your team will notify you when an assessment is ready.
-          </p>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">No assessments currently available for review</h2>
+          <p className="text-gray-500">Your team will notify you when an assessment is ready.</p>
         </div>
       </div>
     );
   }
 
-  const selectedCount = assessment.items.filter(
+  // Assessment selector (multiple assessments, none chosen yet)
+  if (assessments.length > 1 && !selectedAssessment) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="py-5 px-6 shadow-sm" style={{ backgroundColor: '#174887' }}>
+          <h1 className="text-xl font-bold text-white">Maintenance Matters</h1>
+        </div>
+        <div className="max-w-2xl mx-auto py-8 px-4">
+          <h2 className="text-2xl font-bold mb-1" style={{ color: '#174887' }}>
+            {assessments[0].companyName}
+          </h2>
+          <p className="text-gray-500 text-sm mb-6">
+            You have {assessments.length} assessments ready for review. Select one to get started.
+          </p>
+          <div className="space-y-3">
+            {assessments.map((a) => (
+              <button
+                key={a.assessmentId}
+                onClick={() => handleSelectAssessment(a)}
+                className="w-full text-left bg-white border-2 border-gray-200 rounded-xl p-5
+                           hover:border-[#174887] hover:shadow-md transition-all"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-900 text-base leading-snug">
+                      {a.assessmentName}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Sent {new Date(a.sentAt).toLocaleDateString('en-US', {
+                        year: 'numeric', month: 'long', day: 'numeric',
+                      })}
+                      {' · '}
+                      {a.items.length} item{a.items.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const selectedCount = selectedAssessment!.items.filter(
     (item: AssessmentItem) => selections[item.id] !== undefined,
   ).length;
 
@@ -491,14 +536,30 @@ function CustomerPageInner() {
       </div>
 
       <div className="max-w-2xl mx-auto py-8 px-4">
+        {/* Back to assessments (multi-assessment only) */}
+        {assessments.length > 1 && (
+          <button
+            onClick={() => setSelectedAssessment(null)}
+            className="flex items-center gap-2 text-gray-600 hover:text-[#174887] mb-5 transition-colors font-medium text-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            All assessments
+          </button>
+        )}
+
         {/* Header card */}
         <div className="bg-white rounded-xl border-2 border-gray-200 p-6 mb-6 shadow-sm">
-          <h2 className="text-2xl font-bold mb-1" style={{ color: '#174887' }}>
-            {assessment.companyName}
+          <h2 className="text-2xl font-bold mb-0.5" style={{ color: '#174887' }}>
+            {selectedAssessment!.companyName}
           </h2>
+          <p className="text-base font-semibold text-gray-700 mb-1">
+            {selectedAssessment!.assessmentName}
+          </p>
           <p className="text-gray-500 text-sm">
-            Assessment sent{' '}
-            {new Date(assessment.sentAt).toLocaleDateString('en-US', {
+            Sent{' '}
+            {new Date(selectedAssessment!.sentAt).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'long',
               day: 'numeric',
@@ -509,10 +570,10 @@ function CustomerPageInner() {
             you&rsquo;re done, click <strong>Submit Selections</strong> at the
             bottom.
           </p>
-          {assessment.items.length > 0 && (
+          {selectedAssessment!.items.length > 0 && (
             <p className="text-xs text-gray-400 mt-3">
-              {selectedCount} of {assessment.items.length} item
-              {assessment.items.length !== 1 ? 's' : ''} reviewed
+              {selectedCount} of {selectedAssessment!.items.length} item
+              {selectedAssessment!.items.length !== 1 ? 's' : ''} reviewed
             </p>
           )}
         </div>
@@ -680,8 +741,8 @@ function CustomerPageInner() {
 
         {hasActiveFilters && (
           <p className="text-xs text-gray-500 mb-3 px-1">
-            Showing {filteredAndSortedItems.length} of {assessment.items.length}{' '}
-            item{assessment.items.length !== 1 ? 's' : ''}
+            Showing {filteredAndSortedItems.length} of {selectedAssessment!.items.length}{' '}
+            item{selectedAssessment!.items.length !== 1 ? 's' : ''}
           </p>
         )}
 

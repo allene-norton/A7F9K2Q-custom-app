@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getSentAssessment } from '@/lib/store';
+import { getAssessmentById } from '@/lib/store';
 
 const CLICKUP_BASE = 'https://api.clickup.com/api/v2';
 const CUSTOMER_SELECTION_FIELD_ID = 'd82819f0-eaad-45d2-8c67-af1aa08a5949';
@@ -9,7 +9,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const { items } = await req.json();
+  const { assessmentId, items } = await req.json();
   const key = process.env.CLICKUP_KEY;
 
   if (!key) {
@@ -19,8 +19,7 @@ export async function POST(
     );
   }
 
-  // Get assessment data to access company name
-  const assessmentData = await getSentAssessment(id);
+  const assessmentData = await getAssessmentById(id, assessmentId);
   if (!assessmentData) {
     return Response.json(
       { success: false, error: 'Assessment not found' },
@@ -33,7 +32,6 @@ export async function POST(
     'Content-Type': 'application/json',
   };
 
-  // Format current date as MM/DD/YYYY
   const now = new Date();
   const formattedDate = `${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')}/${now.getFullYear()}`;
 

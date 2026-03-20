@@ -1,4 +1,4 @@
-import { setSentAssessment } from '@/lib/store';
+import { appendAssessment } from '@/lib/store';
 
 export async function POST(
   req: Request,
@@ -6,7 +6,9 @@ export async function POST(
 ) {
   const { id } = await params;
   const body = await req.json();
-  await setSentAssessment(id, {
+  await appendAssessment(id, {
+    assessmentId: body.assessmentId ?? `assess_${id}_${Date.now()}`,
+    assessmentName: body.assessmentName ?? 'Assessment',
     companyId: id,
     companyName: body.companyName,
     items: body.items,

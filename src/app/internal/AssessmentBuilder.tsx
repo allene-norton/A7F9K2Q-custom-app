@@ -191,6 +191,8 @@ export default function AssessmentBuilder({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          assessmentId: assessment.id,
+          assessmentName: assessment.assessment_name,
           companyName: company.name,
           items: displayItems,
         }),
