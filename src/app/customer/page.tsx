@@ -726,9 +726,14 @@ function CustomerPageInner() {
 
                     {/* Description */}
                     {item.description && (
-                      <p className="text-xs text-gray-600 mt-1 line-clamp-2">
-                        {item.description}
-                      </p>
+                      <div className="mt-1">
+                        <p className="text-xs font-medium text-gray-500 mb-0.5">
+                          Description/Recommendation:
+                        </p>
+                        <p className="text-xs text-gray-600 line-clamp-2">
+                          {item.description}
+                        </p>
+                      </div>
                     )}
 
                     {chosenOption ? (
