@@ -37,7 +37,14 @@ interface ItemModalProps {
   onClose: () => void;
 }
 
-function ItemModal({ item, selection, comment, onSelectionChange, onCommentChange, onClose }: ItemModalProps) {
+function ItemModal({
+  item,
+  selection,
+  comment,
+  onSelectionChange,
+  onCommentChange,
+  onClose,
+}: ItemModalProps) {
   const [activeImage, setActiveImage] = useState(0);
 
   return (
@@ -52,19 +59,35 @@ function ItemModal({ item, selection, comment, onSelectionChange, onCommentChang
         {/* Header */}
         <div className="flex items-start justify-between p-5 border-b border-gray-200 sticky top-0 bg-white z-10">
           <div className="flex-1 pr-4">
-            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">{item.location}</p>
-            <h2 className="text-lg font-bold text-gray-900 leading-snug">{item.issue}</h2>
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">
+              {item.location}
+            </p>
+            <h2 className="text-lg font-bold text-gray-900 leading-snug">
+              {item.issue}
+            </h2>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border-2 ${getCategoryColor(item.category)}`}>
+            <span
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold border-2 ${getCategoryColor(item.category)}`}
+            >
               {item.category}
             </span>
             <button
               onClick={onClose}
               className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-400"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -86,10 +109,16 @@ function ItemModal({ item, selection, comment, onSelectionChange, onCommentChang
                       key={i}
                       onClick={() => setActiveImage(i)}
                       className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-colors ${
-                        i === activeImage ? 'border-[#174887]' : 'border-gray-200 hover:border-gray-400'
+                        i === activeImage
+                          ? 'border-[#174887]'
+                          : 'border-gray-200 hover:border-gray-400'
                       }`}
                     >
-                      <img src={img} alt={`Image ${i + 1}`} className="w-full h-full object-cover" />
+                      <img
+                        src={img}
+                        alt={`Image ${i + 1}`}
+                        className="w-full h-full object-cover"
+                      />
                     </button>
                   ))}
                 </div>
@@ -100,15 +129,21 @@ function ItemModal({ item, selection, comment, onSelectionChange, onCommentChang
           {/* Description */}
           {item.description && (
             <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Description</p>
-              <p className="text-sm text-gray-700 leading-relaxed">{item.description}</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
+                Description
+              </p>
+              <p className="text-sm text-gray-700 leading-relaxed">
+                {item.description}
+              </p>
             </div>
           )}
 
           {/* Recommendation */}
           {item.recommendation && (
             <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-              <p className="text-xs font-semibold text-gray-500 mb-1">Recommendation</p>
+              <p className="text-xs font-semibold text-gray-500 mb-1">
+                Recommendation
+              </p>
               <p className="text-sm text-gray-800">{item.recommendation}</p>
             </div>
           )}
@@ -145,12 +180,16 @@ function ItemModal({ item, selection, comment, onSelectionChange, onCommentChang
                 selection
                   ? {
                       borderColor:
-                        CUSTOMER_SELECTION_OPTIONS.find((o) => String(o.orderindex) === selection)?.color ?? undefined,
+                        CUSTOMER_SELECTION_OPTIONS.find(
+                          (o) => String(o.orderindex) === selection,
+                        )?.color ?? undefined,
                     }
                   : undefined
               }
             >
-              <option value="" disabled>Choose an option…</option>
+              <option value="" disabled>
+                Choose an option…
+              </option>
               {CUSTOMER_SELECTION_OPTIONS.map((opt) => (
                 <option key={opt.orderindex} value={String(opt.orderindex)}>
                   {opt.name}
@@ -203,7 +242,9 @@ function CustomerPageInner() {
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<'All' | AssessmentItem['category']>('All');
+  const [categoryFilter, setCategoryFilter] = useState<
+    'All' | AssessmentItem['category']
+  >('All');
   const [sortOption, setSortOption] = useState<SortOption>('default');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
@@ -245,7 +286,10 @@ function CustomerPageInner() {
   // Close tag dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (tagDropdownRef.current && !tagDropdownRef.current.contains(e.target as Node)) {
+      if (
+        tagDropdownRef.current &&
+        !tagDropdownRef.current.contains(e.target as Node)
+      ) {
         setTagDropdownOpen(false);
       }
     };
@@ -281,7 +325,9 @@ function CustomerPageInner() {
   const allSelected =
     assessment !== null &&
     assessment.items.length > 0 &&
-    assessment.items.every((item: AssessmentItem) => selections[item.id] !== undefined);
+    assessment.items.every(
+      (item: AssessmentItem) => selections[item.id] !== undefined,
+    );
 
   // Derive unique tags from assessment items
   const itemTags = useMemo(() => {
@@ -321,14 +367,20 @@ function CustomerPageInner() {
 
     if (selectedTags.length > 0) {
       items = items.filter((item) =>
-        selectedTags.some((tagName) => item.tags.some((t) => t.name === tagName)),
+        selectedTags.some((tagName) =>
+          item.tags.some((t) => t.name === tagName),
+        ),
       );
     }
 
     if (sortOption === 'urgency-high') {
-      items.sort((a, b) => URGENCY_ORDER[a.category] - URGENCY_ORDER[b.category]);
+      items.sort(
+        (a, b) => URGENCY_ORDER[a.category] - URGENCY_ORDER[b.category],
+      );
     } else if (sortOption === 'urgency-low') {
-      items.sort((a, b) => URGENCY_ORDER[b.category] - URGENCY_ORDER[a.category]);
+      items.sort(
+        (a, b) => URGENCY_ORDER[b.category] - URGENCY_ORDER[a.category],
+      );
     }
 
     return items;
@@ -357,9 +409,24 @@ function CustomerPageInner() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <svg className="w-10 h-10 animate-spin text-[#174887] mx-auto mb-4" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          <svg
+            className="w-10 h-10 animate-spin text-[#174887] mx-auto mb-4"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v8H4z"
+            />
           </svg>
           <p className="text-gray-600">Loading your assessment…</p>
         </div>
@@ -380,26 +447,47 @@ function CustomerPageInner() {
   if (!assessment) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="py-5 px-6 shadow-sm" style={{ backgroundColor: '#174887' }}>
+        <div
+          className="py-5 px-6 shadow-sm"
+          style={{ backgroundColor: '#174887' }}
+        >
           <h1 className="text-xl font-bold text-white">Maintenance Matters</h1>
         </div>
         <div className="max-w-2xl mx-auto py-16 px-4 text-center">
-          <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          <svg
+            className="w-16 h-16 text-gray-300 mx-auto mb-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+            />
           </svg>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">No assessments currently available for review</h2>
-          <p className="text-gray-500">Your team will notify you when an assessment is ready.</p>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            No assessments currently available for review
+          </h2>
+          <p className="text-gray-500">
+            Your team will notify you when an assessment is ready.
+          </p>
         </div>
       </div>
     );
   }
 
-  const selectedCount = assessment.items.filter((item: AssessmentItem) => selections[item.id] !== undefined).length;
+  const selectedCount = assessment.items.filter(
+    (item: AssessmentItem) => selections[item.id] !== undefined,
+  ).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="py-5 px-6 shadow-sm" style={{ backgroundColor: '#174887' }}>
+      <div
+        className="py-5 px-6 shadow-sm"
+        style={{ backgroundColor: '#174887' }}
+      >
         <h1 className="text-xl font-bold text-white">Maintenance Matters</h1>
       </div>
 
@@ -410,17 +498,22 @@ function CustomerPageInner() {
             {assessment.companyName}
           </h2>
           <p className="text-gray-500 text-sm">
-            Assessment sent {new Date(assessment.sentAt).toLocaleDateString('en-US', {
-              year: 'numeric', month: 'long', day: 'numeric',
+            Assessment sent{' '}
+            {new Date(assessment.sentAt).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
             })}
           </p>
           <p className="text-sm text-gray-600 mt-2">
-            Tap each item to review details and make your selection. When you&rsquo;re
-            done, click <strong>Submit Selections</strong> at the bottom.
+            Tap each item to review details and make your selection. When
+            you&rsquo;re done, click <strong>Submit Selections</strong> at the
+            bottom.
           </p>
           {assessment.items.length > 0 && (
             <p className="text-xs text-gray-400 mt-3">
-              {selectedCount} of {assessment.items.length} item{assessment.items.length !== 1 ? 's' : ''} reviewed
+              {selectedCount} of {assessment.items.length} item
+              {assessment.items.length !== 1 ? 's' : ''} reviewed
             </p>
           )}
         </div>
@@ -437,8 +530,12 @@ function CustomerPageInner() {
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
                 </svg>
                 <input
                   type="text"
@@ -453,16 +550,24 @@ function CustomerPageInner() {
 
             {/* Urgency */}
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700">Urgency:</label>
+              <label className="text-sm font-medium text-gray-700">
+                Urgency:
+              </label>
               <select
                 value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value as 'All' | AssessmentItem['category'])}
+                onChange={(e) =>
+                  setCategoryFilter(
+                    e.target.value as 'All' | AssessmentItem['category'],
+                  )
+                }
                 className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
                            focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-gray"
               >
                 <option value="All">All</option>
                 {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
                 ))}
               </select>
             </div>
@@ -485,15 +590,25 @@ function CustomerPageInner() {
             {/* Tags multi-select */}
             {itemTags.length > 0 && (
               <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Tags:</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Tags:
+                </label>
                 <div className="relative" ref={tagDropdownRef}>
                   <button
                     onClick={() => setTagDropdownOpen((v) => !v)}
                     className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
                                focus:outline-none focus:ring-2 focus:ring-[#174887] hover:border-gray-400 transition-colors"
                   >
-                    <span className={selectedTags.length > 0 ? 'text-[#174887] font-semibold' : 'text-gray-700'}>
-                      {selectedTags.length === 0 ? 'Any' : `${selectedTags.length} selected`}
+                    <span
+                      className={
+                        selectedTags.length > 0
+                          ? 'text-[#174887] font-semibold'
+                          : 'text-gray-700'
+                      }
+                    >
+                      {selectedTags.length === 0
+                        ? 'Any'
+                        : `${selectedTags.length} selected`}
                     </span>
                     <svg
                       className={`w-4 h-4 text-gray-400 transition-transform ${tagDropdownOpen ? 'rotate-180' : ''}`}
@@ -501,7 +616,12 @@ function CustomerPageInner() {
                       stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
                     </svg>
                   </button>
 
@@ -514,7 +634,9 @@ function CustomerPageInner() {
                           onChange={() => setSelectedTags([])}
                           className="rounded accent-[#174887]"
                         />
-                        <span className="text-sm text-gray-700 font-medium">Any (no filter)</span>
+                        <span className="text-sm text-gray-700 font-medium">
+                          Any (no filter)
+                        </span>
                       </label>
                       <div className="border-t border-gray-100 my-1" />
                       {itemTags.map((tag) => (
@@ -559,7 +681,8 @@ function CustomerPageInner() {
 
         {hasActiveFilters && (
           <p className="text-xs text-gray-500 mb-3 px-1">
-            Showing {filteredAndSortedItems.length} of {assessment.items.length} item{assessment.items.length !== 1 ? 's' : ''}
+            Showing {filteredAndSortedItems.length} of {assessment.items.length}{' '}
+            item{assessment.items.length !== 1 ? 's' : ''}
           </p>
         )}
 
@@ -567,9 +690,12 @@ function CustomerPageInner() {
         <div className="space-y-3 mb-8">
           {filteredAndSortedItems.map((item: AssessmentItem, index: number) => {
             const sel = selections[item.id];
-            const chosenOption = sel !== undefined
-              ? CUSTOMER_SELECTION_OPTIONS.find((o) => String(o.orderindex) === sel)
-              : undefined;
+            const chosenOption =
+              sel !== undefined
+                ? CUSTOMER_SELECTION_OPTIONS.find(
+                    (o) => String(o.orderindex) === sel,
+                  )
+                : undefined;
 
             return (
               <button
@@ -582,31 +708,79 @@ function CustomerPageInner() {
                   {/* Index + content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-xs font-semibold text-gray-400">#{index + 1}</span>
-                      <span className="text-xs text-gray-400">{item.location}</span>
+                      <span className="text-xs font-semibold text-gray-400">
+                        #{index + 1}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {item.location}
+                      </span>
                     </div>
-                    <p className="text-sm font-bold text-gray-900 truncate">{item.issue}</p>
+                    <p className="text-sm font-bold text-gray-900 truncate">
+                      {item.issue}
+                    </p>
                     {chosenOption ? (
-                      <p className="text-xs font-medium mt-1" style={{ color: chosenOption.color }}>
+                      <p
+                        className="text-xs font-medium mt-1"
+                        style={{ color: chosenOption.color }}
+                      >
                         {chosenOption.name}
                       </p>
                     ) : (
-                      <p className="text-xs text-gray-400 mt-1">Tap to review →</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Tap to review →
+                      </p>
+                    )}
+                    
+                    {/* Tags */}
+                    {item.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {item.tags.map((tag) => (
+                          <span
+                            key={tag.name}
+                            style={{ backgroundColor: tag.bg, color: '#1a1c1f' }}
+                            className="px-1.5 py-0.5 text-xs rounded-md font-medium"
+                          >
+                            {tag.name}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
 
                   {/* Right side: category + check/arrow */}
                   <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                    <span className={`px-2 py-0.5 rounded-md text-xs font-bold border ${getCategoryColor(item.category)}`}>
+                    <span
+                      className={`px-2 py-0.5 rounded-md text-xs font-bold border ${getCategoryColor(item.category)}`}
+                    >
                       {item.category}
                     </span>
                     {chosenOption ? (
-                      <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      <svg
+                        className="w-4 h-4 text-green-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2.5}
+                          d="M5 13l4 4L19 7"
+                        />
                       </svg>
                     ) : (
-                      <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      <svg
+                        className="w-4 h-4 text-gray-300"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
                       </svg>
                     )}
                   </div>
@@ -630,7 +804,10 @@ function CustomerPageInner() {
             <div className="text-center py-12 text-gray-400">
               <p className="text-sm">No items match your filters.</p>
               {hasActiveFilters && (
-                <button onClick={clearFilters} className="mt-2 text-[#174887] hover:underline text-sm font-medium">
+                <button
+                  onClick={clearFilters}
+                  className="mt-2 text-[#174887] hover:underline text-sm font-medium"
+                >
                   Clear filters
                 </button>
               )}
@@ -641,11 +818,25 @@ function CustomerPageInner() {
         {/* Submit area */}
         {submitted ? (
           <div className="bg-green-50 border-2 border-green-200 rounded-xl p-6 text-center">
-            <svg className="w-10 h-10 text-green-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <svg
+              className="w-10 h-10 text-green-500 mx-auto mb-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
             </svg>
-            <h3 className="text-lg font-bold text-green-800">Selections Submitted!</h3>
-            <p className="text-sm text-green-700 mt-1">Thank you. Your team will be in touch shortly.</p>
+            <h3 className="text-lg font-bold text-green-800">
+              Selections Submitted!
+            </h3>
+            <p className="text-sm text-green-700 mt-1">
+              Thank you. Your team will be in touch shortly.
+            </p>
           </div>
         ) : (
           <div className="bg-white rounded-xl border-2 border-gray-200 p-6 shadow-sm text-center">
@@ -673,8 +864,12 @@ function CustomerPageInner() {
           item={activeItem}
           selection={selections[activeItem.id]}
           comment={comments[activeItem.id] ?? ''}
-          onSelectionChange={(val) => setSelections((prev) => ({ ...prev, [activeItem.id]: val }))}
-          onCommentChange={(val) => setComments((prev) => ({ ...prev, [activeItem.id]: val }))}
+          onSelectionChange={(val) =>
+            setSelections((prev) => ({ ...prev, [activeItem.id]: val }))
+          }
+          onCommentChange={(val) =>
+            setComments((prev) => ({ ...prev, [activeItem.id]: val }))
+          }
           onClose={() => setActiveItem(null)}
         />
       )}
@@ -687,9 +882,24 @@ export default function CustomerPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <svg className="w-10 h-10 animate-spin text-[#174887]" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          <svg
+            className="w-10 h-10 animate-spin text-[#174887]"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v8H4z"
+            />
           </svg>
         </div>
       }
