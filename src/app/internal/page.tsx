@@ -1,32 +1,32 @@
-"use client";
+'use client';
 
 // src/app/internal/page.tsx
 
-import { useState, useEffect } from "react";
-import { Assessment, AssessmentParent } from "@/types/types-index";
+import { useState, useEffect } from 'react';
+import { Assessment, AssessmentParent } from '@/types/types-index';
 import {
   getCommercialAssessmentLocations,
   buildCommercialAssessment,
   getHourlyFolders,
   getHourlyAssessmentForFolder,
   ClickUpFolder,
-} from "@/lib/clickup/clickup_actions";
-import { COMMERCIAL_SPACE_ID, HOURLY_SPACE_ID } from "@/lib/constants";
-import CustomerSelect from "@/components/internal/CustomerSelect";
-import { listCompanies, Company } from "@/lib/assembly/client";
-import AssessmentBuilder from "@/app/internal/AssessmentBuilder";
+} from '@/lib/clickup/clickup_actions';
+import { COMMERCIAL_SPACE_ID, HOURLY_SPACE_ID } from '@/lib/constants';
+import CustomerSelect from '@/components/internal/CustomerSelect';
+import { listCompanies, Company } from '@/lib/assembly/client';
+import AssessmentBuilder from '@/app/internal/AssessmentBuilder';
 
 interface InternalPageProps {
   searchParams: { token?: string };
 }
 
-type ActiveTab = "commercial" | "hourly";
+type ActiveTab = 'commercial' | 'hourly';
 
 export default function InternalPage({ searchParams }: InternalPageProps) {
   const token =
-    typeof searchParams.token === "string" ? searchParams.token : null;
+    typeof searchParams.token === 'string' ? searchParams.token : null;
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>("commercial");
+  const [activeTab, setActiveTab] = useState<ActiveTab>('commercial');
 
   // Commercial state
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -64,10 +64,10 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
       try {
         setCompaniesLoading(true);
         const response = await listCompanies(token);
-        if (!response.data) throw new Error("No company data returned");
+        if (!response.data) throw new Error('No company data returned');
         setCompanies(response.data);
       } catch (error) {
-        console.error("Failed to fetch companies:", error);
+        console.error('Failed to fetch companies:', error);
       } finally {
         setCompaniesLoading(false);
       }
@@ -77,7 +77,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
 
   // Lazily fetch hourly folders when the tab is first activated
   useEffect(() => {
-    if (activeTab !== "hourly" || hourlyLoaded) return;
+    if (activeTab !== 'hourly' || hourlyLoaded) return;
     const fetchHourly = async () => {
       try {
         setHourlyLoading(true);
@@ -85,7 +85,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
         setHourlyFolders(folders);
         setHourlyLoaded(true);
       } catch (error) {
-        console.error("Failed to fetch hourly folders:", error);
+        console.error('Failed to fetch hourly folders:', error);
       } finally {
         setHourlyLoading(false);
       }
@@ -104,10 +104,10 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
 
     try {
       const locations = await getCommercialAssessmentLocations(
-        company.name || ""
+        company.name || '',
       );
       if (locations.length === 0) {
-        setAssessmentError("No assessments found in ClickUp for this company.");
+        setAssessmentError('No assessments found in ClickUp for this company.');
         return;
       }
       if (locations.length === 1) {
@@ -117,9 +117,9 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
         setAssessmentLocations(locations);
       }
     } catch (error) {
-      console.error("Failed to fetch assessment locations:", error);
+      console.error('Failed to fetch assessment locations:', error);
       setAssessmentError(
-        error instanceof Error ? error.message : "Failed to load assessments"
+        error instanceof Error ? error.message : 'Failed to load assessments',
       );
     } finally {
       setLocationsLoading(false);
@@ -134,7 +134,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
 
   const loadCommercialAssessment = async (
     location: AssessmentParent,
-    company: Company
+    company: Company,
   ) => {
     setAssessmentLoading(true);
     setAssessmentError(null);
@@ -145,14 +145,14 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
       };
       const result = await buildCommercialAssessment(
         resolvedParent,
-        company.id || "",
-        company.name || "Unknown"
+        company.id || '',
+        company.name || 'Unknown',
       );
       setAssessment(result);
     } catch (error) {
-      console.error("Failed to build assessment:", error);
+      console.error('Failed to build assessment:', error);
       setAssessmentError(
-        error instanceof Error ? error.message : "Failed to load assessment"
+        error instanceof Error ? error.message : 'Failed to load assessment',
       );
     } finally {
       setAssessmentLoading(false);
@@ -169,9 +169,9 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
       const result = await getHourlyAssessmentForFolder(folder.id, folder.name);
       setAssessment(result);
     } catch (error) {
-      console.error("Failed to fetch hourly assessment:", error);
+      console.error('Failed to fetch hourly assessment:', error);
       setAssessmentError(
-        error instanceof Error ? error.message : "Failed to load assessment"
+        error instanceof Error ? error.message : 'Failed to load assessment',
       );
     } finally {
       setAssessmentLoading(false);
@@ -179,9 +179,9 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   };
 
   const handleBackToAssessments = () => {
-      setAssessment(null);
-      setAssessmentError(null);
-    };
+    setAssessment(null);
+    setAssessmentError(null);
+  };
 
   const handleBack = () => {
     setSelectedCompany(null);
@@ -203,11 +203,17 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
         assessment={assessment}
         onBack={handleBack}
         onBackToAssessments={
-            assessmentLocations && assessmentLocations.length > 1
-              ? handleBackToAssessments
+          assessmentLocations && assessmentLocations.length > 1
+            ? handleBackToAssessments
+            : undefined
+        }
+        spaceId={
+          selectedCompany
+            ? COMMERCIAL_SPACE_ID
+            : selectedHourlyFolder
+              ? HOURLY_SPACE_ID
               : undefined
-          }
-        spaceId={selectedCompany ? COMMERCIAL_SPACE_ID : selectedHourlyFolder ? HOURLY_SPACE_ID : undefined}
+        }
       />
     );
   }
@@ -215,7 +221,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   // --- Render: loading states ---
   if (assessmentLoading || locationsLoading) {
     const name =
-      selectedCompany?.name || selectedHourlyFolder?.name || "customer";
+      selectedCompany?.name || selectedHourlyFolder?.name || 'customer';
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -271,10 +277,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
             Back to companies
           </button>
 
-          <h2
-            className="text-2xl font-bold mb-2"
-            style={{ color: "#174887" }}
-          >
+          <h2 className="text-2xl font-bold mb-2" style={{ color: '#174887' }}>
             {selectedCompany.name}
           </h2>
           <p className="text-gray-600 mb-4">
@@ -284,11 +287,15 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
           {/* Location filter */}
           {(() => {
             const uniqueLocations = Array.from(
-              new Set(assessmentLocations.map((l) => l.location).filter(Boolean))
-            );
+              new Set(
+                assessmentLocations.map((l) => l.location).filter(Boolean),
+              ),
+            ).sort();
             return uniqueLocations.length > 1 ? (
               <div className="flex items-center gap-3 mb-5">
-                <label className="text-sm font-medium text-gray-700">Filter by location:</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Filter by location:
+                </label>
                 <select
                   value={locationFilter}
                   onChange={(e) => setLocationFilter(e.target.value)}
@@ -297,7 +304,9 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                 >
                   <option value="All">All</option>
                   {uniqueLocations.map((loc) => (
-                    <option key={loc} value={loc}>{loc}</option>
+                    <option key={loc} value={loc}>
+                      {loc}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -306,15 +315,18 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
 
           <div className="space-y-3">
             {assessmentLocations
-              .filter((loc) => locationFilter === 'All' || loc.location === locationFilter)
+              .filter(
+                (loc) =>
+                  locationFilter === 'All' || loc.location === locationFilter,
+              )
               .map((loc) => (
-              <button
-                key={loc.taskId}
-                onClick={() => handleLocationSelect(loc)}
-                className="w-full text-left bg-white border-2 border-gray-200 rounded-xl p-5
+                <button
+                  key={loc.taskId}
+                  onClick={() => handleLocationSelect(loc)}
+                  className="w-full text-left bg-white border-2 border-gray-200 rounded-xl p-5
                            hover:border-[#174887] hover:shadow-md transition-all"
-              >
-                <div className="flex items-center gap-3">
+                >
+                  <div className="flex items-center gap-3">
                     <span className="font-semibold text-gray-900 text-lg">
                       {loc.taskName}
                     </span>
@@ -326,10 +338,11 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                     </span>
                   </div>
                   <div className="text-sm text-gray-500 mt-1">
-                    {loc.location ? `${loc.location} · ` : ''}{loc.date}
+                    {loc.location ? `${loc.location} · ` : ''}
+                    {loc.date}
                   </div>
-              </button>
-            ))}
+                </button>
+              ))}
           </div>
         </div>
       </div>
@@ -349,17 +362,19 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
       <div className="border-b border-gray-200 bg-white">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex gap-0">
-            {(["commercial", "hourly"] as ActiveTab[]).map((tab) => (
+            {(['commercial', 'hourly'] as ActiveTab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
                   activeTab === tab
-                    ? "border-[#174887] text-[#174887]"
-                    : "border-transparent text-gray-500 hover:text-gray-700"
+                    ? 'border-[#174887] text-[#174887]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                {tab === "commercial" ? "Commercial Customers" : "Hourly Customers"}
+                {tab === 'commercial'
+                  ? 'Commercial Customers'
+                  : 'Hourly Customers'}
               </button>
             ))}
           </div>
@@ -367,7 +382,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
       </div>
 
       {/* Customer list */}
-      {activeTab === "commercial" ? (
+      {activeTab === 'commercial' ? (
         <CustomerSelect
           companies={companies}
           loading={companiesLoading}
