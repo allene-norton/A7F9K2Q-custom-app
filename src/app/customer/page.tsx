@@ -1,14 +1,30 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getLoggedInUser } from '@/lib/assembly/client';
 import { StoredAssessment } from '@/lib/store';
 import { AssessmentItem } from '@/types/types-index';
-import { getCategoryColor } from '@/lib/utils';
+import { getCategoryColor, hexToRgba } from '@/lib/utils';
 import { CUSTOMER_SELECTION_OPTIONS } from '@/lib/constants';
 
-const CATEGORY_OPTIONS = ['All', 'Urgent', 'Recommended', 'Cosmetic', 'Included Maintenance', 'No Issue'];
+type SortOption = 'default' | 'urgency-high' | 'urgency-low';
+
+const CATEGORIES: AssessmentItem['category'][] = [
+  'Urgent',
+  'Recommended',
+  'Cosmetic',
+  'Included Maintenance',
+  'No Issue',
+];
+
+const URGENCY_ORDER: Record<AssessmentItem['category'], number> = {
+  Urgent: 0,
+  Recommended: 1,
+  Cosmetic: 2,
+  'Included Maintenance': 3,
+  'No Issue': 4,
+};
 
 // ─── Item Detail Modal ────────────────────────────────────────────────────────
 
@@ -183,9 +199,15 @@ function CustomerPageInner() {
   const [comments, setComments] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('All');
   const [activeItem, setActiveItem] = useState<AssessmentItem | null>(null);
+
+  // Filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<'All' | AssessmentItem['category']>('All');
+  const [sortOption, setSortOption] = useState<SortOption>('default');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
+  const tagDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function load() {
@@ -220,6 +242,17 @@ function CustomerPageInner() {
     load();
   }, [token]);
 
+  // Close tag dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (tagDropdownRef.current && !tagDropdownRef.current.contains(e.target as Node)) {
+        setTagDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   const handleSubmit = async () => {
     if (!assessment || !companyId) return;
     setIsSubmitting(true);
@@ -250,17 +283,75 @@ function CustomerPageInner() {
     assessment.items.length > 0 &&
     assessment.items.every((item: AssessmentItem) => selections[item.id] !== undefined);
 
-  const filteredItems = assessment?.items.filter((item: AssessmentItem) => {
-    const q = searchQuery.toLowerCase();
-    const matchesSearch =
-      !q ||
-      item.issue?.toLowerCase().includes(q) ||
-      item.location?.toLowerCase().includes(q) ||
-      item.description?.toLowerCase().includes(q) ||
-      item.recommendation?.toLowerCase().includes(q);
-    const matchesCategory = categoryFilter === 'All' || item.category === categoryFilter;
-    return matchesSearch && matchesCategory;
-  }) ?? [];
+  // Derive unique tags from assessment items
+  const itemTags = useMemo(() => {
+    if (!assessment) return [];
+    const seen = new Set<string>();
+    const tags: AssessmentItem['tags'] = [];
+    for (const item of assessment.items) {
+      for (const tag of item.tags) {
+        if (!seen.has(tag.name)) {
+          seen.add(tag.name);
+          tags.push(tag);
+        }
+      }
+    }
+    return tags;
+  }, [assessment]);
+
+  const filteredAndSortedItems = useMemo(() => {
+    if (!assessment) return [];
+    let items = [...assessment.items];
+
+    if (categoryFilter !== 'All') {
+      items = items.filter((item) => item.category === categoryFilter);
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      items = items.filter(
+        (item) =>
+          item.issue?.toLowerCase().includes(q) ||
+          item.location?.toLowerCase().includes(q) ||
+          item.description?.toLowerCase().includes(q) ||
+          item.recommendation?.toLowerCase().includes(q) ||
+          item.tags.some((tag) => tag.name.toLowerCase().includes(q)),
+      );
+    }
+
+    if (selectedTags.length > 0) {
+      items = items.filter((item) =>
+        selectedTags.some((tagName) => item.tags.some((t) => t.name === tagName)),
+      );
+    }
+
+    if (sortOption === 'urgency-high') {
+      items.sort((a, b) => URGENCY_ORDER[a.category] - URGENCY_ORDER[b.category]);
+    } else if (sortOption === 'urgency-low') {
+      items.sort((a, b) => URGENCY_ORDER[b.category] - URGENCY_ORDER[a.category]);
+    }
+
+    return items;
+  }, [assessment, categoryFilter, searchQuery, selectedTags, sortOption]);
+
+  const clearFilters = () => {
+    setCategoryFilter('All');
+    setSortOption('default');
+    setSearchQuery('');
+    setSelectedTags([]);
+  };
+
+  const hasActiveFilters =
+    categoryFilter !== 'All' ||
+    sortOption !== 'default' ||
+    searchQuery.trim() !== '' ||
+    selectedTags.length > 0;
+
+  const toggleTag = (name: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(name) ? prev.filter((t) => t !== name) : [...prev, name],
+    );
+  };
 
   if (loading) {
     return (
@@ -334,35 +425,147 @@ function CustomerPageInner() {
           )}
         </div>
 
-        {/* Search + Filter */}
-        <div className="bg-white rounded-xl border-2 border-gray-200 p-4 mb-4 shadow-sm flex flex-col sm:flex-row gap-3">
-          <input
-            type="text"
-            placeholder="Search items…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]"
-          />
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]"
-          >
-            {CATEGORY_OPTIONS.map((cat) => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
+        {/* Filter Bar */}
+        <div className="bg-white rounded-xl border-2 border-gray-200 p-4 mb-4 shadow-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search */}
+            <div className="flex-1 min-w-[160px]">
+              <div className="relative flex items-center">
+                <svg
+                  className="absolute left-3 w-4 h-4 text-gray-400 pointer-events-none"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search items…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm
+                             focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            {/* Urgency */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Urgency:</label>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value as 'All' | AssessmentItem['category'])}
+                className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                           focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-gray"
+              >
+                <option value="All">All</option>
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Sort */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Sort:</label>
+              <select
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value as SortOption)}
+                className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                           focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-gray"
+              >
+                <option value="default">Default Order</option>
+                <option value="urgency-high">Urgency: High to Low</option>
+                <option value="urgency-low">Urgency: Low to High</option>
+              </select>
+            </div>
+
+            {/* Tags multi-select */}
+            {itemTags.length > 0 && (
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700">Tags:</label>
+                <div className="relative" ref={tagDropdownRef}>
+                  <button
+                    onClick={() => setTagDropdownOpen((v) => !v)}
+                    className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                               focus:outline-none focus:ring-2 focus:ring-[#174887] hover:border-gray-400 transition-colors"
+                  >
+                    <span className={selectedTags.length > 0 ? 'text-[#174887] font-semibold' : 'text-gray-700'}>
+                      {selectedTags.length === 0 ? 'Any' : `${selectedTags.length} selected`}
+                    </span>
+                    <svg
+                      className={`w-4 h-4 text-gray-400 transition-transform ${tagDropdownOpen ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {tagDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[200px] py-1 max-h-80 overflow-y-auto">
+                      <label className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedTags.length === 0}
+                          onChange={() => setSelectedTags([])}
+                          className="rounded accent-[#174887]"
+                        />
+                        <span className="text-sm text-gray-700 font-medium">Any (no filter)</span>
+                      </label>
+                      <div className="border-t border-gray-100 my-1" />
+                      {itemTags.map((tag) => (
+                        <label
+                          key={tag.name}
+                          className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedTags.includes(tag.name)}
+                            onChange={() => toggleTag(tag.name)}
+                            className="rounded accent-[#174887]"
+                          />
+                          <span
+                            className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                            style={{
+                              backgroundColor: hexToRgba(tag.bg, 0.18),
+                              color: '#1a1c1f',
+                            }}
+                          >
+                            {tag.name}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Clear filters */}
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="px-3 py-2 text-sm text-gray-600 hover:text-[#174887] hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
         </div>
 
-        {(searchQuery || categoryFilter !== 'All') && (
+        {hasActiveFilters && (
           <p className="text-xs text-gray-500 mb-3 px-1">
-            Showing {filteredItems.length} of {assessment.items.length} item{assessment.items.length !== 1 ? 's' : ''}
+            Showing {filteredAndSortedItems.length} of {assessment.items.length} item{assessment.items.length !== 1 ? 's' : ''}
           </p>
         )}
 
         {/* Item cards */}
         <div className="space-y-3 mb-8">
-          {filteredItems.map((item: AssessmentItem, index: number) => {
+          {filteredAndSortedItems.map((item: AssessmentItem, index: number) => {
             const sel = selections[item.id];
             const chosenOption = sel !== undefined
               ? CUSTOMER_SELECTION_OPTIONS.find((o) => String(o.orderindex) === sel)
@@ -423,9 +626,14 @@ function CustomerPageInner() {
             );
           })}
 
-          {filteredItems.length === 0 && (
+          {filteredAndSortedItems.length === 0 && (
             <div className="text-center py-12 text-gray-400">
-              <p className="text-sm">No items match your search.</p>
+              <p className="text-sm">No items match your filters.</p>
+              {hasActiveFilters && (
+                <button onClick={clearFilters} className="mt-2 text-[#174887] hover:underline text-sm font-medium">
+                  Clear filters
+                </button>
+              )}
             </div>
           )}
         </div>
