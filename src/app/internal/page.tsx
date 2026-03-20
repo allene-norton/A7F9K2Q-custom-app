@@ -11,6 +11,7 @@ import {
   getHourlyAssessmentForFolder,
   ClickUpFolder,
 } from "@/lib/clickup/clickup_actions";
+import { COMMERCIAL_SPACE_ID, HOURLY_SPACE_ID } from "@/lib/constants";
 import CustomerSelect from "@/components/internal/CustomerSelect";
 import { listCompanies, Company } from "@/lib/assembly/client";
 import AssessmentBuilder from "@/app/internal/AssessmentBuilder";
@@ -200,6 +201,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
               ? handleBackToAssessments
               : undefined
           }
+        spaceId={selectedCompany ? COMMERCIAL_SPACE_ID : selectedHourlyFolder ? HOURLY_SPACE_ID : undefined}
       />
     );
   }

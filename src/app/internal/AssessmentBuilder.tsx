@@ -1,19 +1,26 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Assessment, AssessmentItem } from '@/types/types-index';
 import { Company } from '@/lib/assembly/client';
 import AssessmentItemCard from '@/components/internal/AssessmentItemCard';
 import AssessmentItemDetail from '@/components/internal/AssessmentItemDetail';
 import AssessmentPreview from '@/components/internal/AssessmentPreview';
-import { getCategoryColor } from '@/lib/utils';
+import { getCategoryColor, hexToRgba } from '@/lib/utils';
+
+interface SpaceTag {
+  name: string;
+  tag_fg: string;
+  tag_bg: string;
+}
 
 interface AssessmentBuilderProps {
   company: Company;
   assessment: Assessment;
   onBack: () => void;
   onBackToAssessments?: () => void;
+  spaceId?: string;
 }
 
 type CategoryFilter = 'All' | AssessmentItem['category'];
@@ -40,11 +47,16 @@ export default function AssessmentBuilder({
   assessment,
   onBack,
   onBackToAssessments,
+  spaceId,
 }: AssessmentBuilderProps) {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('All');
   const [sortOption, setSortOption] = useState<SortOption>('default');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState<AssessmentItem | null>(null);
+  const [spaceTags, setSpaceTags] = useState<SpaceTag[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
+  const tagDropdownRef = useRef<HTMLDivElement>(null);
 
   // Manage mode state
   const [displayItems, setDisplayItems] = useState<AssessmentItem[]>(assessment.items);
@@ -63,6 +75,26 @@ export default function AssessmentBuilder({
     setRemovedItems([]);
     setSendSuccess(false);
   }, [assessment.id]);
+
+  // Fetch space tags
+  useEffect(() => {
+    if (!spaceId) return;
+    fetch(`/api/clickup/tags?spaceId=${spaceId}`)
+      .then((r) => r.json())
+      .then((data) => setSpaceTags(data.tags ?? []))
+      .catch(() => {});
+  }, [spaceId]);
+
+  // Close tag dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (tagDropdownRef.current && !tagDropdownRef.current.contains(e.target as Node)) {
+        setTagDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const filteredAndSortedItems = useMemo(() => {
     let items = [...displayItems];
@@ -83,6 +115,12 @@ export default function AssessmentBuilder({
       );
     }
 
+    if (selectedTags.length > 0) {
+      items = items.filter((item) =>
+        selectedTags.some((tagName) => item.tags.some((t) => t.name === tagName)),
+      );
+    }
+
     if (sortOption === 'urgency-high') {
       items.sort((a, b) => URGENCY_ORDER[a.category] - URGENCY_ORDER[b.category]);
     } else if (sortOption === 'urgency-low') {
@@ -90,18 +128,26 @@ export default function AssessmentBuilder({
     }
 
     return items;
-  }, [displayItems, categoryFilter, sortOption, searchQuery]);
+  }, [displayItems, categoryFilter, sortOption, searchQuery, selectedTags]);
 
   const clearFilters = () => {
     setCategoryFilter('All');
     setSortOption('default');
     setSearchQuery('');
+    setSelectedTags([]);
   };
 
   const hasActiveFilters =
     categoryFilter !== 'All' ||
     sortOption !== 'default' ||
-    searchQuery.trim() !== '';
+    searchQuery.trim() !== '' ||
+    selectedTags.length > 0;
+
+  const toggleTag = (name: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(name) ? prev.filter((t) => t !== name) : [...prev, name],
+    );
+  };
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
@@ -269,7 +315,6 @@ export default function AssessmentBuilder({
                                 : 'border-gray-200'
                             }`}
                           >
-                            {/* Drag handle */}
                             <div
                               {...drag.dragHandleProps}
                               className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing flex-shrink-0"
@@ -284,7 +329,6 @@ export default function AssessmentBuilder({
                               {index + 1}
                             </span>
 
-                            {/* Compact item info */}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <span
@@ -299,7 +343,6 @@ export default function AssessmentBuilder({
                               </p>
                             </div>
 
-                            {/* Remove button */}
                             <button
                               onClick={() => handleRemoveItem(item)}
                               className="flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
@@ -325,7 +368,6 @@ export default function AssessmentBuilder({
               </div>
             )}
 
-            {/* Removed items panel */}
             {removedItems.length > 0 && (
               <div className="mt-6 bg-white rounded-xl border-2 border-amber-200 p-4">
                 <h4 className="text-sm font-semibold text-amber-800 mb-3">
@@ -359,8 +401,8 @@ export default function AssessmentBuilder({
           <>
             {/* Filter Bar */}
             <div className="bg-white rounded-xl border-2 border-gray-200 p-4 mb-6 shadow-sm">
+              {/* Row 1: search, urgency, sort, clear */}
               <div className="flex flex-wrap items-center gap-4">
-                {/* Search */}
                 <div className="flex-1 min-w-[200px]">
                   <div className="relative flex items-center">
                     <svg
@@ -387,7 +429,6 @@ export default function AssessmentBuilder({
                   </div>
                 </div>
 
-                {/* Category Filter */}
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium text-gray-700">Urgency:</label>
                   <select
@@ -405,7 +446,6 @@ export default function AssessmentBuilder({
                   </select>
                 </div>
 
-                {/* Urgency Sort */}
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium text-gray-700">Sort:</label>
                   <select
@@ -419,6 +459,64 @@ export default function AssessmentBuilder({
                     <option value="urgency-low">Urgency: Low to High</option>
                   </select>
                 </div>
+
+                {/* Tags multi-select dropdown */}
+                {spaceTags.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">Tags:</label>
+                    <div className="relative" ref={tagDropdownRef}>
+                      <button
+                        onClick={() => setTagDropdownOpen((v) => !v)}
+                        className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                                   focus:outline-none focus:ring-2 focus:ring-[#174887] hover:border-gray-400 transition-colors"
+                      >
+                        <span className={selectedTags.length > 0 ? 'text-[#174887] font-semibold' : 'text-gray-700'}>
+                          {selectedTags.length === 0 ? 'Any' : `${selectedTags.length} selected`}
+                        </span>
+                        <svg
+                          className={`w-4 h-4 text-gray-400 transition-transform ${tagDropdownOpen ? 'rotate-180' : ''}`}
+                          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+
+                      {tagDropdownOpen && (
+                        <div className="absolute top-full left-0 mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[200px] py-1">
+                          <label className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedTags.length === 0}
+                              onChange={() => setSelectedTags([])}
+                              className="rounded accent-[#174887]"
+                            />
+                            <span className="text-sm text-gray-700 font-medium">Any (no filter)</span>
+                          </label>
+                          <div className="border-t border-gray-100 my-1" />
+                          {spaceTags.map((tag) => (
+                            <label
+                              key={tag.name}
+                              className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedTags.includes(tag.name)}
+                                onChange={() => toggleTag(tag.name)}
+                                className="rounded accent-[#174887]"
+                              />
+                              <span
+                                className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                                style={{ backgroundColor: hexToRgba(tag.tag_bg, 0.18), color: '#1a1c1f' }}
+                              >
+                                {tag.name}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {hasActiveFilters && (
                   <button
