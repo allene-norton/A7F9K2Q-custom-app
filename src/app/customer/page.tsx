@@ -502,6 +502,11 @@ function CustomerPageInner() {
                     <p className="font-semibold text-gray-900 text-base leading-snug">
                       {a.assessmentName}
                     </p>
+                    {a.items[0]?.location && (
+                      <p className="text-xs font-medium text-[#174887] mt-0.5">
+                        {a.items[0].location}
+                      </p>
+                    )}
                     <p className="text-sm text-gray-500 mt-1">
                       Sent {new Date(a.sentAt).toLocaleDateString('en-US', {
                         year: 'numeric', month: 'long', day: 'numeric',
