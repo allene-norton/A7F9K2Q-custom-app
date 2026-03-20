@@ -718,6 +718,14 @@ function CustomerPageInner() {
                     <p className="text-sm font-bold text-gray-900 truncate">
                       {item.issue}
                     </p>
+                    
+                    {/* Description */}
+                    {item.description && (
+                      <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                        {item.description}
+                      </p>
+                    )}
+                    
                     {chosenOption ? (
                       <p
                         className="text-xs font-medium mt-1"
