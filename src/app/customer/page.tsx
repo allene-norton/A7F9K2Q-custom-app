@@ -653,7 +653,7 @@ function CustomerPageInner() {
                           <span
                             className="text-xs font-semibold px-2 py-0.5 rounded-full"
                             style={{
-                              backgroundColor: hexToRgba(tag.bg, 0.18),
+                              backgroundColor: tag.bg,
                               color: '#1a1c1f',
                             }}
                           >
@@ -705,7 +705,6 @@ function CustomerPageInner() {
                 } ${chosenOption ? 'ring-2' : 'border-gray-200'}`}
                 style={{
                   borderColor: chosenOption?.color ?? '#e5e7eb',
-                  ringColor: chosenOption?.color,
                 }}
               >
                 {/* Card Header: Item number + location → title + urgency badge */}
@@ -763,8 +762,8 @@ function CustomerPageInner() {
                           key={tag.name}
                           className="px-2.5 py-1 text-xs font-medium rounded-full border"
                           style={{
-                            backgroundColor: hexToRgba(tag.bg, 0.1),
-                            borderColor: hexToRgba(tag.bg, 0.2),
+                            backgroundColor: tag.bg,
+                            borderColor: tag.bg,
                             color: '#374151',
                           }}
                         >
