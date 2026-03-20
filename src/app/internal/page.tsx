@@ -47,6 +47,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     AssessmentParent[] | null
   >(null);
   const [locationsLoading, setLocationsLoading] = useState(false);
+  const [locationFilter, setLocationFilter] = useState<string>('All');
 
   // Assessment state
   const [assessment, setAssessment] = useState<Assessment | null>(null);
@@ -99,6 +100,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     setAssessment(null);
     setAssessmentError(null);
     setLocationsLoading(true);
+    setLocationFilter('All');
 
     try {
       const locations = await getCommercialAssessmentLocations(
@@ -275,12 +277,37 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
           >
             {selectedCompany.name}
           </h2>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 mb-4">
             Multiple assessments found. Select a location to view:
           </p>
 
+          {/* Location filter */}
+          {(() => {
+            const uniqueLocations = Array.from(
+              new Set(assessmentLocations.map((l) => l.location).filter(Boolean))
+            );
+            return uniqueLocations.length > 1 ? (
+              <div className="flex items-center gap-3 mb-5">
+                <label className="text-sm font-medium text-gray-700">Filter by location:</label>
+                <select
+                  value={locationFilter}
+                  onChange={(e) => setLocationFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                             focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]"
+                >
+                  <option value="All">All</option>
+                  {uniqueLocations.map((loc) => (
+                    <option key={loc} value={loc}>{loc}</option>
+                  ))}
+                </select>
+              </div>
+            ) : null;
+          })()}
+
           <div className="space-y-3">
-            {assessmentLocations.map((loc) => (
+            {assessmentLocations
+              .filter((loc) => locationFilter === 'All' || loc.location === locationFilter)
+              .map((loc) => (
               <button
                 key={loc.taskId}
                 onClick={() => handleLocationSelect(loc)}

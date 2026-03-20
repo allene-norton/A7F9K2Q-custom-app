@@ -156,7 +156,6 @@ async function getFolderLocationField(folderId: string): Promise<LocationFieldDe
   );
   if (!field) return null;
 
-  console.log("FIELD", field)
 
   return {
     id: field.id,
