@@ -700,8 +700,13 @@ function CustomerPageInner() {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveItem(item)}
-                className="w-full text-left bg-white rounded-xl border-2 shadow-sm p-4 transition-all hover:shadow-md hover:border-gray-300 active:scale-[0.99]"
+                onClick={() => !submitted && setActiveItem(item)}
+                disabled={submitted}
+                className={`w-full text-left bg-white rounded-xl border-2 shadow-sm p-4 transition-all ${
+                  submitted
+                    ? 'opacity-60 cursor-not-allowed'
+                    : 'hover:shadow-md hover:border-gray-300 active:scale-[0.99]'
+                }`}
                 style={{ borderColor: chosenOption?.color ?? '#e5e7eb' }}
               >
                 <div className="flex items-center gap-3">
@@ -718,14 +723,14 @@ function CustomerPageInner() {
                     <p className="text-sm font-bold text-gray-900 truncate">
                       {item.issue}
                     </p>
-                    
+
                     {/* Description */}
                     {item.description && (
                       <p className="text-xs text-gray-600 mt-1 line-clamp-2">
                         {item.description}
                       </p>
                     )}
-                    
+
                     {chosenOption ? (
                       <p
                         className="text-xs font-medium mt-1"
@@ -738,14 +743,17 @@ function CustomerPageInner() {
                         Tap to review →
                       </p>
                     )}
-                    
+
                     {/* Tags */}
                     {item.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
                         {item.tags.map((tag) => (
                           <span
                             key={tag.name}
-                            style={{ backgroundColor: tag.bg, color: '#1a1c1f' }}
+                            style={{
+                              backgroundColor: tag.bg,
+                              color: '#1a1c1f',
+                            }}
                             className="px-1.5 py-0.5 text-xs rounded-md font-medium"
                           >
                             {tag.name}
