@@ -14,8 +14,7 @@ const CLICKUP_BASE_URL = 'https://api.clickup.com/api/v2';
 const COMMERCIAL_SPACE_ID = '26324040';
 const HOURLY_SPACE_ID = '32286697';
 
-// Custom field IDs
-const APPROVAL_NEEDED_FIELD_ID = 'cad5546f-2c00-40b2-98f0-142efd801b0b';
+import { APPROVAL_NEEDED_FIELD_ID } from '@/lib/constants';
 
 // ClickUp API types
 export interface ClickUpFolder {

@@ -1,5 +1,9 @@
 import { NextRequest } from 'next/server';
 import { getAssessmentById } from '@/lib/store';
+import {
+  APPROVAL_NEEDED_FIELD_ID,
+  CUSTOMER_SELECTION_OPTIONS,
+} from '@/lib/constants';
 
 const CLICKUP_BASE = 'https://api.clickup.com/api/v2';
 const CUSTOMER_SELECTION_FIELD_ID = 'd82819f0-eaad-45d2-8c67-af1aa08a5949';
@@ -46,15 +50,40 @@ export async function POST(
         orderindex: number;
         comment?: string;
       }) => {
-        await fetch(
-          `${CLICKUP_BASE}/task/${clickup_task_id}/field/${CUSTOMER_SELECTION_FIELD_ID}`,
-          {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ value: orderindex }),
-          },
+        const selectedOption = CUSTOMER_SELECTION_OPTIONS.find(
+          (opt) => opt.orderindex === orderindex,
         );
 
+        await Promise.all([
+          // 1. Set Customer Selection dropdown field
+          fetch(
+            `${CLICKUP_BASE}/task/${clickup_task_id}/field/${CUSTOMER_SELECTION_FIELD_ID}`,
+            {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({ value: orderindex }),
+            },
+          ),
+          // 2. Update task status
+          selectedOption?.clickupStatus
+            ? fetch(`${CLICKUP_BASE}/task/${clickup_task_id}`, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify({ status: selectedOption.clickupStatus }),
+              })
+            : Promise.resolve(),
+          // 3. Clear Approval Needed checkbox
+          fetch(
+            `${CLICKUP_BASE}/task/${clickup_task_id}/field/${APPROVAL_NEEDED_FIELD_ID}`,
+            {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({ value: false }),
+            },
+          ),
+        ]);
+
+        // 4. Post comment if provided
         if (comment?.trim()) {
           const formattedComment = `Comment from ${assessmentData.companyName} at ${formattedDate}: ${comment}`;
           await fetch(`${CLICKUP_BASE}/task/${clickup_task_id}/comment`, {
