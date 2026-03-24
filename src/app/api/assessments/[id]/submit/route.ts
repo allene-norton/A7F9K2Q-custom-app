@@ -31,7 +31,7 @@ export async function POST(
     );
   }
 
-  const headers = {
+  const authHeaders = {
     Authorization: key,
     'Content-Type': 'application/json',
   };
@@ -54,44 +54,71 @@ export async function POST(
           (opt) => opt.orderindex === orderindex,
         );
 
+        // 1. Fetch the original subtask to get list ID, name, tags, assignees
+        const taskRes = await fetch(
+          `${CLICKUP_BASE}/task/${clickup_task_id}`,
+          { headers: { Authorization: key } },
+        );
+        const task = await taskRes.json();
+        const listId: string = task.list?.id;
+
+        if (!listId) {
+          throw new Error(`Could not resolve list ID for task ${clickup_task_id}`);
+        }
+
+        // 2. Create a new top-level task in the same list
+        const createRes = await fetch(`${CLICKUP_BASE}/list/${listId}/task`, {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({
+            name: task.name,
+            description: task.description ?? '',
+            status: selectedOption?.clickupStatus,
+            tags: (task.tags ?? []).map((t: { name: string }) => t.name),
+            assignees: (task.assignees ?? []).map((a: { id: number }) => a.id),
+          }),
+        });
+        const newTask = await createRes.json();
+        const newTaskId: string = newTask.id;
+
+        if (!newTaskId) {
+          throw new Error(`Failed to create new task for ${clickup_task_id}`);
+        }
+
+        // 3. Merge the original subtask into the new task
+        //    Comments, attachments, and descriptions are preserved in the target
+        await fetch(`${CLICKUP_BASE}/task/${newTaskId}/merge`, {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({ source_task_ids: [clickup_task_id] }),
+        });
+
+        // 4. Set Customer Selection field + clear Approval Needed on the new task
         await Promise.all([
-          // 1. Set Customer Selection dropdown field
           fetch(
-            `${CLICKUP_BASE}/task/${clickup_task_id}/field/${CUSTOMER_SELECTION_FIELD_ID}`,
+            `${CLICKUP_BASE}/task/${newTaskId}/field/${CUSTOMER_SELECTION_FIELD_ID}`,
             {
               method: 'POST',
-              headers,
+              headers: authHeaders,
               body: JSON.stringify({ value: orderindex }),
             },
           ),
-          // 2. Update task status + promote from subtask to parent task
-          fetch(`${CLICKUP_BASE}/task/${clickup_task_id}`, {
-            method: 'PUT',
-            headers,
-            body: JSON.stringify({
-              parent: null,
-              ...(selectedOption?.clickupStatus
-                ? { status: selectedOption.clickupStatus }
-                : {}),
-            }),
-          }),
-          // 3. Clear Approval Needed checkbox
           fetch(
-            `${CLICKUP_BASE}/task/${clickup_task_id}/field/${APPROVAL_NEEDED_FIELD_ID}`,
+            `${CLICKUP_BASE}/task/${newTaskId}/field/${APPROVAL_NEEDED_FIELD_ID}`,
             {
               method: 'POST',
-              headers,
+              headers: authHeaders,
               body: JSON.stringify({ value: false }),
             },
           ),
         ]);
 
-        // 4. Post comment if provided
+        // 5. Post customer comment on the new task if provided
         if (comment?.trim()) {
           const formattedComment = `Comment from ${assessmentData.companyName} at ${formattedDate}: ${comment}`;
-          await fetch(`${CLICKUP_BASE}/task/${clickup_task_id}/comment`, {
+          await fetch(`${CLICKUP_BASE}/task/${newTaskId}/comment`, {
             method: 'POST',
-            headers,
+            headers: authHeaders,
             body: JSON.stringify({
               comment_text: formattedComment,
               notify_all: false,
