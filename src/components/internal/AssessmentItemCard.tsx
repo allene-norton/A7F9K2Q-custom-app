@@ -18,11 +18,6 @@ export default function AssessmentItemCard({
   index,
   onExpand,
 }: AssessmentItemCardProps) {
-  console.log(item);
-  {
-    console.log(item.technician);
-  }
-
   return (
     <div
       className="bg-white border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow cursor-pointer"

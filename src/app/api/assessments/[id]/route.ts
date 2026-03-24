@@ -1,10 +1,10 @@
-import { getSentAssessment } from '@/lib/store';
+import { getAssessmentsForCompany } from '@/lib/store';
 
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const data = await getSentAssessment(id);
-  return Response.json(data ?? null);
+  const data = await getAssessmentsForCompany(id);
+  return Response.json(data);
 }

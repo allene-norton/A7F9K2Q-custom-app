@@ -58,10 +58,6 @@ export default function AssessmentItemCompact({
               {item.description}
             </p>
           )}
-          <p className="text-sm text-gray-600 line-clamp-2">
-            {item.recommendation}
-          </p>
-
           {/* Tags - compact display */}
           {item.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
