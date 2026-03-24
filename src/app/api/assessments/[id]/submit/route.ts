@@ -64,14 +64,17 @@ export async function POST(
               body: JSON.stringify({ value: orderindex }),
             },
           ),
-          // 2. Update task status
-          selectedOption?.clickupStatus
-            ? fetch(`${CLICKUP_BASE}/task/${clickup_task_id}`, {
-                method: 'PUT',
-                headers,
-                body: JSON.stringify({ status: selectedOption.clickupStatus }),
-              })
-            : Promise.resolve(),
+          // 2. Update task status + promote from subtask to parent task
+          fetch(`${CLICKUP_BASE}/task/${clickup_task_id}`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({
+              parent: null,
+              ...(selectedOption?.clickupStatus
+                ? { status: selectedOption.clickupStatus }
+                : {}),
+            }),
+          }),
           // 3. Clear Approval Needed checkbox
           fetch(
             `${CLICKUP_BASE}/task/${clickup_task_id}/field/${APPROVAL_NEEDED_FIELD_ID}`,
