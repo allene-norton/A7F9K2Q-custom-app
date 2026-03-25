@@ -249,8 +249,11 @@ function CustomerPageInner() {
       try {
         setLoading(true);
         setError(null);
+        
+        console.log('🔍 Customer page loading with token:', token);
 
         const userData = await getLoggedInUser(undefined, token);
+        console.log('👤 User data response:', userData);
         if (!userData || 'error' in userData) {
           setError('Unable to verify your session. Please reload the page.');
           return;

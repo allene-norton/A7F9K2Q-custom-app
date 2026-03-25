@@ -9,6 +9,7 @@ import {
   buildCommercialAssessment,
   getHourlyFolders,
   getHourlyAssessmentForFolder,
+  getCommercialFolders,
   ClickUpFolder,
 } from '@/lib/clickup/clickup_actions';
 import { COMMERCIAL_SPACE_ID, HOURLY_SPACE_ID } from '@/lib/constants';
@@ -57,7 +58,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
   const [internalView, setInternalView] = useState<InternalView>('assessment');
 
-  // Fetch Assembly companies on mount
+  // Fetch Assembly companies filtered to only those with a matching ClickUp folder
   useEffect(() => {
     if (!token) {
       setCompaniesLoading(false);
@@ -66,9 +67,36 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     const fetchCompanies = async () => {
       try {
         setCompaniesLoading(true);
-        const response = await listCompanies(token);
+        const [response, folders] = await Promise.all([
+          listCompanies(token),
+          getCommercialFolders(),
+        ]);
         if (!response.data) throw new Error('No company data returned');
-        setCompanies(response.data);
+
+        // Build a lowercase folder name list for matching
+        const folderNames = folders.map((f) => f.name.toLowerCase().trim());
+
+        // Mirror the 3-tier fuzzy logic used by findMatchingFolder
+        const hasFolder = (companyName: string) => {
+          const name = companyName.toLowerCase().trim();
+          if (!name) return false;
+          // Tier 1: exact
+          if (folderNames.some((f) => f === name)) return true;
+          // Tier 2: starts-with either direction
+          if (folderNames.some((f) => f.startsWith(name) || name.startsWith(f)))
+            return true;
+          // Tier 3: word overlap >= 50%
+          const cWords = name.split(/\s+/).filter((w) => w.length > 2);
+          return folderNames.some((f) => {
+            const fWords = f.split(/\s+/).filter((w) => w.length > 2);
+            const overlap = cWords.filter((w) => fWords.includes(w)).length;
+            const total = new Set([...cWords, ...fWords]).size;
+            return total > 0 && overlap / total >= 0.5;
+          });
+        };
+
+        const matched = response.data.filter((c) => hasFolder(c.name ?? ''));
+        setCompanies(matched);
       } catch (error) {
         console.error('Failed to fetch companies:', error);
       } finally {
