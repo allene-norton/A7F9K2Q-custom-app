@@ -15,12 +15,14 @@ import { COMMERCIAL_SPACE_ID, HOURLY_SPACE_ID } from '@/lib/constants';
 import CustomerSelect from '@/components/internal/CustomerSelect';
 import { listCompanies, Company } from '@/lib/assembly/client';
 import AssessmentBuilder from '@/app/internal/AssessmentBuilder';
+import WorkOrdersView from '@/components/WorkOrdersView';
 
 interface InternalPageProps {
   searchParams: { token?: string };
 }
 
 type ActiveTab = 'commercial' | 'hourly';
+type InternalView = 'assessment' | 'workorders';
 
 export default function InternalPage({ searchParams }: InternalPageProps) {
   const token =
@@ -53,6 +55,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [assessmentLoading, setAssessmentLoading] = useState(false);
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
+  const [internalView, setInternalView] = useState<InternalView>('assessment');
 
   // Fetch Assembly companies on mount
   useEffect(() => {
@@ -181,6 +184,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   const handleBackToAssessments = () => {
     setAssessment(null);
     setAssessmentError(null);
+    setInternalView('assessment');
   };
 
   const handleBack = () => {
@@ -189,32 +193,90 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     setAssessment(null);
     setAssessmentLocations(null);
     setAssessmentError(null);
+    setInternalView('assessment');
   };
 
-  // --- Render: assessment builder ---
+  // --- Render: assessment builder + work orders tabs ---
   if (assessment) {
     const company: Company = selectedCompany || {
       id: selectedHourlyFolder?.id,
       name: selectedHourlyFolder?.name,
     };
+    const companyId = company.id ?? '';
+    const companyName = company.name ?? '';
+
     return (
-      <AssessmentBuilder
-        company={company}
-        assessment={assessment}
-        onBack={handleBack}
-        onBackToAssessments={
-          assessmentLocations && assessmentLocations.length > 1
-            ? handleBackToAssessments
-            : undefined
-        }
-        spaceId={
-          selectedCompany
-            ? COMMERCIAL_SPACE_ID
-            : selectedHourlyFolder
-              ? HOURLY_SPACE_ID
-              : undefined
-        }
-      />
+      <div className="min-h-screen bg-gray-50">
+        {/* Secondary tab bar: Assessment | Work Orders */}
+        <div className="border-b border-gray-200 bg-white">
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="flex gap-0">
+              {(['assessment', 'workorders'] as InternalView[]).map((view) => (
+                <button
+                  key={view}
+                  onClick={() => setInternalView(view)}
+                  className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
+                    internalView === view
+                      ? 'border-[#174887] text-[#174887]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {view === 'assessment' ? 'Assessment' : 'Work Orders'}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {internalView === 'workorders' ? (
+          <WorkOrdersView
+            companyId={companyId}
+            companyName={companyName}
+            mode="internal"
+            breadcrumbs={
+              <nav className="flex items-center gap-2 text-sm mb-6">
+                <button
+                  onClick={handleBack}
+                  className="text-[#174887] hover:underline font-medium"
+                >
+                  Companies
+                </button>
+                {assessmentLocations && assessmentLocations.length > 1 && (
+                  <>
+                    <span className="text-gray-400">/</span>
+                    <button
+                      onClick={handleBackToAssessments}
+                      className="text-[#174887] hover:underline font-medium"
+                    >
+                      {companyName}
+                    </button>
+                  </>
+                )}
+                <span className="text-gray-400">/</span>
+                <span className="text-gray-700 font-medium">Work Orders</span>
+              </nav>
+            }
+          />
+        ) : (
+          <AssessmentBuilder
+            company={company}
+            assessment={assessment}
+            onBack={handleBack}
+            onBackToAssessments={
+              assessmentLocations && assessmentLocations.length > 1
+                ? handleBackToAssessments
+                : undefined
+            }
+            spaceId={
+              selectedCompany
+                ? COMMERCIAL_SPACE_ID
+                : selectedHourlyFolder
+                  ? HOURLY_SPACE_ID
+                  : undefined
+            }
+          />
+        )}
+      </div>
     );
   }
 

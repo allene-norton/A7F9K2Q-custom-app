@@ -10,10 +10,18 @@ export interface StoredAssessment {
   sentAt: string;
 }
 
+export interface WorkOrderRef {
+  taskId: string;
+  listId: string;
+  addedAt: string;
+}
+
 const redis = new Redis({
   url: process.env.STORAGE_KV_REST_API_URL!,
   token: process.env.STORAGE_KV_REST_API_TOKEN!,
 });
+
+// ─── Assessments ──────────────────────────────────────────────────────────────
 
 export async function getAssessmentsForCompany(companyId: string): Promise<StoredAssessment[]> {
   const list = await redis.get<StoredAssessment[]>(`assessments:${companyId}`);
@@ -30,7 +38,19 @@ export async function getAssessmentById(companyId: string, assessmentId: string)
 
 export async function appendAssessment(companyId: string, data: StoredAssessment): Promise<void> {
   const existing = await getAssessmentsForCompany(companyId);
-  // Replace if same assessmentId already exists, otherwise append
   const without = existing.filter((a) => a.assessmentId !== data.assessmentId);
   await redis.set(`assessments:${companyId}`, [...without, data]);
+}
+
+// ─── Work Orders ──────────────────────────────────────────────────────────────
+
+export async function getWorkOrderRefs(companyId: string): Promise<WorkOrderRef[]> {
+  return (await redis.get<WorkOrderRef[]>(`workorders:${companyId}`)) ?? [];
+}
+
+export async function appendWorkOrderRef(companyId: string, ref: WorkOrderRef): Promise<void> {
+  const existing = await getWorkOrderRefs(companyId);
+  // Deduplicate by taskId
+  const without = existing.filter((r) => r.taskId !== ref.taskId);
+  await redis.set(`workorders:${companyId}`, [...without, ref]);
 }

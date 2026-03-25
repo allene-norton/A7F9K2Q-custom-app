@@ -139,7 +139,9 @@ interface LocationFieldDef {
 
 // Fetch the "Location" custom field definition for a folder, including its dropdown options.
 // The folder/field endpoint returns full type_config; task responses often omit it.
-async function getFolderLocationField(folderId: string): Promise<LocationFieldDef | null> {
+async function getFolderLocationField(
+  folderId: string,
+): Promise<LocationFieldDef | null> {
   const data = await clickupFetch<{
     fields: Array<{
       id: string;
@@ -154,7 +156,6 @@ async function getFolderLocationField(folderId: string): Promise<LocationFieldDe
     f.name.toLowerCase().includes('location'),
   );
   if (!field) return null;
-
 
   return {
     id: field.id,
@@ -364,7 +365,10 @@ function extractApprovalNeeded(task: ClickUpTask): boolean {
 // Returns the Location dropdown value for a task.
 // Uses the folder field definition's options as fallback when the task response
 // omits type_config (common in list/task endpoints).
-function extractLocationField(task: ClickUpTask, locationField: LocationFieldDef | null): string {
+function extractLocationField(
+  task: ClickUpTask,
+  locationField: LocationFieldDef | null,
+): string {
   if (!locationField) return '';
 
   const taskField = task.custom_fields?.find((f) => f.id === locationField.id);
@@ -373,7 +377,9 @@ function extractLocationField(task: ClickUpTask, locationField: LocationFieldDef
   // Text / short_text fields — value is already the string
   const options = taskField.type_config?.options ?? locationField.options;
   if (options.length === 0) {
-    return typeof taskField.value === 'string' ? taskField.value : String(taskField.value);
+    return typeof taskField.value === 'string'
+      ? taskField.value
+      : String(taskField.value);
   }
 
   // Dropdown — resolve orderindex to option name

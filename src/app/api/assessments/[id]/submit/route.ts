@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getAssessmentById } from '@/lib/store';
+import { getAssessmentById, appendWorkOrderRef } from '@/lib/store';
 import {
   APPROVAL_NEEDED_FIELD_ID,
   CUSTOMER_SELECTION_OPTIONS,
@@ -86,7 +86,6 @@ export async function POST(
         }
 
         // 3. Merge the original subtask into the new task
-        //    Comments, attachments, and descriptions are preserved in the target
         await fetch(`${CLICKUP_BASE}/task/${newTaskId}/merge`, {
           method: 'POST',
           headers: authHeaders,
@@ -125,6 +124,13 @@ export async function POST(
             }),
           });
         }
+
+        // 6. Save work order ref to Redis
+        await appendWorkOrderRef(id, {
+          taskId: newTaskId,
+          listId,
+          addedAt: new Date().toISOString(),
+        });
       },
     ),
   );

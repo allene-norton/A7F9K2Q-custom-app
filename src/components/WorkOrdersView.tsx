@@ -1,0 +1,672 @@
+'use client';
+
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { AssessmentItem } from '@/types/types-index';
+import { getCategoryColor, hexToRgba } from '@/lib/utils';
+
+type StatusBucket = 'Pending & In Progress' | 'On Hold' | 'Closed';
+
+const BUCKET_STATUSES: Record<StatusBucket, string[]> = {
+  'Pending & In Progress': ['yes - please complete', 'in progress'],
+  'On Hold': ['maybe - more info', 'not now - keep open', 'needs quote'],
+  'Closed': ['declined by owner', 'completed by others', 'complete'],
+};
+
+const BUCKET_ORDER: StatusBucket[] = ['Pending & In Progress', 'On Hold', 'Closed'];
+
+const URGENCY_ORDER: Record<string, number> = {
+  Urgent: 0,
+  Recommended: 1,
+  Cosmetic: 2,
+  'Included Maintenance': 3,
+  'No Issue': 4,
+};
+
+type SortOption = 'default' | 'urgency-high' | 'urgency-low';
+
+export interface WorkOrderItem extends AssessmentItem {
+  status: string;
+  statusColor: string;
+}
+
+interface WorkOrdersViewProps {
+  companyId: string;
+  companyName: string;
+  mode: 'customer' | 'internal';
+  authorName?: string; // customer's display name (customer mode)
+  breadcrumbs?: React.ReactNode; // optional breadcrumb nav (internal mode)
+}
+
+// ─── Comment Box ──────────────────────────────────────────────────────────────
+
+interface CommentBoxProps {
+  taskId: string;
+  companyId: string;
+  isInternal: boolean;
+  authorName: string;
+  onPosted: (text: string) => void;
+  onCancel?: () => void;
+}
+
+function CommentBox({ taskId, companyId, isInternal, authorName, onPosted, onCancel }: CommentBoxProps) {
+  const [text, setText] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!text.trim()) return;
+    const postedText = text.trim();
+    setSaving(true);
+    setError(false);
+    try {
+      const res = await fetch(`/api/workorders/${companyId}/${taskId}/comment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: postedText, authorName, isInternal }),
+      });
+      if (res.ok) {
+        setText('');
+        onPosted(postedText);
+      } else {
+        setError(true);
+      }
+    } catch {
+      setError(true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Add a comment…"
+        rows={3}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none
+                   focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-transparent
+                   placeholder-gray-400"
+      />
+      {error && <p className="text-xs text-red-600 mt-1">Failed to post comment. Try again.</p>}
+      <div className="flex gap-2 mt-2 justify-end">
+        {onCancel && (
+          <button
+            onClick={onCancel}
+            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            Cancel
+          </button>
+        )}
+        <button
+          onClick={handleSubmit}
+          disabled={!text.trim() || saving}
+          className="px-4 py-1.5 text-sm font-semibold text-white rounded-lg
+                     hover:opacity-90 transition-opacity disabled:opacity-40"
+          style={{ backgroundColor: '#174887' }}
+        >
+          {saving ? 'Posting…' : 'Post Comment'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Item Card (internal — expandable inline comment) ─────────────────────────
+
+interface InternalCardProps {
+  item: WorkOrderItem;
+  index: number;
+  companyId: string;
+}
+
+function InternalCard({ item, index, companyId }: InternalCardProps) {
+  const [expanded, setExpanded] = useState(false);
+  const [postedComments, setPostedComments] = useState<string[]>([]);
+
+  return (
+    <div className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden transition-shadow hover:shadow-md">
+      <div
+        className="p-5 cursor-pointer"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <div className="flex gap-5">
+          {/* Thumbnail */}
+          {item.images.length > 0 && (
+            <div className="flex-shrink-0">
+              <img
+                src={item.images[0]}
+                alt={item.issue}
+                className="w-28 h-28 object-cover rounded-lg border border-gray-200"
+              />
+              {item.images.length > 1 && (
+                <p className="text-xs text-gray-500 text-center mt-1">+{item.images.length - 1} more</p>
+              )}
+            </div>
+          )}
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-gray-400">#{index + 1}</span>
+                <span className="text-xs text-gray-500">{item.location}</span>
+              </div>
+              <span
+                className="px-2.5 py-1 rounded-full text-xs font-semibold text-white capitalize flex-shrink-0"
+                style={{ backgroundColor: item.statusColor }}
+              >
+                {item.status}
+              </span>
+            </div>
+
+            <h4 className="text-base font-bold text-gray-900 mb-1">{item.issue}</h4>
+
+            {item.description && (
+              <p className="text-sm text-gray-600 line-clamp-2 mb-2">{item.description}</p>
+            )}
+
+            {item.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {item.tags.map((tag) => (
+                  <span
+                    key={tag.name}
+                    className="px-2 py-0.5 text-xs font-medium rounded-full"
+                    style={{ backgroundColor: hexToRgba(tag.bg, 0.18), color: '#1a1c1f' }}
+                  >
+                    {tag.name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Expand chevron */}
+          <div className="flex-shrink-0 self-center">
+            <svg
+              className={`w-5 h-5 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
+              fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Expandable comment section */}
+      {expanded && (
+        <div className="px-5 pb-5 pt-4 border-t border-gray-100 bg-gray-50/50">
+          {/* Comment thread */}
+          {postedComments.length > 0 && (
+            <div className="space-y-2 mb-4">
+              {postedComments.map((comment, i) => (
+                <div key={i} className="bg-white border border-gray-200 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-gray-500 mb-1">MM Team</p>
+                  <p className="text-sm text-gray-800">{comment}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          <CommentBox
+            taskId={item.id}
+            companyId={companyId}
+            isInternal={true}
+            authorName="MM Team"
+            onPosted={(text) => setPostedComments((prev) => [...prev, text])}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Item Modal (customer — detail + comment) ─────────────────────────────────
+
+interface CustomerModalProps {
+  item: WorkOrderItem;
+  companyId: string;
+  authorName: string;
+  onClose: () => void;
+}
+
+function CustomerModal({ item, companyId, authorName, onClose }: CustomerModalProps) {
+  const [activeImage, setActiveImage] = useState(0);
+  const [postedComments, setPostedComments] = useState<string[]>([]);
+  const [showComment, setShowComment] = useState(false);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white w-full sm:max-w-2xl sm:rounded-2xl rounded-t-2xl shadow-2xl max-h-[92vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between p-5 border-b border-gray-200 sticky top-0 bg-white z-10">
+          <div className="flex-1 pr-4">
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">{item.location}</p>
+            <h2 className="text-lg font-bold text-gray-900 leading-snug">{item.issue}</h2>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span
+              className="px-2.5 py-1 rounded-full text-xs font-semibold text-white capitalize"
+              style={{ backgroundColor: item.statusColor }}
+            >
+              {item.status}
+            </span>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-5">
+          {/* Images */}
+          {item.images.length > 0 && (
+            <div>
+              <img
+                src={item.images[activeImage]}
+                alt={item.issue}
+                className="w-full h-64 object-cover rounded-xl border border-gray-200"
+              />
+              {item.images.length > 1 && (
+                <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+                  {item.images.map((img, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setActiveImage(i)}
+                      className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-colors ${
+                        i === activeImage ? 'border-[#174887]' : 'border-gray-200 hover:border-gray-400'
+                      }`}
+                    >
+                      <img src={img} alt={`Image ${i + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Description */}
+          {item.description && (
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              <p className="text-xs font-semibold text-gray-500 mb-1">Description</p>
+              <p className="text-sm text-gray-800">{item.description}</p>
+            </div>
+          )}
+
+          {/* Tags */}
+          {item.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {item.tags.map((tag) => (
+                <span
+                  key={tag.name}
+                  className="px-2 py-1 text-xs font-medium rounded-md"
+                  style={{ backgroundColor: hexToRgba(tag.bg, 0.18), color: '#1a1c1f' }}
+                >
+                  {tag.name}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="border-t border-gray-200" />
+
+          {/* Comment thread */}
+          {postedComments.length > 0 && (
+            <div className="space-y-2">
+              {postedComments.map((comment, i) => (
+                <div key={i} className="bg-gray-50 border border-gray-100 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-gray-500 mb-1">{authorName}</p>
+                  <p className="text-sm text-gray-800">{comment}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Comment input */}
+          {showComment ? (
+            <CommentBox
+              taskId={item.id}
+              companyId={companyId}
+              isInternal={false}
+              authorName={authorName}
+              onPosted={(text) => {
+                setPostedComments((prev) => [...prev, text]);
+                setShowComment(false);
+              }}
+              onCancel={() => setShowComment(false)}
+            />
+          ) : (
+            <button
+              onClick={() => setShowComment(true)}
+              className="w-full py-2.5 rounded-lg border-2 border-gray-200 text-sm font-medium text-gray-600
+                         hover:border-[#174887] hover:text-[#174887] transition-colors"
+            >
+              Add a comment
+            </button>
+          )}
+
+          <button
+            onClick={onClose}
+            className="w-full py-3 rounded-lg font-bold text-sm"
+            style={{ backgroundColor: '#174887', color: '#fff' }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main WorkOrdersView ──────────────────────────────────────────────────────
+
+export default function WorkOrdersView({ companyId, companyName, mode, authorName = 'Customer', breadcrumbs }: WorkOrdersViewProps) {
+  const [items, setItems] = useState<WorkOrderItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeBucket, setActiveBucket] = useState<StatusBucket>('Pending & In Progress');
+  const [activeItem, setActiveItem] = useState<WorkOrderItem | null>(null);
+
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortOption, setSortOption] = useState<SortOption>('default');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
+  const tagDropdownRef = useRef<HTMLDivElement>(null);
+
+  const fetchUrl =
+    mode === 'internal' && companyName
+      ? `/api/workorders/${companyId}?companyName=${encodeURIComponent(companyName)}`
+      : `/api/workorders/${companyId}`;
+
+  useEffect(() => {
+    fetch(fetchUrl)
+      .then((r) => r.json())
+      .then((data) => {
+        setItems(data.items ?? []);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [fetchUrl]);
+
+  // Outside click for tag dropdown
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (tagDropdownRef.current && !tagDropdownRef.current.contains(e.target as Node)) {
+        setTagDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Derive unique tags
+  const itemTags = useMemo(() => {
+    const seen = new Set<string>();
+    const tags: WorkOrderItem['tags'] = [];
+    for (const item of items) {
+      for (const tag of item.tags) {
+        if (!seen.has(tag.name)) { seen.add(tag.name); tags.push(tag); }
+      }
+    }
+    return tags;
+  }, [items]);
+
+  const filteredAndSortedItems = useMemo(() => {
+    let result = [...items];
+
+    const bucketStatuses = BUCKET_STATUSES[activeBucket];
+    result = result.filter((i) => bucketStatuses.includes(i.status.toLowerCase()));
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (i) =>
+          i.issue?.toLowerCase().includes(q) ||
+          i.location?.toLowerCase().includes(q) ||
+          i.description?.toLowerCase().includes(q) ||
+          i.tags.some((t) => t.name.toLowerCase().includes(q)),
+      );
+    }
+
+    if (selectedTags.length > 0) {
+      result = result.filter((i) =>
+        selectedTags.some((name) => i.tags.some((t) => t.name === name)),
+      );
+    }
+
+    if (sortOption === 'urgency-high') {
+      result.sort((a, b) => (URGENCY_ORDER[a.category] ?? 99) - (URGENCY_ORDER[b.category] ?? 99));
+    } else if (sortOption === 'urgency-low') {
+      result.sort((a, b) => (URGENCY_ORDER[b.category] ?? 99) - (URGENCY_ORDER[a.category] ?? 99));
+    }
+
+    return result;
+  }, [items, activeBucket, searchQuery, selectedTags, sortOption]);
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSortOption('default');
+    setSelectedTags([]);
+  };
+
+  const hasActiveFilters =
+    searchQuery.trim() !== '' || sortOption !== 'default' || selectedTags.length > 0;
+
+  const toggleTag = (name: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(name) ? prev.filter((t) => t !== name) : [...prev, name],
+    );
+  };
+
+  const containerClass =
+    mode === 'internal'
+      ? 'max-w-6xl mx-auto py-8 px-4'
+      : 'max-w-2xl mx-auto py-8 px-4';
+
+  if (loading) {
+    return (
+      <div className={containerClass}>
+        {breadcrumbs}
+        <div className="flex items-center justify-center py-20">
+          <svg className="w-8 h-8 animate-spin text-[#174887]" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          </svg>
+        </div>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className={containerClass}>
+        {breadcrumbs}
+        <div className="text-center py-20 text-gray-400">
+          <p className="text-base font-medium">No work orders yet.</p>
+          <p className="text-sm mt-1">Items will appear here once an assessment is submitted.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={containerClass}>
+      {breadcrumbs}
+      {/* Status bucket tabs */}
+      <div className="border-b border-gray-200 bg-white mb-5 -mx-4 px-4 overflow-x-auto">
+        <div className="flex gap-0 min-w-max">
+          {BUCKET_ORDER.map((bucket) => {
+            const count = items.filter((i) =>
+              BUCKET_STATUSES[bucket].includes(i.status.toLowerCase()),
+            ).length;
+            return (
+              <button
+                key={bucket}
+                onClick={() => setActiveBucket(bucket)}
+                className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+                  activeBucket === bucket
+                    ? 'border-[#174887] text-[#174887]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {bucket} <span className="ml-1 text-xs opacity-60">({count})</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Filter bar */}
+      <div className="bg-white rounded-xl border-2 border-gray-200 p-4 mb-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Search */}
+          <div className="flex-1 min-w-[160px]">
+            <div className="relative flex items-center">
+              <svg className="absolute left-3 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search work orders…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm
+                           focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Sort */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Sort:</label>
+            <select
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value as SortOption)}
+              className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                         focus:outline-none focus:ring-2 focus:ring-[#174887]"
+            >
+              <option value="default">Default Order</option>
+              <option value="urgency-high">Urgency: High to Low</option>
+              <option value="urgency-low">Urgency: Low to High</option>
+            </select>
+          </div>
+
+          {/* Tags */}
+          {itemTags.length > 0 && (
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Tags:</label>
+              <div className="relative" ref={tagDropdownRef}>
+                <button
+                  onClick={() => setTagDropdownOpen((v) => !v)}
+                  className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                             focus:outline-none focus:ring-2 focus:ring-[#174887] hover:border-gray-400 transition-colors"
+                >
+                  <span className={selectedTags.length > 0 ? 'text-[#174887] font-semibold' : 'text-gray-700'}>
+                    {selectedTags.length === 0 ? 'Any' : `${selectedTags.length} selected`}
+                  </span>
+                  <svg className={`w-4 h-4 text-gray-400 transition-transform ${tagDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {tagDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[200px] py-1 max-h-80 overflow-y-auto">
+                    <label className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer">
+                      <input type="checkbox" checked={selectedTags.length === 0} onChange={() => setSelectedTags([])} className="rounded accent-[#174887]" />
+                      <span className="text-sm text-gray-700 font-medium">Any (no filter)</span>
+                    </label>
+                    <div className="border-t border-gray-100 my-1" />
+                    {itemTags.map((tag) => (
+                      <label key={tag.name} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer">
+                        <input type="checkbox" checked={selectedTags.includes(tag.name)} onChange={() => toggleTag(tag.name)} className="rounded accent-[#174887]" />
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: hexToRgba(tag.bg, 0.18), color: '#1a1c1f' }}>
+                          {tag.name}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="px-3 py-2 text-sm text-gray-600 hover:text-[#174887] hover:bg-gray-100 rounded-lg transition-colors">
+              Clear filters
+            </button>
+          )}
+        </div>
+      </div>
+
+      {hasActiveFilters && (
+        <p className="text-xs text-gray-500 mb-3 px-1">
+          Showing {filteredAndSortedItems.length} of {items.length} item{items.length !== 1 ? 's' : ''}
+        </p>
+      )}
+
+      {/* Item list */}
+      <div className="space-y-3">
+        {filteredAndSortedItems.map((item, index) =>
+          mode === 'internal' ? (
+            <InternalCard key={item.id} item={item} index={index} companyId={companyId} />
+          ) : (
+            <button
+              key={item.id}
+              onClick={() => setActiveItem(item)}
+              className="w-full text-left bg-white rounded-xl border-2 border-gray-200 shadow-sm p-4
+                         transition-all hover:shadow-md hover:border-gray-300 active:scale-[0.99]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-xs font-semibold text-gray-400">#{index + 1}</span>
+                    <span className="text-xs text-gray-400">{item.location}</span>
+                  </div>
+                  <p className="text-sm font-bold text-gray-900 truncate">{item.issue}</p>
+                  <span
+                    className="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold text-white capitalize"
+                    style={{ backgroundColor: item.statusColor }}
+                  >
+                    {item.status}
+                  </span>
+                </div>
+                {item.images.length > 0 && !false && (
+                  <img src={item.images[0]} alt={item.issue} className="w-14 h-14 object-cover rounded-lg border border-gray-100 flex-shrink-0" />
+                )}
+                <svg className="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </button>
+          ),
+        )}
+
+        {filteredAndSortedItems.length === 0 && (
+          <div className="text-center py-12 text-gray-400">
+            <p className="text-sm">No items match your filters.</p>
+            {hasActiveFilters && (
+              <button onClick={clearFilters} className="mt-2 text-[#174887] hover:underline text-sm font-medium">
+                Clear filters
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Customer detail modal */}
+      {mode === 'customer' && activeItem && (
+        <CustomerModal
+          item={activeItem}
+          companyId={companyId}
+          authorName={authorName}
+          onClose={() => setActiveItem(null)}
+        />
+      )}
+    </div>
+  );
+}

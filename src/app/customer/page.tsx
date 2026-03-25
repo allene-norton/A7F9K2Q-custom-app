@@ -7,8 +7,10 @@ import { StoredAssessment } from '@/lib/store';
 import { AssessmentItem } from '@/types/types-index';
 import { getCategoryColor, hexToRgba } from '@/lib/utils';
 import { CUSTOMER_SELECTION_OPTIONS } from '@/lib/constants';
+import WorkOrdersView from '@/components/WorkOrdersView';
 
 type SortOption = 'default' | 'urgency-high' | 'urgency-low';
+type ActiveView = 'assessment' | 'workorders';
 
 const CATEGORIES: AssessmentItem['category'][] = [
   'Urgent',
@@ -138,16 +140,6 @@ function ItemModal({
             </div>
           )}
 
-          {/* Description */}
-          {item.description && (
-            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-              <p className="text-xs font-semibold text-gray-500 mb-1">
-                Description
-              </p>
-              <p className="text-sm text-gray-800">{item.description}</p>
-            </div>
-          )}
-
           {/* Tags */}
           {item.tags.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -240,6 +232,7 @@ function CustomerPageInner() {
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeItem, setActiveItem] = useState<AssessmentItem | null>(null);
+  const [activeView, setActiveView] = useState<ActiveView>('assessment');
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -456,83 +449,17 @@ function CustomerPageInner() {
     );
   }
 
-  // No assessments
-  if (assessments.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="py-5 px-6 shadow-sm" style={{ backgroundColor: '#174887' }}>
-          <h1 className="text-xl font-bold text-white">Maintenance Matters</h1>
-        </div>
-        <div className="max-w-2xl mx-auto py-16 px-4 text-center">
-          <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">No assessments currently available for review</h2>
-          <p className="text-gray-500">Your team will notify you when an assessment is ready.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Assessment selector (multiple assessments, none chosen yet)
-  if (assessments.length > 1 && !selectedAssessment) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="py-5 px-6 shadow-sm" style={{ backgroundColor: '#174887' }}>
-          <h1 className="text-xl font-bold text-white">Maintenance Matters</h1>
-        </div>
-        <div className="max-w-2xl mx-auto py-8 px-4">
-          <h2 className="text-2xl font-bold mb-1" style={{ color: '#174887' }}>
-            {assessments[0].companyName}
-          </h2>
-          <p className="text-gray-500 text-sm mb-6">
-            You have {assessments.length} assessments ready for review. Select one to get started.
-          </p>
-          <div className="space-y-3">
-            {assessments.map((a) => (
-              <button
-                key={a.assessmentId}
-                onClick={() => handleSelectAssessment(a)}
-                className="w-full text-left bg-white border-2 border-gray-200 rounded-xl p-5
-                           hover:border-[#174887] hover:shadow-md transition-all"
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-base leading-snug">
-                      {a.assessmentName}
-                    </p>
-                    {a.items[0]?.location && (
-                      <p className="text-xs font-medium text-[#174887] mt-0.5">
-                        {a.items[0].location}
-                      </p>
-                    )}
-                    <p className="text-sm text-gray-500 mt-1">
-                      Sent {new Date(a.sentAt).toLocaleDateString('en-US', {
-                        year: 'numeric', month: 'long', day: 'numeric',
-                      })}
-                      {' · '}
-                      {a.items.length} item{a.items.length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const selectedCount = selectedAssessment!.items.filter(
-    (item: AssessmentItem) => selections[item.id] !== undefined,
-  ).length;
+  const safeCompanyId = companyId ?? '';
+  const companyName = assessments[0]?.companyName ?? '';
+  const selectedCount = selectedAssessment
+    ? selectedAssessment.items.filter(
+        (item: AssessmentItem) => selections[item.id] !== undefined,
+      ).length
+    : 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Header */}
       <div
         className="py-5 px-6 shadow-sm"
         style={{ backgroundColor: '#174887' }}
@@ -540,376 +467,101 @@ function CustomerPageInner() {
         <h1 className="text-xl font-bold text-white">Maintenance Matters</h1>
       </div>
 
-      <div className="max-w-2xl mx-auto py-8 px-4">
-        {/* Back to assessments (multi-assessment only) */}
-        {assessments.length > 1 && (
-          <button
-            onClick={() => setSelectedAssessment(null)}
-            className="flex items-center gap-2 text-gray-600 hover:text-[#174887] mb-5 transition-colors font-medium text-sm"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            All assessments
-          </button>
-        )}
-
-        {/* Header card */}
-        <div className="bg-white rounded-xl border-2 border-gray-200 p-6 mb-6 shadow-sm">
-          <h2 className="text-2xl font-bold mb-0.5" style={{ color: '#174887' }}>
-            {selectedAssessment!.companyName}
-          </h2>
-          <p className="text-base font-semibold text-gray-700 mb-1">
-            {selectedAssessment!.assessmentName}
-          </p>
-          <p className="text-gray-500 text-sm">
-            Sent{' '}
-            {new Date(selectedAssessment!.sentAt).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })}
-          </p>
-          <p className="text-sm text-gray-600 mt-2">
-            Tap each item to review details and make your selection. When
-            you&rsquo;re done, click <strong>Submit Selections</strong> at the
-            bottom.
-          </p>
-          {selectedAssessment!.items.length > 0 && (
-            <p className="text-xs text-gray-400 mt-3">
-              {selectedCount} of {selectedAssessment!.items.length} item
-              {selectedAssessment!.items.length !== 1 ? 's' : ''} reviewed
-            </p>
-          )}
-        </div>
-
-        {/* Filter Bar */}
-        <div className="bg-white rounded-xl border-2 border-gray-200 p-4 mb-4 shadow-sm">
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Search */}
-            <div className="flex-1 min-w-[160px]">
-              <div className="relative flex items-center">
-                <svg
-                  className="absolute left-3 w-4 h-4 text-gray-400 pointer-events-none"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Search items by title, tag, description, etc..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm
-                             focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            {/* Urgency */}
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700">
-                Urgency:
-              </label>
-              <select
-                value={categoryFilter}
-                onChange={(e) =>
-                  setCategoryFilter(
-                    e.target.value as 'All' | AssessmentItem['category'],
-                  )
-                }
-                className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
-                           focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-gray"
-              >
-                <option value="All">All</option>
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Sort */}
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700">Sort:</label>
-              <select
-                value={sortOption}
-                onChange={(e) => setSortOption(e.target.value as SortOption)}
-                className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
-                           focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-gray"
-              >
-                <option value="default">Default Order</option>
-                <option value="urgency-high">Urgency: High to Low</option>
-                <option value="urgency-low">Urgency: Low to High</option>
-              </select>
-            </div>
-
-            {/* Tags multi-select */}
-            {itemTags.length > 0 && (
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Tags:
-                </label>
-                <div className="relative" ref={tagDropdownRef}>
-                  <button
-                    onClick={() => setTagDropdownOpen((v) => !v)}
-                    className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
-                               focus:outline-none focus:ring-2 focus:ring-[#174887] hover:border-gray-400 transition-colors"
-                  >
-                    <span
-                      className={
-                        selectedTags.length > 0
-                          ? 'text-[#174887] font-semibold'
-                          : 'text-gray-700'
-                      }
-                    >
-                      {selectedTags.length === 0
-                        ? 'Any'
-                        : `${selectedTags.length} selected`}
-                    </span>
-                    <svg
-                      className={`w-4 h-4 text-gray-400 transition-transform ${tagDropdownOpen ? 'rotate-180' : ''}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
-
-                  {tagDropdownOpen && (
-                    <div className="absolute top-full left-0 mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[200px] py-1 max-h-80 overflow-y-auto">
-                      <label className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedTags.length === 0}
-                          onChange={() => setSelectedTags([])}
-                          className="rounded accent-[#174887]"
-                        />
-                        <span className="text-sm text-gray-700 font-medium">
-                          Any (no filter)
-                        </span>
-                      </label>
-                      <div className="border-t border-gray-100 my-1" />
-                      {itemTags.map((tag) => (
-                        <label
-                          key={tag.name}
-                          className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedTags.includes(tag.name)}
-                            onChange={() => toggleTag(tag.name)}
-                            className="rounded accent-[#174887]"
-                          />
-                          <span
-                            className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                            style={{
-                              backgroundColor: tag.bg,
-                              color: '#1a1c1f',
-                            }}
-                          >
-                            {tag.name}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Clear filters */}
-            {hasActiveFilters && (
+      {/* Tab bar */}
+      <div className="border-b border-gray-200 bg-white">
+        <div className="max-w-2xl mx-auto px-4">
+          <div className="flex gap-0">
+            {(['assessment', 'workorders'] as ActiveView[]).map((view) => (
               <button
-                onClick={clearFilters}
-                className="px-3 py-2 text-sm text-gray-600 hover:text-[#174887] hover:bg-gray-100 rounded-lg transition-colors"
+                key={view}
+                onClick={() => setActiveView(view)}
+                className={`px-5 py-3.5 text-sm font-semibold border-b-2 transition-colors ${
+                  activeView === view
+                    ? 'border-[#174887] text-[#174887]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
               >
-                Clear filters
+                {view === 'assessment' ? 'Assessment' : 'Work Orders'}
               </button>
-            )}
+            ))}
           </div>
         </div>
+      </div>
 
-        {hasActiveFilters && (
-          <p className="text-xs text-gray-500 mb-3 px-1">
-            Showing {filteredAndSortedItems.length} of {selectedAssessment!.items.length}{' '}
-            item{selectedAssessment!.items.length !== 1 ? 's' : ''}
-          </p>
-        )}
-
-        {/* Item cards */}
-        <div className="space-y-5 mb-8">
-          {filteredAndSortedItems.map((item: AssessmentItem, index: number) => {
-            const sel = selections[item.id];
-            const chosenOption =
-              sel !== undefined
-                ? CUSTOMER_SELECTION_OPTIONS.find(
-                    (o) => String(o.orderindex) === sel,
-                  )
-                : undefined;
-
-            return (
-              <div
-                key={item.id}
-                className={`bg-white rounded-xl border shadow-sm transition-all ${
-                  submitted ? 'opacity-60' : 'hover:shadow-lg'
-                } ${chosenOption ? 'ring-2' : 'border-gray-200'}`}
-                style={{
-                  borderColor: chosenOption?.color ?? '#e5e7eb',
-                }}
+      {/* Work Orders tab */}
+      {activeView === 'workorders' ? (
+        <WorkOrdersView
+          companyId={safeCompanyId}
+          companyName={companyName}
+          mode="customer"
+          authorName={companyName}
+        />
+      ) : (
+        <>
+          {/* Assessment tab — empty state */}
+          {assessments.length === 0 ? (
+            <div className="max-w-2xl mx-auto py-16 px-4 text-center">
+              <svg
+                className="w-16 h-16 text-gray-300 mx-auto mb-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                {/* Card Header: Item number + location → title + urgency badge */}
-                <div className="p-5 pb-0">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      {/* Item number + location */}
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="inline-flex items-center justify-center w-6 h-6 bg-gray-100 text-gray-600 text-xs font-bold rounded-full">
-                          {index + 1}
-                        </span>
-                        <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-                          {item.location}
-                        </span>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                />
+              </svg>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                No assessments currently available for review
+              </h2>
+              <p className="text-gray-500">
+                Your team will notify you when an assessment is ready.
+              </p>
+            </div>
+          ) : assessments.length > 1 && !selectedAssessment ? (
+            /* Assessment tab — selector */
+            <div className="max-w-2xl mx-auto py-8 px-4">
+              <h2 className="text-2xl font-bold mb-1" style={{ color: '#174887' }}>
+                {companyName}
+              </h2>
+              <p className="text-gray-500 text-sm mb-6">
+                You have {assessments.length} assessments ready for review. Select
+                one to get started.
+              </p>
+              <div className="space-y-3">
+                {assessments.map((a) => (
+                  <button
+                    key={a.assessmentId}
+                    onClick={() => handleSelectAssessment(a)}
+                    className="w-full text-left bg-white border-2 border-gray-200 rounded-xl p-5
+                               hover:border-[#174887] hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 text-base leading-snug">
+                          {a.assessmentName}
+                        </p>
+                        {a.items[0]?.location && (
+                          <p className="text-xs font-medium text-[#174887] mt-0.5">
+                            {a.items[0].location}
+                          </p>
+                        )}
+                        <p className="text-sm text-gray-500 mt-1">
+                          Sent{' '}
+                          {new Date(a.sentAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                          {' · '}
+                          {a.items.length} item{a.items.length !== 1 ? 's' : ''}
+                        </p>
                       </div>
-
-                      {/* Title */}
-                      <h3 className="text-base font-bold text-gray-900 leading-tight pr-4">
-                        {item.issue}
-                      </h3>
-                    </div>
-
-                    {/* Urgency Badge */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 ${getCategoryColor(item.category)}`}
-                      >
-                        {item.category}
-                      </span>
-                      {chosenOption && (
-                        <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-                          <svg
-                            className="w-4 h-4 text-green-600"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2.5}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Tags */}
-                  {item.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {item.tags.map((tag) => (
-                        <span
-                          key={tag.name}
-                          className="px-2.5 py-1 text-xs font-medium rounded-full border"
-                          style={{
-                            backgroundColor: tag.bg,
-                            borderColor: tag.bg,
-                            color: '#374151',
-                          }}
-                        >
-                          {tag.name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Description/Recommendation Section */}
-                {item.description && (
-                  <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                      Recommendation
-                    </p>
-                    <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
-                      {item.description}
-                    </p>
-                  </div>
-                )}
-
-                {/* Image Section */}
-                {item.images.length > 0 && (
-                  <div className="px-5 pt-4">
-                    <div className="relative">
-                      <img
-                        src={item.images[0]}
-                        alt={item.issue}
-                        className="w-full h-40 object-cover rounded-lg border border-gray-200"
-                      />
-                      {item.images.length > 1 && (
-                        <div className="absolute top-2 right-2 bg-black/70 text-white text-xs font-medium px-2 py-1 rounded-full">
-                          +{item.images.length - 1} more
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Selection Status or CTA Button */}
-                <div className="p-5 pt-4">
-                  {chosenOption ? (
-                    <div className="text-center py-2">
-                      <div
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2"
-                        style={{
-                          borderColor: chosenOption.color,
-                          backgroundColor: hexToRgba(chosenOption.color, 0.05),
-                        }}
-                      >
-                        <svg
-                          className="w-4 h-4 text-green-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2.5}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                        <span
-                          className="text-sm font-semibold"
-                          style={{ color: chosenOption.color }}
-                        >
-                          {chosenOption.name}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => !submitted && setActiveItem(item)}
-                      disabled={submitted}
-                      className="w-full py-3.5 px-4 bg-gradient-to-r from-[#174887] to-[#1e5a9b] hover:from-[#0f3d73] hover:to-[#174887] text-white font-semibold rounded-lg transition-all duration-200 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
-                    >
-                      <span>Tap to Review</span>
                       <svg
-                        className="w-4 h-4"
+                        className="w-5 h-5 text-gray-400 flex-shrink-0"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -921,70 +573,482 @@ function CustomerPageInner() {
                           d="M9 5l7 7-7 7"
                         />
                       </svg>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            /* Assessment tab — selected assessment view */
+            <div className="max-w-2xl mx-auto py-8 px-4">
+              {/* Back to assessments (multi-assessment only) */}
+              {assessments.length > 1 && (
+                <button
+                  onClick={() => setSelectedAssessment(null)}
+                  className="flex items-center gap-2 text-gray-600 hover:text-[#174887] mb-5 transition-colors font-medium text-sm"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
+                  All assessments
+                </button>
+              )}
+
+              {/* Header card */}
+              <div className="bg-white rounded-xl border-2 border-gray-200 p-6 mb-6 shadow-sm">
+                <h2
+                  className="text-2xl font-bold mb-0.5"
+                  style={{ color: '#174887' }}
+                >
+                  {selectedAssessment!.companyName}
+                </h2>
+                <p className="text-base font-semibold text-gray-700 mb-1">
+                  {selectedAssessment!.assessmentName}
+                </p>
+                <p className="text-gray-500 text-sm">
+                  Sent{' '}
+                  {new Date(selectedAssessment!.sentAt).toLocaleDateString(
+                    'en-US',
+                    {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    },
+                  )}
+                </p>
+                <p className="text-sm text-gray-600 mt-2">
+                  Tap each item to review details and make your selection. When
+                  you&rsquo;re done, click <strong>Submit Selections</strong> at
+                  the bottom.
+                </p>
+                {selectedAssessment!.items.length > 0 && (
+                  <p className="text-xs text-gray-400 mt-3">
+                    {selectedCount} of {selectedAssessment!.items.length} item
+                    {selectedAssessment!.items.length !== 1 ? 's' : ''} reviewed
+                  </p>
+                )}
+              </div>
+
+              {/* Filter Bar */}
+              <div className="bg-white rounded-xl border-2 border-gray-200 p-4 mb-4 shadow-sm">
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Search */}
+                  <div className="flex-1 min-w-[160px]">
+                    <div className="relative flex items-center">
+                      <svg
+                        className="absolute left-3 w-4 h-4 text-gray-400 pointer-events-none"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
+                      </svg>
+                      <input
+                        type="text"
+                        placeholder="Search items by title, tag, description, etc..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm
+                                   focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Urgency */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Urgency:
+                    </label>
+                    <select
+                      value={categoryFilter}
+                      onChange={(e) =>
+                        setCategoryFilter(
+                          e.target.value as 'All' | AssessmentItem['category'],
+                        )
+                      }
+                      className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                                 focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-gray"
+                    >
+                      <option value="All">All</option>
+                      {CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Sort */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Sort:
+                    </label>
+                    <select
+                      value={sortOption}
+                      onChange={(e) =>
+                        setSortOption(e.target.value as SortOption)
+                      }
+                      className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                                 focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-gray"
+                    >
+                      <option value="default">Default Order</option>
+                      <option value="urgency-high">Urgency: High to Low</option>
+                      <option value="urgency-low">Urgency: Low to High</option>
+                    </select>
+                  </div>
+
+                  {/* Tags multi-select */}
+                  {itemTags.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Tags:
+                      </label>
+                      <div className="relative" ref={tagDropdownRef}>
+                        <button
+                          onClick={() => setTagDropdownOpen((v) => !v)}
+                          className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                                     focus:outline-none focus:ring-2 focus:ring-[#174887] hover:border-gray-400 transition-colors"
+                        >
+                          <span
+                            className={
+                              selectedTags.length > 0
+                                ? 'text-[#174887] font-semibold'
+                                : 'text-gray-700'
+                            }
+                          >
+                            {selectedTags.length === 0
+                              ? 'Any'
+                              : `${selectedTags.length} selected`}
+                          </span>
+                          <svg
+                            className={`w-4 h-4 text-gray-400 transition-transform ${tagDropdownOpen ? 'rotate-180' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        </button>
+
+                        {tagDropdownOpen && (
+                          <div className="absolute top-full left-0 mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[200px] py-1 max-h-80 overflow-y-auto">
+                            <label className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={selectedTags.length === 0}
+                                onChange={() => setSelectedTags([])}
+                                className="rounded accent-[#174887]"
+                              />
+                              <span className="text-sm text-gray-700 font-medium">
+                                Any (no filter)
+                              </span>
+                            </label>
+                            <div className="border-t border-gray-100 my-1" />
+                            {itemTags.map((tag) => (
+                              <label
+                                key={tag.name}
+                                className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedTags.includes(tag.name)}
+                                  onChange={() => toggleTag(tag.name)}
+                                  className="rounded accent-[#174887]"
+                                />
+                                <span
+                                  className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                                  style={{
+                                    backgroundColor: tag.bg,
+                                    color: '#1a1c1f',
+                                  }}
+                                >
+                                  {tag.name}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Clear filters */}
+                  {hasActiveFilters && (
+                    <button
+                      onClick={clearFilters}
+                      className="px-3 py-2 text-sm text-gray-600 hover:text-[#174887] hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      Clear filters
                     </button>
                   )}
                 </div>
               </div>
-            );
-          })}
 
-          {filteredAndSortedItems.length === 0 && (
-            <div className="text-center py-12 text-gray-400">
-              <p className="text-sm">No items match your filters.</p>
               {hasActiveFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="mt-2 text-[#174887] hover:underline text-sm font-medium"
-                >
-                  Clear filters
-                </button>
+                <p className="text-xs text-gray-500 mb-3 px-1">
+                  Showing {filteredAndSortedItems.length} of{' '}
+                  {selectedAssessment!.items.length}{' '}
+                  item{selectedAssessment!.items.length !== 1 ? 's' : ''}
+                </p>
+              )}
+
+              {/* Item cards */}
+              <div className="space-y-5 mb-8">
+                {filteredAndSortedItems.map(
+                  (item: AssessmentItem, index: number) => {
+                    const sel = selections[item.id];
+                    const chosenOption =
+                      sel !== undefined
+                        ? CUSTOMER_SELECTION_OPTIONS.find(
+                            (o) => String(o.orderindex) === sel,
+                          )
+                        : undefined;
+
+                    return (
+                      <div
+                        key={item.id}
+                        className={`bg-white rounded-xl border shadow-sm transition-all ${
+                          submitted ? 'opacity-60' : 'hover:shadow-lg'
+                        } ${chosenOption ? 'ring-2' : 'border-gray-200'}`}
+                        style={{
+                          borderColor: chosenOption?.color ?? '#e5e7eb',
+                        }}
+                      >
+                        {/* Card Header */}
+                        <div className="p-5 pb-0">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="inline-flex items-center justify-center w-6 h-6 bg-gray-100 text-gray-600 text-xs font-bold rounded-full">
+                                  {index + 1}
+                                </span>
+                                <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                                  {item.location}
+                                </span>
+                              </div>
+                              <h3 className="text-base font-bold text-gray-900 leading-tight pr-4">
+                                {item.issue}
+                              </h3>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 ${getCategoryColor(item.category)}`}
+                              >
+                                {item.category}
+                              </span>
+                              {chosenOption && (
+                                <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                                  <svg
+                                    className="w-4 h-4 text-green-600"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2.5}
+                                      d="M5 13l4 4L19 7"
+                                    />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Tags */}
+                          {item.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-4">
+                              {item.tags.map((tag) => (
+                                <span
+                                  key={tag.name}
+                                  className="px-2.5 py-1 text-xs font-medium rounded-full border"
+                                  style={{
+                                    backgroundColor: tag.bg,
+                                    borderColor: tag.bg,
+                                    color: '#374151',
+                                  }}
+                                >
+                                  {tag.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Description */}
+                        {item.description && (
+                          <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50">
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                              Recommendation
+                            </p>
+                            <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
+                              {item.description}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Image */}
+                        {item.images.length > 0 && (
+                          <div className="px-5 pt-4">
+                            <div className="relative">
+                              <img
+                                src={item.images[0]}
+                                alt={item.issue}
+                                className="w-full h-40 object-cover rounded-lg border border-gray-200"
+                              />
+                              {item.images.length > 1 && (
+                                <div className="absolute top-2 right-2 bg-black/70 text-white text-xs font-medium px-2 py-1 rounded-full">
+                                  +{item.images.length - 1} more
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Selection Status or CTA Button */}
+                        <div className="p-5 pt-4">
+                          {chosenOption ? (
+                            <div className="text-center py-2">
+                              <div
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2"
+                                style={{
+                                  borderColor: chosenOption.color,
+                                  backgroundColor: hexToRgba(
+                                    chosenOption.color,
+                                    0.05,
+                                  ),
+                                }}
+                              >
+                                <svg
+                                  className="w-4 h-4 text-green-600"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2.5}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                                <span
+                                  className="text-sm font-semibold"
+                                  style={{ color: chosenOption.color }}
+                                >
+                                  {chosenOption.name}
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => !submitted && setActiveItem(item)}
+                              disabled={submitted}
+                              className="w-full py-3.5 px-4 bg-gradient-to-r from-[#174887] to-[#1e5a9b] hover:from-[#0f3d73] hover:to-[#174887] text-white font-semibold rounded-lg transition-all duration-200 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+                            >
+                              <span>Tap to Review</span>
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 5l7 7-7 7"
+                                />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  },
+                )}
+
+                {filteredAndSortedItems.length === 0 && (
+                  <div className="text-center py-12 text-gray-400">
+                    <p className="text-sm">No items match your filters.</p>
+                    {hasActiveFilters && (
+                      <button
+                        onClick={clearFilters}
+                        className="mt-2 text-[#174887] hover:underline text-sm font-medium"
+                      >
+                        Clear filters
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Submit area */}
+              {submitted ? (
+                <div className="bg-green-50 border-2 border-green-200 rounded-xl p-6 text-center">
+                  <svg
+                    className="w-10 h-10 text-green-500 mx-auto mb-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  <h3 className="text-lg font-bold text-green-800">
+                    Selections Submitted!
+                  </h3>
+                  <p className="text-sm text-green-700 mt-1">
+                    Thank you. Your team will be in touch shortly.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-white rounded-xl border-2 border-gray-200 p-6 shadow-sm text-center">
+                  {!allSelected && (
+                    <p className="text-sm text-amber-700 mb-3">
+                      Please review and select all items before submitting.
+                    </p>
+                  )}
+                  <button
+                    onClick={handleSubmit}
+                    disabled={!allSelected || isSubmitting}
+                    className="px-8 py-3 rounded-lg text-white font-bold text-base hover:opacity-90
+                               transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: '#174887' }}
+                  >
+                    {isSubmitting ? 'Submitting…' : 'Submit Selections'}
+                  </button>
+                </div>
               )}
             </div>
           )}
-        </div>
-
-        {/* Submit area */}
-        {submitted ? (
-          <div className="bg-green-50 border-2 border-green-200 rounded-xl p-6 text-center">
-            <svg
-              className="w-10 h-10 text-green-500 mx-auto mb-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-            <h3 className="text-lg font-bold text-green-800">
-              Selections Submitted!
-            </h3>
-            <p className="text-sm text-green-700 mt-1">
-              Thank you. Your team will be in touch shortly.
-            </p>
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl border-2 border-gray-200 p-6 shadow-sm text-center">
-            {!allSelected && (
-              <p className="text-sm text-amber-700 mb-3">
-                Please review and select all items before submitting.
-              </p>
-            )}
-            <button
-              onClick={handleSubmit}
-              disabled={!allSelected || isSubmitting}
-              className="px-8 py-3 rounded-lg text-white font-bold text-base hover:opacity-90
-                         transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ backgroundColor: '#174887' }}
-            >
-              {isSubmitting ? 'Submitting…' : 'Submit Selections'}
-            </button>
-          </div>
-        )}
-      </div>
+        </>
+      )}
 
       {/* Item detail modal */}
       {activeItem && (
