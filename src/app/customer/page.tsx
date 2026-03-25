@@ -225,7 +225,8 @@ function CustomerPageInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [assessments, setAssessments] = useState<StoredAssessment[]>([]);
-  const [selectedAssessment, setSelectedAssessment] = useState<StoredAssessment | null>(null);
+  const [selectedAssessment, setSelectedAssessment] =
+    useState<StoredAssessment | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [comments, setComments] = useState<Record<string, string>>({});
@@ -249,11 +250,8 @@ function CustomerPageInner() {
       try {
         setLoading(true);
         setError(null);
-        
-        console.log('🔍 Customer page loading with token:', token);
 
         const userData = await getLoggedInUser(undefined, token);
-        console.log('👤 User data response:', userData);
         if (!userData || 'error' in userData) {
           setError('Unable to verify your session. Please reload the page.');
           return;
@@ -318,7 +316,10 @@ function CustomerPageInner() {
       const res = await fetch(`/api/assessments/${companyId}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assessmentId: selectedAssessment.assessmentId, items: payload }),
+        body: JSON.stringify({
+          assessmentId: selectedAssessment.assessmentId,
+          items: payload,
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -392,7 +393,13 @@ function CustomerPageInner() {
     }
 
     return items;
-  }, [selectedAssessment, categoryFilter, searchQuery, selectedTags, sortOption]);
+  }, [
+    selectedAssessment,
+    categoryFilter,
+    searchQuery,
+    selectedTags,
+    sortOption,
+  ]);
 
   const clearFilters = () => {
     setCategoryFilter('All');
@@ -527,12 +534,15 @@ function CustomerPageInner() {
           ) : assessments.length > 1 && !selectedAssessment ? (
             /* Assessment tab — selector */
             <div className="max-w-2xl mx-auto py-8 px-4">
-              <h2 className="text-2xl font-bold mb-1" style={{ color: '#174887' }}>
+              <h2
+                className="text-2xl font-bold mb-1"
+                style={{ color: '#174887' }}
+              >
                 {companyName}
               </h2>
               <p className="text-gray-500 text-sm mb-6">
-                You have {assessments.length} assessments ready for review. Select
-                one to get started.
+                You have {assessments.length} assessments ready for review.
+                Select one to get started.
               </p>
               <div className="space-y-3">
                 {assessments.map((a) => (
@@ -810,8 +820,8 @@ function CustomerPageInner() {
               {hasActiveFilters && (
                 <p className="text-xs text-gray-500 mb-3 px-1">
                   Showing {filteredAndSortedItems.length} of{' '}
-                  {selectedAssessment!.items.length}{' '}
-                  item{selectedAssessment!.items.length !== 1 ? 's' : ''}
+                  {selectedAssessment!.items.length} item
+                  {selectedAssessment!.items.length !== 1 ? 's' : ''}
                 </p>
               )}
 

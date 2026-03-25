@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { AssessmentItem } from '@/types/types-index';
-import { getCategoryColor, hexToRgba } from '@/lib/utils';
+import { getCategoryColor } from '@/lib/utils';
 
 type StatusBucket = 'Pending & In Progress' | 'On Hold' | 'Closed';
 
@@ -125,64 +125,77 @@ function InternalCard({ item, index, companyId }: InternalCardProps) {
   const [postedComments, setPostedComments] = useState<string[]>([]);
 
   return (
-    <div className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden transition-shadow hover:shadow-md">
-      <div
-        className="p-5 cursor-pointer"
-        onClick={() => setExpanded((v) => !v)}
-      >
-        <div className="flex gap-5">
-          {/* Thumbnail */}
+    <div
+      className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden transition-shadow hover:shadow-lg cursor-pointer"
+      onClick={() => setExpanded((v) => !v)}
+    >
+      <div className="p-6">
+        <div className="flex gap-6">
+          {/* Image */}
           {item.images.length > 0 && (
             <div className="flex-shrink-0">
               <img
                 src={item.images[0]}
                 alt={item.issue}
-                className="w-28 h-28 object-cover rounded-lg border border-gray-200"
+                className="w-40 h-40 object-cover rounded-lg border-2 border-gray-100"
               />
               {item.images.length > 1 && (
-                <p className="text-xs text-gray-500 text-center mt-1">+{item.images.length - 1} more</p>
+                <div className="text-xs text-gray-500 text-center mt-2">
+                  +{item.images.length - 1} more
+                </div>
               )}
             </div>
           )}
 
           {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-3 mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-gray-400">#{index + 1}</span>
-                <span className="text-xs text-gray-500">{item.location}</span>
+          <div className="flex-1 relative">
+            {/* Header */}
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-sm font-semibold text-gray-500">#{index + 1}</span>
+                  <span className="text-sm text-gray-600 font-medium">{item.location}</span>
+                </div>
+                <h4 className="text-lg font-bold text-gray-900 mb-2">{item.issue}</h4>
+                {item.description && (
+                  <p className="text-sm text-gray-700 mb-3 leading-relaxed">{item.description}</p>
+                )}
               </div>
-              <span
-                className="px-2.5 py-1 rounded-full text-xs font-semibold text-white capitalize flex-shrink-0"
-                style={{ backgroundColor: item.statusColor }}
-              >
-                {item.status}
-              </span>
+
+              {/* Category Badge - Top Right */}
+              <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                <span
+                  className={`px-4 py-2 rounded-lg text-sm font-bold border-2 ${getCategoryColor(item.category)}`}
+                >
+                  {item.category}
+                </span>
+              </div>
             </div>
 
-            <h4 className="text-base font-bold text-gray-900 mb-1">{item.issue}</h4>
-
-            {item.description && (
-              <p className="text-sm text-gray-600 line-clamp-2 mb-2">{item.description}</p>
-            )}
-
-            {item.tags.length > 0 && (
+            {/* Bottom meta: tags + status */}
+            <div className="flex items-center justify-between pt-3 border-t border-gray-200">
               <div className="flex flex-wrap gap-1.5">
                 {item.tags.map((tag) => (
                   <span
                     key={tag.name}
-                    className="px-2 py-0.5 text-xs font-medium rounded-full"
-                    style={{ backgroundColor: hexToRgba(tag.bg, 0.18), color: '#1a1c1f' }}
+                    className="px-2 py-1 text-xs rounded-md font-medium"
+                    style={{ backgroundColor: tag.bg, color: tag.fg }}
                   >
                     {tag.name}
                   </span>
                 ))}
               </div>
-            )}
+              <span
+                className="px-2.5 py-1 rounded-full text-xs font-semibold text-white capitalize flex-shrink-0 ml-3"
+                style={{ backgroundColor: item.statusColor }}
+              >
+                {item.status}
+              </span>
+            </div>
           </div>
 
           {/* Expand chevron */}
-          <div className="flex-shrink-0 self-center">
+          <div className="flex-shrink-0 self-center ml-2">
             <svg
               className={`w-5 h-5 text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
               fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -195,8 +208,7 @@ function InternalCard({ item, index, companyId }: InternalCardProps) {
 
       {/* Expandable comment section */}
       {expanded && (
-        <div className="px-5 pb-5 pt-4 border-t border-gray-100 bg-gray-50/50">
-          {/* Comment thread */}
+        <div className="px-6 pb-6 pt-4 border-t border-gray-100 bg-gray-50/50">
           {postedComments.length > 0 && (
             <div className="space-y-2 mb-4">
               {postedComments.map((comment, i) => (
@@ -306,7 +318,7 @@ function CustomerModal({ item, companyId, authorName, onClose }: CustomerModalPr
                 <span
                   key={tag.name}
                   className="px-2 py-1 text-xs font-medium rounded-md"
-                  style={{ backgroundColor: hexToRgba(tag.bg, 0.18), color: '#1a1c1f' }}
+                  style={{ backgroundColor: tag.bg, color: tag.fg }}
                 >
                   {tag.name}
                 </span>
@@ -584,7 +596,7 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
                     {itemTags.map((tag) => (
                       <label key={tag.name} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer">
                         <input type="checkbox" checked={selectedTags.includes(tag.name)} onChange={() => toggleTag(tag.name)} className="rounded accent-[#174887]" />
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: hexToRgba(tag.bg, 0.18), color: '#1a1c1f' }}>
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: tag.bg, color: tag.fg }}>
                           {tag.name}
                         </span>
                       </label>
@@ -618,27 +630,63 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
             <button
               key={item.id}
               onClick={() => setActiveItem(item)}
-              className="w-full text-left bg-white rounded-xl border-2 border-gray-200 shadow-sm p-4
-                         transition-all hover:shadow-md hover:border-gray-300 active:scale-[0.99]"
+              className="w-full text-left bg-white border-2 border-gray-200 rounded-xl p-6
+                         transition-shadow hover:shadow-lg"
             >
-              <div className="flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-xs font-semibold text-gray-400">#{index + 1}</span>
-                    <span className="text-xs text-gray-400">{item.location}</span>
+              <div className="flex gap-6">
+                {/* Image */}
+                {item.images.length > 0 && (
+                  <div className="flex-shrink-0">
+                    <img
+                      src={item.images[0]}
+                      alt={item.issue}
+                      className="w-40 h-40 object-cover rounded-lg border-2 border-gray-100"
+                    />
+                    {item.images.length > 1 && (
+                      <div className="text-xs text-gray-500 text-center mt-2">
+                        +{item.images.length - 1} more
+                      </div>
+                    )}
                   </div>
-                  <p className="text-sm font-bold text-gray-900 truncate">{item.issue}</p>
-                  <span
-                    className="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold text-white capitalize"
-                    style={{ backgroundColor: item.statusColor }}
-                  >
-                    {item.status}
-                  </span>
-                </div>
-                {item.images.length > 0 && !false && (
-                  <img src={item.images[0]} alt={item.issue} className="w-14 h-14 object-cover rounded-lg border border-gray-100 flex-shrink-0" />
                 )}
-                <svg className="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="text-sm font-semibold text-gray-500">#{index + 1}</span>
+                        <span className="text-sm text-gray-600 font-medium">{item.location}</span>
+                      </div>
+                      <h4 className="text-lg font-bold text-gray-900 mb-2">{item.issue}</h4>
+                      {item.description && (
+                        <p className="text-sm text-gray-700 mb-3 leading-relaxed">{item.description}</p>
+                      )}
+                    </div>
+                    <span
+                      className="px-2.5 py-1 rounded-full text-xs font-semibold text-white capitalize flex-shrink-0 ml-4"
+                      style={{ backgroundColor: item.statusColor }}
+                    >
+                      {item.status}
+                    </span>
+                  </div>
+
+                  {item.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-3 border-t border-gray-200">
+                      {item.tags.map((tag) => (
+                        <span
+                          key={tag.name}
+                          className="px-2 py-1 text-xs rounded-md font-medium"
+                          style={{ backgroundColor: tag.bg, color: tag.fg }}
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <svg className="w-4 h-4 text-gray-300 flex-shrink-0 self-center" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </div>
