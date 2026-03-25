@@ -9,6 +9,7 @@ export interface StoredAssessment {
   items: AssessmentItem[];
   sentAt: string;
   submittedAt?: string; // set when the customer submits selections
+  isHourly?: boolean;
 }
 
 export interface WorkOrderRef {

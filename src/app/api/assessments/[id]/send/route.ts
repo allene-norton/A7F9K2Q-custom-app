@@ -13,6 +13,7 @@ export async function POST(
     companyName: body.companyName,
     items: body.items,
     sentAt: new Date().toISOString(),
+    isHourly: body.isHourly ?? false,
   });
   return Response.json({ success: true });
 }

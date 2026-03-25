@@ -24,6 +24,15 @@ const URGENCY_ORDER: Record<string, number> = {
 
 type SortOption = 'default' | 'urgency-high' | 'urgency-low';
 
+const CATEGORIES = [
+  'Urgent',
+  'Recommended',
+  'Cosmetic',
+  'Included Maintenance',
+  'No Issue',
+] as const;
+type CategoryFilter = 'All' | (typeof CATEGORIES)[number];
+
 export interface WorkOrderItem extends AssessmentItem {
   status: string;
   statusColor: string;
@@ -392,6 +401,8 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('default');
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('All');
+  const [locationFilter, setLocationFilter] = useState('All');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
@@ -434,11 +445,26 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
     return tags;
   }, [items]);
 
+  // Derive unique locations
+  const locations = useMemo(
+    () =>
+      Array.from(new Set(items.map((i) => i.location).filter(Boolean))).sort(),
+    [items],
+  );
+
   const filteredAndSortedItems = useMemo(() => {
     let result = [...items];
 
     const bucketStatuses = BUCKET_STATUSES[activeBucket];
     result = result.filter((i) => bucketStatuses.includes(i.status.toLowerCase()));
+
+    if (categoryFilter !== 'All') {
+      result = result.filter((i) => i.category === categoryFilter);
+    }
+
+    if (locationFilter !== 'All') {
+      result = result.filter((i) => i.location === locationFilter);
+    }
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -464,16 +490,22 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
     }
 
     return result;
-  }, [items, activeBucket, searchQuery, selectedTags, sortOption]);
+  }, [items, activeBucket, categoryFilter, locationFilter, searchQuery, selectedTags, sortOption]);
 
   const clearFilters = () => {
     setSearchQuery('');
     setSortOption('default');
+    setCategoryFilter('All');
+    setLocationFilter('All');
     setSelectedTags([]);
   };
 
   const hasActiveFilters =
-    searchQuery.trim() !== '' || sortOption !== 'default' || selectedTags.length > 0;
+    searchQuery.trim() !== '' ||
+    sortOption !== 'default' ||
+    categoryFilter !== 'All' ||
+    locationFilter !== 'All' ||
+    selectedTags.length > 0;
 
   const toggleTag = (name: string) => {
     setSelectedTags((prev) =>
@@ -559,6 +591,40 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
             </div>
           </div>
 
+          {/* Urgency */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Urgency:</label>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value as CategoryFilter)}
+              className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                         focus:outline-none focus:ring-2 focus:ring-[#174887]"
+            >
+              <option value="All">All</option>
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Location */}
+          {locations.length > 0 && (
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Location:</label>
+              <select
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                           focus:outline-none focus:ring-2 focus:ring-[#174887]"
+              >
+                <option value="All">All</option>
+                {locations.map((loc) => (
+                  <option key={loc} value={loc}>{loc}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Sort */}
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700">Sort:</label>
@@ -622,7 +688,9 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
 
       {hasActiveFilters && (
         <p className="text-xs text-gray-500 mb-3 px-1">
-          Showing {filteredAndSortedItems.length} of {items.length} item{items.length !== 1 ? 's' : ''}
+          Showing {filteredAndSortedItems.length} of{' '}
+          {items.filter((i) => BUCKET_STATUSES[activeBucket].includes(i.status.toLowerCase())).length}{' '}
+          item{filteredAndSortedItems.length !== 1 ? 's' : ''} in this bucket
         </p>
       )}
 

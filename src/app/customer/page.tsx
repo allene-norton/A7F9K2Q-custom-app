@@ -324,6 +324,14 @@ function CustomerPageInner() {
       const data = await res.json();
       if (data.success) {
         setSubmitted(true);
+        const submittedAt = new Date().toISOString();
+        setAssessments((prev) =>
+          prev.map((a) =>
+            a.assessmentId === selectedAssessment.assessmentId
+              ? { ...a, submittedAt }
+              : a,
+          ),
+        );
       } else {
         alert('Some items failed to update. Please try again.');
       }
@@ -464,6 +472,9 @@ function CustomerPageInner() {
 
   const safeCompanyId = companyId ?? '';
   const companyName = assessments[0]?.companyName ?? '';
+  const isHourly = assessments.some((a) => a.isHourly);
+  const noun = isHourly ? 'item' : 'assessment';
+  const nounPlural = isHourly ? 'items' : 'assessments';
   const selectedCount = selectedAssessment
     ? selectedAssessment.items.filter(
         (item: AssessmentItem) => selections[item.id] !== undefined,
@@ -494,7 +505,7 @@ function CustomerPageInner() {
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                {view === 'assessment' ? 'Assessment' : 'Work Orders'}
+                {view === 'assessment' ? (isHourly ? 'Items' : 'Assessment') : 'Work Orders'}
               </button>
             ))}
           </div>
@@ -528,10 +539,10 @@ function CustomerPageInner() {
                 />
               </svg>
               <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                No assessments currently available for review
+                No {nounPlural} currently available for review
               </h2>
               <p className="text-gray-500">
-                Your team will notify you when an assessment is ready.
+                Your team will notify you when {noun === 'item' ? 'items are' : 'an assessment is'} ready.
               </p>
             </div>
           ) : assessments.length > 1 && !selectedAssessment ? (
@@ -544,7 +555,7 @@ function CustomerPageInner() {
                 {companyName}
               </h2>
               <p className="text-gray-500 text-sm mb-6">
-                You have {assessments.length} assessments ready for review.
+                You have {assessments.length} {nounPlural} ready for review.
                 Select one to get started.
               </p>
               <div className="space-y-3">
@@ -637,7 +648,7 @@ function CustomerPageInner() {
                       d="M15 19l-7-7 7-7"
                     />
                   </svg>
-                  All assessments
+                  All {nounPlural}
                 </button>
               )}
 

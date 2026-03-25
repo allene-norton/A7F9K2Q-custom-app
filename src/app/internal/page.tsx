@@ -33,6 +33,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
 
   // Commercial state
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [allCompanies, setAllCompanies] = useState<Company[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(true);
 
   // Hourly state
@@ -98,6 +99,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
           });
         };
 
+        setAllCompanies(response.data);
         const matched = response.data.filter((c) => hasFolder(c.name ?? ''));
         setCompanies(matched);
       } catch (error) {
@@ -177,6 +179,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   const loadCommercialAssessment = async (
     location: AssessmentParent,
     company: Company,
+    targetView: InternalView = 'assessment',
   ) => {
     setAssessmentLoading(true);
     setAssessmentError(null);
@@ -191,6 +194,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
         company.name || 'Unknown',
       );
       setAssessment(result);
+      setInternalView(targetView);
     } catch (error) {
       console.error('Failed to build assessment:', error);
       setAssessmentError(
@@ -238,11 +242,11 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   // --- Render: assessment builder + work orders tabs ---
   if (assessment) {
     // For hourly customers, selectedHourlyFolder.id is a ClickUp folder ID.
-    // Customers look up assessments by their Assembly company ID, so we need to
-    // match the folder name to an Assembly company and use that ID instead.
+    // Customers look up assessments by their Assembly company ID, so we match
+    // the folder name against ALL Assembly companies (not just commercial ones).
     const hourlyAssemblyId =
       !selectedCompany && selectedHourlyFolder
-        ? companies.find(
+        ? allCompanies.find(
             (c) =>
               (c.name ?? '').toLowerCase().trim() ===
               selectedHourlyFolder.name.toLowerCase().trim(),
@@ -324,6 +328,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                 { assessmentId },
               ])
             }
+            isHourly={Boolean(selectedHourlyFolder)}
             spaceId={
               selectedCompany
                 ? COMMERCIAL_SPACE_ID
@@ -447,55 +452,88 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                 const isSent = Boolean(sentAssessment);
                 const isCustomerSubmitted = Boolean(sentAssessment?.submittedAt);
                 return (
-                  <button
+                  <div
                     key={loc.taskId}
-                    onClick={() => !isSent && handleLocationSelect(loc)}
-                    disabled={isSent}
-                    className={`w-full text-left bg-white border-2 rounded-xl p-5 transition-all ${
+                    className={`w-full bg-white border-2 rounded-xl overflow-hidden transition-all ${
                       isSent
-                        ? 'border-gray-200 opacity-60 cursor-not-allowed'
-                        : 'border-gray-200 hover:border-[#174887] hover:shadow-md'
+                        ? 'border-gray-200'
+                        : 'border-gray-200 hover:border-[#174887] hover:shadow-md cursor-pointer'
                     }`}
+                    onClick={() => !isSent && handleLocationSelect(loc)}
                   >
-                    <div className="flex items-center flex-wrap gap-2">
-                      <span className="font-semibold text-gray-900 text-lg">
-                        {loc.taskName}
-                      </span>
-                      <span
-                        className="px-2 py-0.5 rounded-full text-xs font-semibold text-white capitalize"
-                        style={{ backgroundColor: loc.statusColor }}
-                      >
-                        {loc.status}
-                      </span>
-                      {isSent && !isCustomerSubmitted && (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
-                          Sent to Customer
+                    <div className={`p-5 text-left ${isSent ? 'opacity-60' : ''}`}>
+                      <div className="flex items-center flex-wrap gap-2">
+                        <span className="font-semibold text-gray-900 text-lg">
+                          {loc.taskName}
                         </span>
+                        <span
+                          className="px-2 py-0.5 rounded-full text-xs font-semibold text-white capitalize"
+                          style={{ backgroundColor: loc.statusColor }}
+                        >
+                          {loc.status}
+                        </span>
+                        {isSent && !isCustomerSubmitted && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                            Sent to Customer
+                          </span>
+                        )}
+                        {isCustomerSubmitted && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                            Submitted by Customer
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-500 mt-1">
+                        {loc.location ? `${loc.location} · ` : ''}
+                        {loc.date}
+                      </div>
+                      {isSent && !isCustomerSubmitted && (
+                        <p className="text-xs text-gray-500 mt-1.5">
+                          Sent to customer
+                        </p>
                       )}
                       {isCustomerSubmitted && (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                          Submitted by Customer
-                        </span>
+                        <p className="text-xs text-green-700 font-medium mt-1.5 flex items-center gap-1.5">
+                          Submitted by customer
+                          <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700">
+                            Open work orders
+                          </span>
+                        </p>
                       )}
                     </div>
-                    <div className="text-sm text-gray-500 mt-1">
-                      {loc.location ? `${loc.location} · ` : ''}
-                      {loc.date}
-                    </div>
-                    {isSent && !isCustomerSubmitted && (
-                      <p className="text-xs text-gray-500 mt-1.5">
-                        Sent to customer
-                      </p>
+                    {isSent && (
+                      <div
+                        className="px-5 pb-4"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={() =>
+                            loadCommercialAssessment(
+                              loc,
+                              selectedCompany,
+                              'workorders',
+                            )
+                          }
+                          className="flex items-center gap-1.5 text-sm font-semibold text-[#174887] hover:underline"
+                        >
+                          View Work Orders
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 5l7 7-7 7"
+                            />
+                          </svg>
+                        </button>
+                      </div>
                     )}
-                    {isCustomerSubmitted && (
-                      <p className="text-xs text-green-700 font-medium mt-1.5 flex items-center gap-1.5">
-                        Submitted by customer
-                        <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700">
-                          Open work orders
-                        </span>
-                      </p>
-                    )}
-                  </button>
+                  </div>
                 );
               })}
           </div>

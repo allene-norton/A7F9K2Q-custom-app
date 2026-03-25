@@ -67,12 +67,13 @@ export async function POST(
         }
 
         // 2. Create a new top-level task in the same list
+        // description is intentionally omitted — the merge (step 3) brings it
+        // from the original subtask, avoiding duplication
         const createRes = await fetch(`${CLICKUP_BASE}/list/${listId}/task`, {
           method: 'POST',
           headers: authHeaders,
           body: JSON.stringify({
             name: task.name,
-            description: task.description ?? '',
             status: selectedOption?.clickupStatus,
             tags: (task.tags ?? []).map((t: { name: string }) => t.name),
             assignees: (task.assignees ?? []).map((a: { id: number }) => a.id),
@@ -155,6 +156,14 @@ export async function POST(
         headers: authHeaders,
         body: JSON.stringify({ status: 'submitted' }),
       }),
+      fetch(
+        `${CLICKUP_BASE}/task/${parentClickUpTaskId}/field/${APPROVAL_NEEDED_FIELD_ID}`,
+        {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify({ value: false }),
+        },
+      ),
     ]);
   }
   return Response.json({ success: failed === 0, failed });
