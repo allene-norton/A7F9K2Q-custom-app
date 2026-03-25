@@ -198,8 +198,20 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
 
   // --- Render: assessment builder + work orders tabs ---
   if (assessment) {
+    // For hourly customers, selectedHourlyFolder.id is a ClickUp folder ID.
+    // Customers look up assessments by their Assembly company ID, so we need to
+    // match the folder name to an Assembly company and use that ID instead.
+    const hourlyAssemblyId =
+      !selectedCompany && selectedHourlyFolder
+        ? companies.find(
+            (c) =>
+              (c.name ?? '').toLowerCase().trim() ===
+              selectedHourlyFolder.name.toLowerCase().trim(),
+          )?.id
+        : undefined;
+
     const company: Company = selectedCompany || {
-      id: selectedHourlyFolder?.id,
+      id: hourlyAssemblyId ?? selectedHourlyFolder?.id,
       name: selectedHourlyFolder?.name,
     };
     const companyId = company.id ?? '';
