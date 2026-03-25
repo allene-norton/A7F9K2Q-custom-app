@@ -318,6 +318,12 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                 ? handleBackToAssessments
                 : undefined
             }
+            onSendSuccess={(assessmentId) =>
+              setSentAssessments((prev) => [
+                ...prev.filter((a) => a.assessmentId !== assessmentId),
+                { assessmentId },
+              ])
+            }
             spaceId={
               selectedCompany
                 ? COMMERCIAL_SPACE_ID
@@ -459,9 +465,14 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                       >
                         {loc.status}
                       </span>
-                      {isSent && (
+                      {isSent && !isCustomerSubmitted && (
                         <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
                           Sent to Customer
+                        </span>
+                      )}
+                      {isCustomerSubmitted && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                          Submitted by Customer
                         </span>
                       )}
                     </div>
@@ -469,9 +480,17 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                       {loc.location ? `${loc.location} · ` : ''}
                       {loc.date}
                     </div>
+                    {isSent && !isCustomerSubmitted && (
+                      <p className="text-xs text-gray-500 mt-1.5">
+                        Sent to customer
+                      </p>
+                    )}
                     {isCustomerSubmitted && (
-                      <p className="text-xs text-green-700 font-medium mt-1.5">
-                        ✓ Customer submitted · Open work orders
+                      <p className="text-xs text-green-700 font-medium mt-1.5 flex items-center gap-1.5">
+                        Submitted by customer
+                        <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700">
+                          Open work orders
+                        </span>
                       </p>
                     )}
                   </button>

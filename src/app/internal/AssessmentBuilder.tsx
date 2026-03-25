@@ -25,6 +25,7 @@ interface AssessmentBuilderProps {
   assessment: Assessment;
   onBack: () => void;
   onBackToAssessments?: () => void;
+  onSendSuccess?: (assessmentId: string) => void;
   spaceId?: string;
 }
 
@@ -52,6 +53,7 @@ export default function AssessmentBuilder({
   assessment,
   onBack,
   onBackToAssessments,
+  onSendSuccess,
   spaceId,
 }: AssessmentBuilderProps) {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('All');
@@ -198,6 +200,7 @@ export default function AssessmentBuilder({
         }),
       });
       setSendSuccess(true);
+      onSendSuccess?.(assessment.id);
     } finally {
       setIsSending(false);
     }
