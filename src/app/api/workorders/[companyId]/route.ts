@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getWorkOrderRefs } from '@/lib/store';
+import { getWorkOrderRefs, getAssessmentsForCompany } from '@/lib/store';
 import { hexToRgba } from '@/lib/utils';
 import { findMatchingFolder, getFolderLists } from '@/lib/clickup/clickup_actions';
 
@@ -45,13 +45,17 @@ export async function GET(
 
   const companyName = req.nextUrl.searchParams.get('companyName');
 
-  // Internal mode: fetch top-level tasks directly from ClickUp
+  // Internal mode: fetch top-level tasks directly from ClickUp,
+  // then overlay location/assessmentName from stored assessment items.
   if (companyName) {
     try {
-      const folder = await findMatchingFolder(companyName);
-      if (!folder) return Response.json({ items: [] });
+      const [folderResult, storedAssessments] = await Promise.all([
+        findMatchingFolder(companyName),
+        getAssessmentsForCompany(companyId),
+      ]);
+      if (!folderResult) return Response.json({ items: [] });
 
-      const lists = await getFolderLists(folder.id);
+      const lists = await getFolderLists(folderResult.id);
       const assessmentsList = lists.find((l) =>
         l.name.toLowerCase().includes('assessment'),
       );
@@ -68,7 +72,21 @@ export async function GET(
         (t) => !t.name.toLowerCase().includes('assessment'),
       );
 
-      return Response.json({ items: workOrderTasks.map(formatTask) });
+      // Build a name→location lookup from all stored assessment items
+      const nameToLocation = new Map<string, string>();
+      for (const assessment of storedAssessments) {
+        for (const item of assessment.items) {
+          if (item.location) nameToLocation.set(item.issue, item.location);
+        }
+      }
+
+      const items = workOrderTasks.map((task) => {
+        const formatted = formatTask(task);
+        const storedLocation = nameToLocation.get(formatted.issue);
+        return storedLocation ? { ...formatted, location: storedLocation } : formatted;
+      });
+
+      return Response.json({ items });
     } catch {
       return Response.json({ items: [] });
     }
@@ -77,6 +95,9 @@ export async function GET(
   // Customer mode: fetch from Redis work order refs
   const refs = await getWorkOrderRefs(companyId);
   if (refs.length === 0) return Response.json({ items: [] });
+
+  // Build taskId→ref map to restore stored location
+  const refMap = new Map(refs.map((r) => [r.taskId, r]));
 
   const headers = { Authorization: key };
   const tasks = await Promise.allSettled(
@@ -91,7 +112,12 @@ export async function GET(
     .filter((r) => r.status === 'fulfilled')
     .map((r) => (r as PromiseFulfilledResult<unknown>).value)
     .filter((task) => (task as { id?: string })?.id)
-    .map(formatTask);
+    .map((task) => {
+      const formatted = formatTask(task);
+      const ref = refMap.get(formatted.id);
+      if (ref?.location) formatted.location = ref.location;
+      return formatted;
+    });
 
   return Response.json({ items });
 }

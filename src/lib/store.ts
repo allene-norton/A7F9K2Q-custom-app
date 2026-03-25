@@ -14,6 +14,8 @@ export interface WorkOrderRef {
   taskId: string;
   listId: string;
   addedAt: string;
+  location?: string;
+  assessmentName?: string;
 }
 
 const redis = new Redis({

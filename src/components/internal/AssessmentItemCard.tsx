@@ -58,11 +58,16 @@ export default function AssessmentItemCard({
                 {item.issue}
               </h4>
 
-              {/* Description from ClickUp task */}
+              {/* Description & Recommendations */}
               {item.description && (
-                <p className="text-sm text-gray-700 mb-3 leading-relaxed">
-                  {item.description}
-                </p>
+                <div className="mb-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                    Description &amp; Recommendations
+                  </p>
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    {item.description}
+                  </p>
+                </div>
               )}
 
               {/* Priority Badge under item name --- REMOVE - UNUSED*/}

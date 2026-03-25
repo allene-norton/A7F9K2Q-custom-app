@@ -158,7 +158,12 @@ function InternalCard({ item, index, companyId }: InternalCardProps) {
                 </div>
                 <h4 className="text-lg font-bold text-gray-900 mb-2">{item.issue}</h4>
                 {item.description && (
-                  <p className="text-sm text-gray-700 mb-3 leading-relaxed">{item.description}</p>
+                  <div className="mb-3">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                      Description &amp; Recommendations
+                    </p>
+                    <p className="text-sm text-gray-700 leading-relaxed">{item.description}</p>
+                  </div>
                 )}
               </div>
 
@@ -303,10 +308,10 @@ function CustomerModal({ item, companyId, authorName, onClose }: CustomerModalPr
             </div>
           )}
 
-          {/* Description */}
+          {/* Description & Recommendations */}
           {item.description && (
             <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-              <p className="text-xs font-semibold text-gray-500 mb-1">Description</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Description &amp; Recommendations</p>
               <p className="text-sm text-gray-800">{item.description}</p>
             </div>
           )}
@@ -660,7 +665,12 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
                       </div>
                       <h4 className="text-lg font-bold text-gray-900 mb-2">{item.issue}</h4>
                       {item.description && (
-                        <p className="text-sm text-gray-700 mb-3 leading-relaxed">{item.description}</p>
+                        <div className="mb-3">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                            Description &amp; Recommendations
+                          </p>
+                          <p className="text-sm text-gray-700 leading-relaxed">{item.description}</p>
+                        </div>
                       )}
                     </div>
                     <span

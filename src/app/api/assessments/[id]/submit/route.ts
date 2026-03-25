@@ -125,11 +125,16 @@ export async function POST(
           });
         }
 
-        // 6. Save work order ref to Redis
+        // 6. Save work order ref to Redis (with location from assessment item)
+        const assessmentItem = assessmentData.items.find(
+          (item) => item.clickup_task_id === clickup_task_id,
+        );
         await appendWorkOrderRef(id, {
           taskId: newTaskId,
           listId,
           addedAt: new Date().toISOString(),
+          location: assessmentItem?.location ?? '',
+          assessmentName: assessmentData.assessmentName,
         });
       },
     ),

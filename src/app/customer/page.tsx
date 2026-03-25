@@ -128,11 +128,11 @@ function ItemModal({
             </div>
           )}
 
-          {/* Description */}
+          {/* Description & Recommendations */}
           {item.description && (
             <div>
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">
-                Description
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                Description &amp; Recommendations
               </p>
               <p className="text-sm text-gray-700 leading-relaxed">
                 {item.description}
@@ -909,11 +909,11 @@ function CustomerPageInner() {
                           )}
                         </div>
 
-                        {/* Description */}
+                        {/* Description & Recommendations */}
                         {item.description && (
                           <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50">
                             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                              Recommendation
+                              Description &amp; Recommendations
                             </p>
                             <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
                               {item.description}
