@@ -241,14 +241,25 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
 
   // --- Render: company selected (Assessment + Work Orders tabs) ---
   if (selectedCompany || selectedHourlyFolder) {
-    const hourlyAssemblyId =
-      !selectedCompany && selectedHourlyFolder
-        ? allCompanies.find(
-            (c) =>
-              (c.name ?? '').toLowerCase().trim() ===
-              selectedHourlyFolder.name.toLowerCase().trim(),
-          )?.id
-        : undefined;
+    const hourlyAssemblyId = (() => {
+      if (selectedCompany || !selectedHourlyFolder) return undefined;
+      const folderName = selectedHourlyFolder.name.toLowerCase().trim();
+      const fWords = folderName.split(/\s+/).filter((w) => w.length > 2);
+      return allCompanies.find((c) => {
+        const cName = (c.name ?? '').toLowerCase().trim();
+        if (!cName) return false;
+        // Tier 1: exact
+        if (cName === folderName) return true;
+        // Tier 2: starts-with either direction
+        if (cName.startsWith(folderName) || folderName.startsWith(cName))
+          return true;
+        // Tier 3: word overlap >= 50% (mirrors findMatchingFolder logic)
+        const cWords = cName.split(/\s+/).filter((w) => w.length > 2);
+        const overlap = cWords.filter((w) => fWords.includes(w)).length;
+        const total = new Set([...cWords, ...fWords]).size;
+        return total > 0 && overlap / total >= 0.5;
+      })?.id;
+    })();
 
     const company: Company = selectedCompany || {
       id: hourlyAssemblyId ?? selectedHourlyFolder?.id,
