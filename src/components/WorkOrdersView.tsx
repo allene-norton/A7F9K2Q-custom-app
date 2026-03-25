@@ -222,7 +222,7 @@ function InternalCard({ item, index, companyId }: InternalCardProps) {
 
       {/* Expandable comment section */}
       {expanded && (
-        <div className="px-6 pb-6 pt-4 border-t border-gray-100 bg-gray-50/50">
+        <div className="px-6 pb-6 pt-4 border-t border-gray-100 bg-gray-50/50" onClick={(e) => e.stopPropagation()}>
           {postedComments.length > 0 && (
             <div className="space-y-2 mb-4">
               {postedComments.map((comment, i) => (
