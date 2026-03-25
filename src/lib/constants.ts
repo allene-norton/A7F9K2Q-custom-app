@@ -12,7 +12,7 @@ export const CUSTOMER_SELECTION_OPTIONS = [
     name: 'Yes, please complete work.',
     color: '#2ecd6f',
     orderindex: 0,
-    clickupStatus: 'in progress',
+    clickupStatus: 'yes - please complete',
   },
   {
     id: 'b48319bd-08f9-4e45-b544-997cb4968e06',
