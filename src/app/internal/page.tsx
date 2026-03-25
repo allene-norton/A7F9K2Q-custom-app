@@ -440,7 +440,9 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
               )
               .map((loc) => {
                 const sentAssessment = sentAssessments.find(
-                  (a) => a.assessmentId === loc.taskId,
+                  (a) =>
+                    a.assessmentId ===
+                    `assess_${selectedCompany.id}_${loc.taskId}`,
                 );
                 const isSent = Boolean(sentAssessment);
                 const isCustomerSubmitted = Boolean(sentAssessment?.submittedAt);

@@ -85,21 +85,14 @@ export async function POST(
           throw new Error(`Failed to create new task for ${clickup_task_id}`);
         }
 
-        // 3. Update original subtask status to "submitted" (before merge consumes it)
-        await fetch(`${CLICKUP_BASE}/task/${clickup_task_id}`, {
-          method: 'PUT',
-          headers: authHeaders,
-          body: JSON.stringify({ status: 'submitted' }),
-        });
-
-        // 4. Merge the original subtask into the new task
+        // 3. Merge the original subtask into the new task
         await fetch(`${CLICKUP_BASE}/task/${newTaskId}/merge`, {
           method: 'POST',
           headers: authHeaders,
           body: JSON.stringify({ source_task_ids: [clickup_task_id] }),
         });
 
-        // 5. Set Customer Selection field + clear Approval Needed on the new task
+        // 4. Set Customer Selection field + clear Approval Needed on the new task
         await Promise.all([
           fetch(
             `${CLICKUP_BASE}/task/${newTaskId}/field/${CUSTOMER_SELECTION_FIELD_ID}`,
@@ -119,7 +112,7 @@ export async function POST(
           ),
         ]);
 
-        // 6. Post customer comment on the new task if provided
+        // 5. Post customer comment on the new task if provided
         if (comment?.trim()) {
           const formattedComment = `Comment from ${assessmentData.companyName} at ${formattedDate}: ${comment}`;
           await fetch(`${CLICKUP_BASE}/task/${newTaskId}/comment`, {
@@ -132,7 +125,7 @@ export async function POST(
           });
         }
 
-        // 7. Save work order ref to Redis (with location from assessment item)
+        // 6. Save work order ref to Redis (with location from assessment item)
         const assessmentItem = assessmentData.items.find(
           (item) => item.clickup_task_id === clickup_task_id,
         );
@@ -149,10 +142,15 @@ export async function POST(
 
   const failed = results.filter((r) => r.status === 'rejected').length;
   if (failed === 0) {
+    // assessmentId is stored as "assess_{companyId}_{clickupTaskId}" — extract the real ClickUp ID
+    const prefix = `assess_${id}_`;
+    const parentClickUpTaskId = assessmentData.assessmentId.startsWith(prefix)
+      ? assessmentData.assessmentId.slice(prefix.length)
+      : assessmentData.assessmentId;
+
     await Promise.all([
       markAssessmentSubmitted(id, assessmentId),
-      // Update the parent assessment task status to "submitted"
-      fetch(`${CLICKUP_BASE}/task/${assessmentData.assessmentId}`, {
+      fetch(`${CLICKUP_BASE}/task/${parentClickUpTaskId}`, {
         method: 'PUT',
         headers: authHeaders,
         body: JSON.stringify({ status: 'submitted' }),
