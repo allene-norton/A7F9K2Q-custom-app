@@ -1,5 +1,7 @@
 import { Redis } from '@upstash/redis';
-import { AssessmentItem } from '@/types/types-index';
+import { AssessmentItem, StoredComment } from '@/types/types-index';
+
+export type { StoredComment };
 
 export interface StoredAssessment {
   assessmentId: string;
@@ -18,6 +20,7 @@ export interface WorkOrderRef {
   addedAt: string;
   location?: string;
   assessmentName?: string;
+  comments?: StoredComment[];
 }
 
 const redis = new Redis({
@@ -65,4 +68,18 @@ export async function appendWorkOrderRef(companyId: string, ref: WorkOrderRef): 
   // Deduplicate by taskId
   const without = existing.filter((r) => r.taskId !== ref.taskId);
   await redis.set(`workorders:${companyId}`, [...without, ref]);
+}
+
+export async function appendWorkOrderComment(
+  companyId: string,
+  taskId: string,
+  comment: StoredComment,
+): Promise<void> {
+  const refs = await getWorkOrderRefs(companyId);
+  const updated = refs.map((r) =>
+    r.taskId === taskId
+      ? { ...r, comments: [...(r.comments ?? []), comment] }
+      : r,
+  );
+  await redis.set(`workorders:${companyId}`, updated);
 }

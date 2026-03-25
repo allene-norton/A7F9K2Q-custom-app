@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { AssessmentItem } from '@/types/types-index';
+import { AssessmentItem, StoredComment } from '@/types/types-index';
 import { getCategoryColor } from '@/lib/utils';
 
 type StatusBucket = 'Pending & In Progress' | 'On Hold' | 'Closed';
@@ -36,6 +36,7 @@ type CategoryFilter = 'All' | (typeof CATEGORIES)[number];
 export interface WorkOrderItem extends AssessmentItem {
   status: string;
   statusColor: string;
+  thread: StoredComment[];
 }
 
 interface WorkOrdersViewProps {
@@ -53,7 +54,7 @@ interface CommentBoxProps {
   companyId: string;
   isInternal: boolean;
   authorName: string;
-  onPosted: (text: string) => void;
+  onPosted: (comment: StoredComment) => void;
   onCancel?: () => void;
 }
 
@@ -64,18 +65,18 @@ function CommentBox({ taskId, companyId, isInternal, authorName, onPosted, onCan
 
   const handleSubmit = async () => {
     if (!text.trim()) return;
-    const postedText = text.trim();
     setSaving(true);
     setError(false);
     try {
       const res = await fetch(`/api/workorders/${companyId}/${taskId}/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: postedText, authorName, isInternal }),
+        body: JSON.stringify({ text: text.trim(), authorName, isInternal }),
       });
-      if (res.ok) {
+      const data = await res.json();
+      if (res.ok && data.comment) {
         setText('');
-        onPosted(postedText);
+        onPosted(data.comment);
       } else {
         setError(true);
       }
@@ -131,7 +132,7 @@ interface InternalCardProps {
 
 function InternalCard({ item, index, companyId }: InternalCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const [postedComments, setPostedComments] = useState<string[]>([]);
+  const [comments, setComments] = useState<StoredComment[]>(item.thread ?? []);
 
   return (
     <div
@@ -223,12 +224,14 @@ function InternalCard({ item, index, companyId }: InternalCardProps) {
       {/* Expandable comment section */}
       {expanded && (
         <div className="px-6 pb-6 pt-4 border-t border-gray-100 bg-gray-50/50" onClick={(e) => e.stopPropagation()}>
-          {postedComments.length > 0 && (
+          {comments.length > 0 && (
             <div className="space-y-2 mb-4">
-              {postedComments.map((comment, i) => (
-                <div key={i} className="bg-white border border-gray-200 rounded-lg p-3">
-                  <p className="text-xs font-semibold text-gray-500 mb-1">MM Team</p>
-                  <p className="text-sm text-gray-800">{comment}</p>
+              {comments.map((c) => (
+                <div key={c.id} className="bg-white border border-gray-200 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-gray-500 mb-1">
+                    {c.isInternal ? 'MM Team' : c.authorName}
+                  </p>
+                  <p className="text-sm text-gray-800">{c.text}</p>
                 </div>
               ))}
             </div>
@@ -238,7 +241,7 @@ function InternalCard({ item, index, companyId }: InternalCardProps) {
             companyId={companyId}
             isInternal={true}
             authorName="MM Team"
-            onPosted={(text) => setPostedComments((prev) => [...prev, text])}
+            onPosted={(c) => setComments((prev) => [...prev, c])}
           />
         </div>
       )}
@@ -257,7 +260,7 @@ interface CustomerModalProps {
 
 function CustomerModal({ item, companyId, authorName, onClose }: CustomerModalProps) {
   const [activeImage, setActiveImage] = useState(0);
-  const [postedComments, setPostedComments] = useState<string[]>([]);
+  const [comments, setComments] = useState<StoredComment[]>(item.thread ?? []);
   const [showComment, setShowComment] = useState(false);
 
   return (
@@ -343,12 +346,14 @@ function CustomerModal({ item, companyId, authorName, onClose }: CustomerModalPr
           <div className="border-t border-gray-200" />
 
           {/* Comment thread */}
-          {postedComments.length > 0 && (
+          {comments.length > 0 && (
             <div className="space-y-2">
-              {postedComments.map((comment, i) => (
-                <div key={i} className="bg-gray-50 border border-gray-100 rounded-lg p-3">
-                  <p className="text-xs font-semibold text-gray-500 mb-1">{authorName}</p>
-                  <p className="text-sm text-gray-800">{comment}</p>
+              {comments.map((c) => (
+                <div key={c.id} className="bg-gray-50 border border-gray-100 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-gray-500 mb-1">
+                    {c.isInternal ? 'MM Team' : c.authorName}
+                  </p>
+                  <p className="text-sm text-gray-800">{c.text}</p>
                 </div>
               ))}
             </div>
@@ -361,8 +366,8 @@ function CustomerModal({ item, companyId, authorName, onClose }: CustomerModalPr
               companyId={companyId}
               isInternal={false}
               authorName={authorName}
-              onPosted={(text) => {
-                setPostedComments((prev) => [...prev, text]);
+              onPosted={(c) => {
+                setComments((prev) => [...prev, c]);
                 setShowComment(false);
               }}
               onCancel={() => setShowComment(false)}

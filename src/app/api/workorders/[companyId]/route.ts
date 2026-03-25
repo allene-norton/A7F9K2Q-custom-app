@@ -1,12 +1,13 @@
 import { NextRequest } from 'next/server';
 import { getWorkOrderRefs, getAssessmentsForCompany } from '@/lib/store';
+import type { StoredComment } from '@/types/types-index';
 import { hexToRgba } from '@/lib/utils';
 import { findMatchingFolder, getFolderLists } from '@/lib/clickup/clickup_actions';
 
 const CLICKUP_BASE = 'https://api.clickup.com/api/v2';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function formatTask(task: any) {
+function formatTask(task: any, thread: StoredComment[] = []) {
   return {
     id: task.id,
     clickup_task_id: task.id,
@@ -30,6 +31,7 @@ function formatTask(task: any) {
       ? new Date(parseInt(task.date_created)).toISOString().split('T')[0]
       : '',
     comments: '',
+    thread,
     estimated_cost_min: 0,
     estimated_cost_max: 0,
   };
@@ -49,10 +51,12 @@ export async function GET(
   // then overlay location/assessmentName from stored assessment items.
   if (companyName) {
     try {
-      const [folderResult, storedAssessments] = await Promise.all([
+      const [folderResult, storedAssessments, workOrderRefs] = await Promise.all([
         findMatchingFolder(companyName),
         getAssessmentsForCompany(companyId),
+        getWorkOrderRefs(companyId),
       ]);
+      const taskComments = new Map(workOrderRefs.map((r) => [r.taskId, r.comments ?? []]));
       if (!folderResult) return Response.json({ items: [] });
 
       const lists = await getFolderLists(folderResult.id);
@@ -81,7 +85,7 @@ export async function GET(
       }
 
       const items = workOrderTasks.map((task) => {
-        const formatted = formatTask(task);
+        const formatted = formatTask(task, taskComments.get((task as unknown as { id: string }).id));
         const storedLocation = nameToLocation.get(formatted.issue);
         return storedLocation ? { ...formatted, location: storedLocation } : formatted;
       });
@@ -113,8 +117,8 @@ export async function GET(
     .map((r) => (r as PromiseFulfilledResult<unknown>).value)
     .filter((task) => (task as { id?: string })?.id)
     .map((task) => {
-      const formatted = formatTask(task);
-      const ref = refMap.get(formatted.id);
+      const ref = refMap.get((task as { id: string }).id);
+      const formatted = formatTask(task, ref?.comments ?? []);
       if (ref?.location) formatted.location = ref.location;
       return formatted;
     });
