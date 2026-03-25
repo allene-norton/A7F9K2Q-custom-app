@@ -138,6 +138,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     setLocationsLoading(true);
     setLocationFilter('All');
     setSentAssessments([]);
+    setInternalView('assessment');
 
     try {
       const [locations, sentRes] = await Promise.all([
@@ -179,7 +180,6 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   const loadCommercialAssessment = async (
     location: AssessmentParent,
     company: Company,
-    targetView: InternalView = 'assessment',
   ) => {
     setAssessmentLoading(true);
     setAssessmentError(null);
@@ -194,7 +194,6 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
         company.name || 'Unknown',
       );
       setAssessment(result);
-      setInternalView(targetView);
     } catch (error) {
       console.error('Failed to build assessment:', error);
       setAssessmentError(
@@ -211,6 +210,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     setAssessment(null);
     setAssessmentError(null);
     setAssessmentLoading(true);
+    setInternalView('assessment');
     try {
       const result = await getHourlyAssessmentForFolder(folder.id, folder.name);
       setAssessment(result);
@@ -239,11 +239,8 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     setInternalView('assessment');
   };
 
-  // --- Render: assessment builder + work orders tabs ---
-  if (assessment) {
-    // For hourly customers, selectedHourlyFolder.id is a ClickUp folder ID.
-    // Customers look up assessments by their Assembly company ID, so we match
-    // the folder name against ALL Assembly companies (not just commercial ones).
+  // --- Render: company selected (Assessment + Work Orders tabs) ---
+  if (selectedCompany || selectedHourlyFolder) {
     const hourlyAssemblyId =
       !selectedCompany && selectedHourlyFolder
         ? allCompanies.find(
@@ -296,248 +293,207 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                 >
                   Companies
                 </button>
-                {assessmentLocations && assessmentLocations.length > 1 && (
-                  <>
-                    <span className="text-gray-400">/</span>
-                    <button
-                      onClick={handleBackToAssessments}
-                      className="text-[#174887] hover:underline font-medium"
-                    >
-                      {companyName}
-                    </button>
-                  </>
-                )}
                 <span className="text-gray-400">/</span>
                 <span className="text-gray-700 font-medium">Work Orders</span>
               </nav>
             }
           />
         ) : (
-          <AssessmentBuilder
-            company={company}
-            assessment={assessment}
-            onBack={handleBack}
-            onBackToAssessments={
-              assessmentLocations && assessmentLocations.length > 1
-                ? handleBackToAssessments
-                : undefined
-            }
-            onSendSuccess={(assessmentId) =>
-              setSentAssessments((prev) => [
-                ...prev.filter((a) => a.assessmentId !== assessmentId),
-                { assessmentId },
-              ])
-            }
-            isHourly={Boolean(selectedHourlyFolder)}
-            spaceId={
-              selectedCompany
-                ? COMMERCIAL_SPACE_ID
-                : selectedHourlyFolder
-                  ? HOURLY_SPACE_ID
-                  : undefined
-            }
-          />
-        )}
-      </div>
-    );
-  }
-
-  // --- Render: loading states ---
-  if (assessmentLoading || locationsLoading) {
-    const name =
-      selectedCompany?.name || selectedHourlyFolder?.name || 'customer';
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#174887] mx-auto mb-4" />
-          <p className="text-gray-600">Loading assessment for {name}...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // --- Render: error state ---
-  if (assessmentError) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center max-w-md">
-          <div className="text-red-600 text-xl mb-4">
-            ⚠️ Error Loading Assessment
-          </div>
-          <p className="text-gray-600 mb-4">{assessmentError}</p>
-          <button
-            onClick={handleBack}
-            className="px-4 py-2 bg-[#174887] text-white rounded hover:bg-[#0f3661]"
-          >
-            Back
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // --- Render: location selector (commercial multi-location) ---
-  if (assessmentLocations && selectedCompany) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-3xl mx-auto py-8 px-4">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-2 text-gray-600 hover:text-[#174887] mb-6 transition-colors font-medium"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Back to companies
-          </button>
-
-          <h2 className="text-2xl font-bold mb-2" style={{ color: '#174887' }}>
-            {selectedCompany.name}
-          </h2>
-          <p className="text-gray-600 mb-4">
-            Multiple assessments found. Select a location to view:
-          </p>
-
-          {/* Location filter */}
-          {(() => {
-            const uniqueLocations = Array.from(
-              new Set(
-                assessmentLocations.map((l) => l.location).filter(Boolean),
-              ),
-            ).sort();
-            return uniqueLocations.length > 1 ? (
-              <div className="flex items-center gap-3 mb-5">
-                <label className="text-sm font-medium text-gray-700">
-                  Filter by location:
-                </label>
-                <select
-                  value={locationFilter}
-                  onChange={(e) => setLocationFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
-                             focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]"
-                >
-                  <option value="All">All</option>
-                  {uniqueLocations.map((loc) => (
-                    <option key={loc} value={loc}>
-                      {loc}
-                    </option>
-                  ))}
-                </select>
+          /* Assessment tab content */
+          <>
+            {/* Loading */}
+            {(assessmentLoading || locationsLoading) && (
+              <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#174887] mx-auto mb-4" />
+                  <p className="text-gray-600">
+                    Loading assessment for {companyName}...
+                  </p>
+                </div>
               </div>
-            ) : null;
-          })()}
+            )}
 
-          <div className="space-y-3">
-            {assessmentLocations
-              .filter(
-                (loc) =>
-                  locationFilter === 'All' || loc.location === locationFilter,
-              )
-              .map((loc) => {
-                const sentAssessment = sentAssessments.find(
-                  (a) =>
-                    a.assessmentId ===
-                    `assess_${selectedCompany.id}_${loc.taskId}`,
-                );
-                const isSent = Boolean(sentAssessment);
-                const isCustomerSubmitted = Boolean(sentAssessment?.submittedAt);
-                return (
-                  <div
-                    key={loc.taskId}
-                    className={`w-full bg-white border-2 rounded-xl overflow-hidden transition-all ${
-                      isSent
-                        ? 'border-gray-200'
-                        : 'border-gray-200 hover:border-[#174887] hover:shadow-md cursor-pointer'
-                    }`}
-                    onClick={() => !isSent && handleLocationSelect(loc)}
-                  >
-                    <div className={`p-5 text-left ${isSent ? 'opacity-60' : ''}`}>
-                      <div className="flex items-center flex-wrap gap-2">
-                        <span className="font-semibold text-gray-900 text-lg">
-                          {loc.taskName}
-                        </span>
-                        <span
-                          className="px-2 py-0.5 rounded-full text-xs font-semibold text-white capitalize"
-                          style={{ backgroundColor: loc.statusColor }}
-                        >
-                          {loc.status}
-                        </span>
-                        {isSent && !isCustomerSubmitted && (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
-                            Sent to Customer
-                          </span>
-                        )}
-                        {isCustomerSubmitted && (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                            Submitted by Customer
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-sm text-gray-500 mt-1">
-                        {loc.location ? `${loc.location} · ` : ''}
-                        {loc.date}
-                      </div>
-                      {isSent && !isCustomerSubmitted && (
-                        <p className="text-xs text-gray-500 mt-1.5">
-                          Sent to customer
-                        </p>
-                      )}
-                      {isCustomerSubmitted && (
-                        <p className="text-xs text-green-700 font-medium mt-1.5 flex items-center gap-1.5">
-                          Submitted by customer
-                          <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700">
-                            Open work orders
-                          </span>
-                        </p>
-                      )}
-                    </div>
-                    {isSent && (
-                      <div
-                        className="px-5 pb-4"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          onClick={() =>
-                            loadCommercialAssessment(
-                              loc,
-                              selectedCompany,
-                              'workorders',
-                            )
-                          }
-                          className="flex items-center gap-1.5 text-sm font-semibold text-[#174887] hover:underline"
-                        >
-                          View Work Orders
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 5l7 7-7 7"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    )}
+            {/* Error */}
+            {assessmentError && !assessmentLoading && !locationsLoading && (
+              <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="text-center max-w-md">
+                  <div className="text-red-600 text-xl mb-4">
+                    ⚠️ Error Loading Assessment
                   </div>
-                );
-              })}
-          </div>
-        </div>
+                  <p className="text-gray-600 mb-4">{assessmentError}</p>
+                  <button
+                    onClick={handleBack}
+                    className="px-4 py-2 bg-[#174887] text-white rounded hover:bg-[#0f3661]"
+                  >
+                    Back
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Location selector (commercial multi-location) */}
+            {!assessmentLoading &&
+              !locationsLoading &&
+              !assessmentError &&
+              assessmentLocations &&
+              selectedCompany &&
+              !assessment && (
+                <div className="max-w-3xl mx-auto py-8 px-4">
+                  <button
+                    onClick={handleBack}
+                    className="flex items-center gap-2 text-gray-600 hover:text-[#174887] mb-6 transition-colors font-medium"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 19l-7-7 7-7"
+                      />
+                    </svg>
+                    Back to companies
+                  </button>
+
+                  <h2
+                    className="text-2xl font-bold mb-2"
+                    style={{ color: '#174887' }}
+                  >
+                    {selectedCompany.name}
+                  </h2>
+                  <p className="text-gray-600 mb-4">
+                    Multiple assessments found. Select a location to view:
+                  </p>
+
+                  {/* Location filter */}
+                  {(() => {
+                    const uniqueLocations = Array.from(
+                      new Set(
+                        assessmentLocations
+                          .map((l) => l.location)
+                          .filter(Boolean),
+                      ),
+                    ).sort();
+                    return uniqueLocations.length > 1 ? (
+                      <div className="flex items-center gap-3 mb-5">
+                        <label className="text-sm font-medium text-gray-700">
+                          Filter by location:
+                        </label>
+                        <select
+                          value={locationFilter}
+                          onChange={(e) => setLocationFilter(e.target.value)}
+                          className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                                     focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]"
+                        >
+                          <option value="All">All</option>
+                          {uniqueLocations.map((loc) => (
+                            <option key={loc} value={loc}>
+                              {loc}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : null;
+                  })()}
+
+                  <div className="space-y-3">
+                    {assessmentLocations
+                      .filter(
+                        (loc) =>
+                          locationFilter === 'All' ||
+                          loc.location === locationFilter,
+                      )
+                      .map((loc) => {
+                        const sentAssessment = sentAssessments.find(
+                          (a) =>
+                            a.assessmentId ===
+                            `assess_${selectedCompany.id}_${loc.taskId}`,
+                        );
+                        const isSent = Boolean(sentAssessment);
+                        const isCustomerSubmitted = Boolean(
+                          sentAssessment?.submittedAt,
+                        );
+                        return (
+                          <div
+                            key={loc.taskId}
+                            className={`w-full bg-white border-2 rounded-xl overflow-hidden transition-all ${
+                              isSent
+                                ? 'border-gray-200'
+                                : 'border-gray-200 hover:border-[#174887] hover:shadow-md cursor-pointer'
+                            }`}
+                            onClick={() =>
+                              !isSent && handleLocationSelect(loc)
+                            }
+                          >
+                            <div
+                              className={`p-5 text-left ${isSent ? 'opacity-60' : ''}`}
+                            >
+                              <div className="flex items-center flex-wrap gap-2">
+                                <span className="font-semibold text-gray-900 text-lg">
+                                  {loc.taskName}
+                                </span>
+                                <span
+                                  className="px-2 py-0.5 rounded-full text-xs font-semibold text-white capitalize"
+                                  style={{ backgroundColor: loc.statusColor }}
+                                >
+                                  {loc.status}
+                                </span>
+                                {isSent && !isCustomerSubmitted && (
+                                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                                    Sent to Customer
+                                  </span>
+                                )}
+                                {isCustomerSubmitted && (
+                                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                    Submitted by Customer
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-sm text-gray-500 mt-1">
+                                {loc.location ? `${loc.location} · ` : ''}
+                                {loc.date}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+            {/* Assessment builder */}
+            {!assessmentLoading && !locationsLoading && assessment && (
+              <AssessmentBuilder
+                company={company}
+                assessment={assessment}
+                onBack={handleBack}
+                onBackToAssessments={
+                  assessmentLocations && assessmentLocations.length > 1
+                    ? handleBackToAssessments
+                    : undefined
+                }
+                onSendSuccess={(assessmentId) =>
+                  setSentAssessments((prev) => [
+                    ...prev.filter((a) => a.assessmentId !== assessmentId),
+                    { assessmentId },
+                  ])
+                }
+                isHourly={Boolean(selectedHourlyFolder)}
+                spaceId={
+                  selectedCompany
+                    ? COMMERCIAL_SPACE_ID
+                    : selectedHourlyFolder
+                      ? HOURLY_SPACE_ID
+                      : undefined
+                }
+              />
+            )}
+          </>
+        )}
       </div>
     );
   }

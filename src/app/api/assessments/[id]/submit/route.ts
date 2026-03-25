@@ -93,8 +93,16 @@ export async function POST(
           body: JSON.stringify({ source_task_ids: [clickup_task_id] }),
         });
 
-        // 4. Set Customer Selection field + clear Approval Needed on the new task
+        // 4. After merge, explicitly set description to the original's content
+        //    (ClickUp's merge can concatenate descriptions, causing duplication)
+        //    + Set Customer Selection field + clear Approval Needed
+        const originalDescription = task.description ?? task.text_content ?? '';
         await Promise.all([
+          fetch(`${CLICKUP_BASE}/task/${newTaskId}`, {
+            method: 'PUT',
+            headers: authHeaders,
+            body: JSON.stringify({ description: originalDescription }),
+          }),
           fetch(
             `${CLICKUP_BASE}/task/${newTaskId}/field/${CUSTOMER_SELECTION_FIELD_ID}`,
             {
