@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getAssessmentById, appendWorkOrderRef } from '@/lib/store';
+import { getAssessmentById, appendWorkOrderRef, markAssessmentSubmitted } from '@/lib/store';
 import {
   APPROVAL_NEEDED_FIELD_ID,
   CUSTOMER_SELECTION_OPTIONS,
@@ -141,5 +141,8 @@ export async function POST(
   );
 
   const failed = results.filter((r) => r.status === 'rejected').length;
+  if (failed === 0) {
+    await markAssessmentSubmitted(id, assessmentId);
+  }
   return Response.json({ success: failed === 0, failed });
 }

@@ -332,6 +332,9 @@ function CustomerPageInner() {
     }
   };
 
+  // True if submitted this session OR if already marked submitted in Redis
+  const isSubmitted = submitted || Boolean(selectedAssessment?.submittedAt);
+
   const allSelected =
     selectedAssessment !== null &&
     selectedAssessment.items.length > 0 &&
@@ -545,50 +548,71 @@ function CustomerPageInner() {
                 Select one to get started.
               </p>
               <div className="space-y-3">
-                {assessments.map((a) => (
-                  <button
-                    key={a.assessmentId}
-                    onClick={() => handleSelectAssessment(a)}
-                    className="w-full text-left bg-white border-2 border-gray-200 rounded-xl p-5
-                               hover:border-[#174887] hover:shadow-md transition-all"
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 text-base leading-snug">
-                          {a.assessmentName}
-                        </p>
-                        {a.items[0]?.location && (
-                          <p className="text-xs font-medium text-[#174887] mt-0.5">
-                            {a.items[0].location}
+                {assessments.map((a) => {
+                  const alreadySubmitted = Boolean(a.submittedAt);
+                  return (
+                    <button
+                      key={a.assessmentId}
+                      onClick={() => !alreadySubmitted && handleSelectAssessment(a)}
+                      disabled={alreadySubmitted}
+                      className={`w-full text-left bg-white border-2 rounded-xl p-5 transition-all ${
+                        alreadySubmitted
+                          ? 'border-gray-200 opacity-60 cursor-not-allowed'
+                          : 'border-gray-200 hover:border-[#174887] hover:shadow-md'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <p className="font-semibold text-gray-900 text-base leading-snug">
+                              {a.assessmentName}
+                            </p>
+                            {alreadySubmitted && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700 flex-shrink-0">
+                                Submitted
+                              </span>
+                            )}
+                          </div>
+                          {a.items[0]?.location && (
+                            <p className="text-xs font-medium text-[#174887] mt-0.5">
+                              {a.items[0].location}
+                            </p>
+                          )}
+                          <p className="text-sm text-gray-500 mt-1">
+                            Sent{' '}
+                            {new Date(a.sentAt).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                            })}
+                            {' · '}
+                            {a.items.length} item{a.items.length !== 1 ? 's' : ''}
                           </p>
+                          {alreadySubmitted && (
+                            <p className="text-xs text-gray-500 mt-1.5">
+                              Go to <strong>Work Orders</strong> to view this submission.
+                            </p>
+                          )}
+                        </div>
+                        {!alreadySubmitted && (
+                          <svg
+                            className="w-5 h-5 text-gray-400 flex-shrink-0"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 5l7 7-7 7"
+                            />
+                          </svg>
                         )}
-                        <p className="text-sm text-gray-500 mt-1">
-                          Sent{' '}
-                          {new Date(a.sentAt).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
-                          {' · '}
-                          {a.items.length} item{a.items.length !== 1 ? 's' : ''}
-                        </p>
                       </div>
-                      <svg
-                        className="w-5 h-5 text-gray-400 flex-shrink-0"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ) : (
@@ -841,7 +865,7 @@ function CustomerPageInner() {
                       <div
                         key={item.id}
                         className={`bg-white rounded-xl border shadow-sm transition-all ${
-                          submitted ? 'opacity-60' : 'hover:shadow-lg'
+                          isSubmitted ? 'opacity-60' : 'hover:shadow-lg'
                         } ${chosenOption ? 'ring-2' : 'border-gray-200'}`}
                         style={{
                           borderColor: chosenOption?.color ?? '#e5e7eb',
@@ -943,8 +967,10 @@ function CustomerPageInner() {
                         <div className="p-5 pt-4">
                           {chosenOption ? (
                             <div className="text-center py-2">
-                              <div
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2"
+                              <button
+                                onClick={() => !isSubmitted && setActiveItem(item)}
+                                disabled={isSubmitted}
+                                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-opacity ${!isSubmitted ? 'hover:opacity-75' : 'cursor-default'}`}
                                 style={{
                                   borderColor: chosenOption.color,
                                   backgroundColor: hexToRgba(
@@ -972,12 +998,27 @@ function CustomerPageInner() {
                                 >
                                   {chosenOption.name}
                                 </span>
-                              </div>
+                                {!isSubmitted && (
+                                  <svg
+                                    className="w-3.5 h-3.5 text-gray-400 ml-0.5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                    />
+                                  </svg>
+                                )}
+                              </button>
                             </div>
                           ) : (
                             <button
-                              onClick={() => !submitted && setActiveItem(item)}
-                              disabled={submitted}
+                              onClick={() => !isSubmitted && setActiveItem(item)}
+                              disabled={isSubmitted}
                               className="w-full py-3.5 px-4 bg-gradient-to-r from-[#174887] to-[#1e5a9b] hover:from-[#0f3d73] hover:to-[#174887] text-white font-semibold rounded-lg transition-all duration-200 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
                             >
                               <span>Tap to Review</span>
@@ -1018,7 +1059,7 @@ function CustomerPageInner() {
               </div>
 
               {/* Submit area */}
-              {submitted ? (
+              {isSubmitted ? (
                 <div className="bg-green-50 border-2 border-green-200 rounded-xl p-6 text-center">
                   <svg
                     className="w-10 h-10 text-green-500 mx-auto mb-2"
@@ -1037,7 +1078,7 @@ function CustomerPageInner() {
                     Selections Submitted!
                   </h3>
                   <p className="text-sm text-green-700 mt-1">
-                    Thank you. Your team will be in touch shortly.
+                    Thank you. You can view your selections in the Work Orders tab..
                   </p>
                 </div>
               ) : (

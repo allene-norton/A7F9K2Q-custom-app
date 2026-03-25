@@ -51,6 +51,9 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   >(null);
   const [locationsLoading, setLocationsLoading] = useState(false);
   const [locationFilter, setLocationFilter] = useState<string>('All');
+  const [sentAssessments, setSentAssessments] = useState<
+    Array<{ assessmentId: string; submittedAt?: string }>
+  >([]);
 
   // Assessment state
   const [assessment, setAssessment] = useState<Assessment | null>(null);
@@ -132,11 +135,19 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     setAssessmentError(null);
     setLocationsLoading(true);
     setLocationFilter('All');
+    setSentAssessments([]);
 
     try {
-      const locations = await getCommercialAssessmentLocations(
-        company.name || '',
-      );
+      const [locations, sentRes] = await Promise.all([
+        getCommercialAssessmentLocations(company.name || ''),
+        company.id
+          ? fetch(`/api/assessments/${company.id}`)
+              .then((r) => r.json())
+              .catch(() => [])
+          : Promise.resolve([]),
+      ]);
+      setSentAssessments(sentRes ?? []);
+
       if (locations.length === 0) {
         setAssessmentError('No assessments found in ClickUp for this company.');
         return;
@@ -421,30 +432,51 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                 (loc) =>
                   locationFilter === 'All' || loc.location === locationFilter,
               )
-              .map((loc) => (
-                <button
-                  key={loc.taskId}
-                  onClick={() => handleLocationSelect(loc)}
-                  className="w-full text-left bg-white border-2 border-gray-200 rounded-xl p-5
-                           hover:border-[#174887] hover:shadow-md transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold text-gray-900 text-lg">
-                      {loc.taskName}
-                    </span>
-                    <span
-                      className="px-2 py-0.5 rounded-full text-xs font-semibold text-white capitalize"
-                      style={{ backgroundColor: loc.statusColor }}
-                    >
-                      {loc.status}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-500 mt-1">
-                    {loc.location ? `${loc.location} · ` : ''}
-                    {loc.date}
-                  </div>
-                </button>
-              ))}
+              .map((loc) => {
+                const sentAssessment = sentAssessments.find(
+                  (a) => a.assessmentId === loc.taskId,
+                );
+                const isSent = Boolean(sentAssessment);
+                const isCustomerSubmitted = Boolean(sentAssessment?.submittedAt);
+                return (
+                  <button
+                    key={loc.taskId}
+                    onClick={() => !isSent && handleLocationSelect(loc)}
+                    disabled={isSent}
+                    className={`w-full text-left bg-white border-2 rounded-xl p-5 transition-all ${
+                      isSent
+                        ? 'border-gray-200 opacity-60 cursor-not-allowed'
+                        : 'border-gray-200 hover:border-[#174887] hover:shadow-md'
+                    }`}
+                  >
+                    <div className="flex items-center flex-wrap gap-2">
+                      <span className="font-semibold text-gray-900 text-lg">
+                        {loc.taskName}
+                      </span>
+                      <span
+                        className="px-2 py-0.5 rounded-full text-xs font-semibold text-white capitalize"
+                        style={{ backgroundColor: loc.statusColor }}
+                      >
+                        {loc.status}
+                      </span>
+                      {isSent && (
+                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                          Sent to Customer
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">
+                      {loc.location ? `${loc.location} · ` : ''}
+                      {loc.date}
+                    </div>
+                    {isCustomerSubmitted && (
+                      <p className="text-xs text-green-700 font-medium mt-1.5">
+                        ✓ Customer submitted · Open work orders
+                      </p>
+                    )}
+                  </button>
+                );
+              })}
           </div>
         </div>
       </div>

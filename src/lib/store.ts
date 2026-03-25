@@ -8,6 +8,7 @@ export interface StoredAssessment {
   companyName: string;
   items: AssessmentItem[];
   sentAt: string;
+  submittedAt?: string; // set when the customer submits selections
 }
 
 export interface WorkOrderRef {
@@ -48,6 +49,14 @@ export async function appendAssessment(companyId: string, data: StoredAssessment
 
 export async function getWorkOrderRefs(companyId: string): Promise<WorkOrderRef[]> {
   return (await redis.get<WorkOrderRef[]>(`workorders:${companyId}`)) ?? [];
+}
+
+export async function markAssessmentSubmitted(companyId: string, assessmentId: string): Promise<void> {
+  const existing = await getAssessmentsForCompany(companyId);
+  const updated = existing.map((a) =>
+    a.assessmentId === assessmentId ? { ...a, submittedAt: new Date().toISOString() } : a,
+  );
+  await redis.set(`assessments:${companyId}`, updated);
 }
 
 export async function appendWorkOrderRef(companyId: string, ref: WorkOrderRef): Promise<void> {
