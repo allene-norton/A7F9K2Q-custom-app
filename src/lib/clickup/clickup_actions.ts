@@ -353,13 +353,21 @@ async function getAssessmentListForFolder(
   );
 }
 
-// Returns true if the Approval Needed custom field is checked on a task
+// Returns true if the Approval Needed custom field is checked on a task.
+// Falls back to name match so hourly-space tasks (different field ID, same name) are handled.
 function extractApprovalNeeded(task: ClickUpTask): boolean {
-  const field = task.custom_fields?.find(
-    (f) => f.id === APPROVAL_NEEDED_FIELD_ID,
-  );
+  const field =
+    task.custom_fields?.find((f) => f.id === APPROVAL_NEEDED_FIELD_ID) ??
+    task.custom_fields?.find(
+      (f) => f.name?.toLowerCase() === 'approval needed',
+    );
   if (!field) return false;
-  return field.value === true || field.value === 'true' || field.value === 1;
+  return (
+    field.value === true ||
+    field.value === 'true' ||
+    field.value === 1 ||
+    field.value === '1'
+  );
 }
 
 // Returns the Location dropdown value for a task.

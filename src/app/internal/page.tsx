@@ -284,7 +284,11 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  {view === 'assessment' ? 'Assessment' : 'Work Orders'}
+                  {view === 'assessment'
+                    ? selectedHourlyFolder
+                      ? 'Items'
+                      : 'Assessment'
+                    : 'Work Orders'}
                 </button>
               ))}
             </div>
@@ -318,7 +322,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#174887] mx-auto mb-4" />
                   <p className="text-gray-600">
-                    Loading assessment for {companyName}...
+                    Loading {selectedHourlyFolder ? 'items' : 'assessment'} for {companyName}...
                   </p>
                 </div>
               </div>
