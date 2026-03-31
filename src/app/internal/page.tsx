@@ -14,7 +14,7 @@ import {
 } from '@/lib/clickup/clickup_actions';
 import { COMMERCIAL_SPACE_ID, HOURLY_SPACE_ID } from '@/lib/constants';
 import CustomerSelect from '@/components/internal/CustomerSelect';
-import { listCompanies, Company } from '@/lib/assembly/client';
+import { listCompanies, listClients, Company, Client } from '@/lib/assembly/client';
 import AssessmentBuilder from '@/app/internal/AssessmentBuilder';
 import WorkOrdersView from '@/components/WorkOrdersView';
 
@@ -33,7 +33,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
 
   // Commercial state
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [allCompanies, setAllCompanies] = useState<Company[]>([]);
+  const [allClients, setAllClients] = useState<Client[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(true);
 
   // Hourly state
@@ -71,9 +71,10 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     const fetchCompanies = async () => {
       try {
         setCompaniesLoading(true);
-        const [response, folders] = await Promise.all([
+        const [response, folders, clientsRes] = await Promise.all([
           listCompanies(token),
           getCommercialFolders(),
+          listClients(token),
         ]);
         if (!response.data) throw new Error('No company data returned');
 
@@ -99,7 +100,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
           });
         };
 
-        setAllCompanies(response.data);
+        setAllClients(clientsRes.data?.data ?? []);
         const matched = response.data.filter((c) => hasFolder(c.name ?? ''));
         setCompanies(matched);
       } catch (error) {
@@ -241,24 +242,24 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
 
   // --- Render: company selected (Assessment + Work Orders tabs) ---
   if (selectedCompany || selectedHourlyFolder) {
+    // For hourly customers, match the ClickUp folder name against Assembly client
+    // full names (givenName + familyName). Hourly clients have placeholder companies
+    // so listCompanies (isPlaceholder: false) won't include them.
     const hourlyAssemblyId = (() => {
       if (selectedCompany || !selectedHourlyFolder) return undefined;
       const folderName = selectedHourlyFolder.name.toLowerCase().trim();
       const fWords = folderName.split(/\s+/).filter((w) => w.length > 2);
-      return allCompanies.find((c) => {
-        const cName = (c.name ?? '').toLowerCase().trim();
-        if (!cName) return false;
-        // Tier 1: exact
-        if (cName === folderName) return true;
-        // Tier 2: starts-with either direction
-        if (cName.startsWith(folderName) || folderName.startsWith(cName))
-          return true;
-        // Tier 3: word overlap >= 50% (mirrors findMatchingFolder logic)
-        const cWords = cName.split(/\s+/).filter((w) => w.length > 2);
+      const matchedClient = allClients.find((c) => {
+        const fullName = `${c.givenName ?? ''} ${c.familyName ?? ''}`.toLowerCase().trim();
+        if (!fullName) return false;
+        if (fullName === folderName) return true;
+        if (fullName.startsWith(folderName) || folderName.startsWith(fullName)) return true;
+        const cWords = fullName.split(/\s+/).filter((w) => w.length > 2);
         const overlap = cWords.filter((w) => fWords.includes(w)).length;
         const total = new Set([...cWords, ...fWords]).size;
         return total > 0 && overlap / total >= 0.5;
-      })?.id;
+      });
+      return matchedClient?.companyId ?? undefined;
     })();
 
     const company: Company = selectedCompany || {
