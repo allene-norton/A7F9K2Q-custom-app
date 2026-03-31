@@ -94,11 +94,11 @@ export default function AssessmentItemDetail({
             </div>
           )}
 
-          {/* Description */}
+          {/* Description & Recommendations */}
           {item.description && (
             <div>
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                Description
+                Description &amp; Recommendations
               </p>
               <p className="text-sm text-gray-700 leading-relaxed">
                 {item.description}

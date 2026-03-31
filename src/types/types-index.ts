@@ -1,5 +1,13 @@
 // src/types/index.ts
 
+export interface StoredComment {
+  id: string;
+  text: string;
+  authorName: string;
+  isInternal: boolean;
+  createdAt: string;
+}
+
 export interface Customer {
   id?: string;
   clickup_id: string;

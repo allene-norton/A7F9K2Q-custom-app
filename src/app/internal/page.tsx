@@ -9,18 +9,21 @@ import {
   buildCommercialAssessment,
   getHourlyFolders,
   getHourlyAssessmentForFolder,
+  getCommercialFolders,
   ClickUpFolder,
 } from '@/lib/clickup/clickup_actions';
 import { COMMERCIAL_SPACE_ID, HOURLY_SPACE_ID } from '@/lib/constants';
 import CustomerSelect from '@/components/internal/CustomerSelect';
 import { listCompanies, Company } from '@/lib/assembly/client';
 import AssessmentBuilder from '@/app/internal/AssessmentBuilder';
+import WorkOrdersView from '@/components/WorkOrdersView';
 
 interface InternalPageProps {
   searchParams: { token?: string };
 }
 
 type ActiveTab = 'commercial' | 'hourly';
+type InternalView = 'assessment' | 'workorders';
 
 export default function InternalPage({ searchParams }: InternalPageProps) {
   const token =
@@ -30,6 +33,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
 
   // Commercial state
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [allCompanies, setAllCompanies] = useState<Company[]>([]);
   const [companiesLoading, setCompaniesLoading] = useState(true);
 
   // Hourly state
@@ -48,13 +52,17 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   >(null);
   const [locationsLoading, setLocationsLoading] = useState(false);
   const [locationFilter, setLocationFilter] = useState<string>('All');
+  const [sentAssessments, setSentAssessments] = useState<
+    Array<{ assessmentId: string; submittedAt?: string }>
+  >([]);
 
   // Assessment state
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [assessmentLoading, setAssessmentLoading] = useState(false);
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
+  const [internalView, setInternalView] = useState<InternalView>('assessment');
 
-  // Fetch Assembly companies on mount
+  // Fetch Assembly companies filtered to only those with a matching ClickUp folder
   useEffect(() => {
     if (!token) {
       setCompaniesLoading(false);
@@ -63,9 +71,37 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     const fetchCompanies = async () => {
       try {
         setCompaniesLoading(true);
-        const response = await listCompanies(token);
+        const [response, folders] = await Promise.all([
+          listCompanies(token),
+          getCommercialFolders(),
+        ]);
         if (!response.data) throw new Error('No company data returned');
-        setCompanies(response.data);
+
+        // Build a lowercase folder name list for matching
+        const folderNames = folders.map((f) => f.name.toLowerCase().trim());
+
+        // Mirror the 3-tier fuzzy logic used by findMatchingFolder
+        const hasFolder = (companyName: string) => {
+          const name = companyName.toLowerCase().trim();
+          if (!name) return false;
+          // Tier 1: exact
+          if (folderNames.some((f) => f === name)) return true;
+          // Tier 2: starts-with either direction
+          if (folderNames.some((f) => f.startsWith(name) || name.startsWith(f)))
+            return true;
+          // Tier 3: word overlap >= 50%
+          const cWords = name.split(/\s+/).filter((w) => w.length > 2);
+          return folderNames.some((f) => {
+            const fWords = f.split(/\s+/).filter((w) => w.length > 2);
+            const overlap = cWords.filter((w) => fWords.includes(w)).length;
+            const total = new Set([...cWords, ...fWords]).size;
+            return total > 0 && overlap / total >= 0.5;
+          });
+        };
+
+        setAllCompanies(response.data);
+        const matched = response.data.filter((c) => hasFolder(c.name ?? ''));
+        setCompanies(matched);
       } catch (error) {
         console.error('Failed to fetch companies:', error);
       } finally {
@@ -101,11 +137,20 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     setAssessmentError(null);
     setLocationsLoading(true);
     setLocationFilter('All');
+    setSentAssessments([]);
+    setInternalView('assessment');
 
     try {
-      const locations = await getCommercialAssessmentLocations(
-        company.name || '',
-      );
+      const [locations, sentRes] = await Promise.all([
+        getCommercialAssessmentLocations(company.name || ''),
+        company.id
+          ? fetch(`/api/assessments/${company.id}`)
+              .then((r) => r.json())
+              .catch(() => [])
+          : Promise.resolve([]),
+      ]);
+      setSentAssessments(sentRes ?? []);
+
       if (locations.length === 0) {
         setAssessmentError('No assessments found in ClickUp for this company.');
         return;
@@ -165,6 +210,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     setAssessment(null);
     setAssessmentError(null);
     setAssessmentLoading(true);
+    setInternalView('assessment');
     try {
       const result = await getHourlyAssessmentForFolder(folder.id, folder.name);
       setAssessment(result);
@@ -181,6 +227,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   const handleBackToAssessments = () => {
     setAssessment(null);
     setAssessmentError(null);
+    setInternalView('assessment');
   };
 
   const handleBack = () => {
@@ -189,162 +236,275 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     setAssessment(null);
     setAssessmentLocations(null);
     setAssessmentError(null);
+    setInternalView('assessment');
   };
 
-  // --- Render: assessment builder ---
-  if (assessment) {
+  // --- Render: company selected (Assessment + Work Orders tabs) ---
+  if (selectedCompany || selectedHourlyFolder) {
+    const hourlyAssemblyId = (() => {
+      if (selectedCompany || !selectedHourlyFolder) return undefined;
+      const folderName = selectedHourlyFolder.name.toLowerCase().trim();
+      const fWords = folderName.split(/\s+/).filter((w) => w.length > 2);
+      return allCompanies.find((c) => {
+        const cName = (c.name ?? '').toLowerCase().trim();
+        if (!cName) return false;
+        // Tier 1: exact
+        if (cName === folderName) return true;
+        // Tier 2: starts-with either direction
+        if (cName.startsWith(folderName) || folderName.startsWith(cName))
+          return true;
+        // Tier 3: word overlap >= 50% (mirrors findMatchingFolder logic)
+        const cWords = cName.split(/\s+/).filter((w) => w.length > 2);
+        const overlap = cWords.filter((w) => fWords.includes(w)).length;
+        const total = new Set([...cWords, ...fWords]).size;
+        return total > 0 && overlap / total >= 0.5;
+      })?.id;
+    })();
+
     const company: Company = selectedCompany || {
-      id: selectedHourlyFolder?.id,
+      id: hourlyAssemblyId ?? selectedHourlyFolder?.id,
       name: selectedHourlyFolder?.name,
     };
-    return (
-      <AssessmentBuilder
-        company={company}
-        assessment={assessment}
-        onBack={handleBack}
-        onBackToAssessments={
-          assessmentLocations && assessmentLocations.length > 1
-            ? handleBackToAssessments
-            : undefined
-        }
-        spaceId={
-          selectedCompany
-            ? COMMERCIAL_SPACE_ID
-            : selectedHourlyFolder
-              ? HOURLY_SPACE_ID
-              : undefined
-        }
-      />
-    );
-  }
+    const companyId = company.id ?? '';
+    const companyName = company.name ?? '';
 
-  // --- Render: loading states ---
-  if (assessmentLoading || locationsLoading) {
-    const name =
-      selectedCompany?.name || selectedHourlyFolder?.name || 'customer';
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#174887] mx-auto mb-4" />
-          <p className="text-gray-600">Loading assessment for {name}...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // --- Render: error state ---
-  if (assessmentError) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center max-w-md">
-          <div className="text-red-600 text-xl mb-4">
-            ⚠️ Error Loading Assessment
-          </div>
-          <p className="text-gray-600 mb-4">{assessmentError}</p>
-          <button
-            onClick={handleBack}
-            className="px-4 py-2 bg-[#174887] text-white rounded hover:bg-[#0f3661]"
-          >
-            Back
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // --- Render: location selector (commercial multi-location) ---
-  if (assessmentLocations && selectedCompany) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="max-w-3xl mx-auto py-8 px-4">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-2 text-gray-600 hover:text-[#174887] mb-6 transition-colors font-medium"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Back to companies
-          </button>
-
-          <h2 className="text-2xl font-bold mb-2" style={{ color: '#174887' }}>
-            {selectedCompany.name}
-          </h2>
-          <p className="text-gray-600 mb-4">
-            Multiple assessments found. Select a location to view:
-          </p>
-
-          {/* Location filter */}
-          {(() => {
-            const uniqueLocations = Array.from(
-              new Set(
-                assessmentLocations.map((l) => l.location).filter(Boolean),
-              ),
-            ).sort();
-            return uniqueLocations.length > 1 ? (
-              <div className="flex items-center gap-3 mb-5">
-                <label className="text-sm font-medium text-gray-700">
-                  Filter by location:
-                </label>
-                <select
-                  value={locationFilter}
-                  onChange={(e) => setLocationFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
-                             focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]"
-                >
-                  <option value="All">All</option>
-                  {uniqueLocations.map((loc) => (
-                    <option key={loc} value={loc}>
-                      {loc}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null;
-          })()}
-
-          <div className="space-y-3">
-            {assessmentLocations
-              .filter(
-                (loc) =>
-                  locationFilter === 'All' || loc.location === locationFilter,
-              )
-              .map((loc) => (
+        {/* Secondary tab bar: Assessment | Work Orders */}
+        <div className="border-b border-gray-200 bg-white">
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="flex gap-0">
+              {(['assessment', 'workorders'] as InternalView[]).map((view) => (
                 <button
-                  key={loc.taskId}
-                  onClick={() => handleLocationSelect(loc)}
-                  className="w-full text-left bg-white border-2 border-gray-200 rounded-xl p-5
-                           hover:border-[#174887] hover:shadow-md transition-all"
+                  key={view}
+                  onClick={() => setInternalView(view)}
+                  className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
+                    internalView === view
+                      ? 'border-[#174887] text-[#174887]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold text-gray-900 text-lg">
-                      {loc.taskName}
-                    </span>
-                    <span
-                      className="px-2 py-0.5 rounded-full text-xs font-semibold text-white capitalize"
-                      style={{ backgroundColor: loc.statusColor }}
-                    >
-                      {loc.status}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-500 mt-1">
-                    {loc.location ? `${loc.location} · ` : ''}
-                    {loc.date}
-                  </div>
+                  {view === 'assessment' ? 'Assessment' : 'Work Orders'}
                 </button>
               ))}
+            </div>
           </div>
         </div>
+
+        {internalView === 'workorders' ? (
+          <WorkOrdersView
+            companyId={companyId}
+            companyName={companyName}
+            mode="internal"
+            breadcrumbs={
+              <nav className="flex items-center gap-2 text-sm mb-6">
+                <button
+                  onClick={handleBack}
+                  className="text-[#174887] hover:underline font-medium"
+                >
+                  Companies
+                </button>
+                <span className="text-gray-400">/</span>
+                <span className="text-gray-700 font-medium">Work Orders</span>
+              </nav>
+            }
+          />
+        ) : (
+          /* Assessment tab content */
+          <>
+            {/* Loading */}
+            {(assessmentLoading || locationsLoading) && (
+              <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#174887] mx-auto mb-4" />
+                  <p className="text-gray-600">
+                    Loading assessment for {companyName}...
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Error */}
+            {assessmentError && !assessmentLoading && !locationsLoading && (
+              <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="text-center max-w-md">
+                  <div className="text-red-600 text-xl mb-4">
+                    ⚠️ Error Loading Assessment
+                  </div>
+                  <p className="text-gray-600 mb-4">{assessmentError}</p>
+                  <button
+                    onClick={handleBack}
+                    className="px-4 py-2 bg-[#174887] text-white rounded hover:bg-[#0f3661]"
+                  >
+                    Back
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Location selector (commercial multi-location) */}
+            {!assessmentLoading &&
+              !locationsLoading &&
+              !assessmentError &&
+              assessmentLocations &&
+              selectedCompany &&
+              !assessment && (
+                <div className="max-w-3xl mx-auto py-8 px-4">
+                  <button
+                    onClick={handleBack}
+                    className="flex items-center gap-2 text-gray-600 hover:text-[#174887] mb-6 transition-colors font-medium"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 19l-7-7 7-7"
+                      />
+                    </svg>
+                    Back to companies
+                  </button>
+
+                  <h2
+                    className="text-2xl font-bold mb-2"
+                    style={{ color: '#174887' }}
+                  >
+                    {selectedCompany.name}
+                  </h2>
+                  <p className="text-gray-600 mb-4">
+                    Multiple assessments found. Select a location to view:
+                  </p>
+
+                  {/* Location filter */}
+                  {(() => {
+                    const uniqueLocations = Array.from(
+                      new Set(
+                        assessmentLocations
+                          .map((l) => l.location)
+                          .filter(Boolean),
+                      ),
+                    ).sort();
+                    return uniqueLocations.length > 1 ? (
+                      <div className="flex items-center gap-3 mb-5">
+                        <label className="text-sm font-medium text-gray-700">
+                          Filter by location:
+                        </label>
+                        <select
+                          value={locationFilter}
+                          onChange={(e) => setLocationFilter(e.target.value)}
+                          className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                                     focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]"
+                        >
+                          <option value="All">All</option>
+                          {uniqueLocations.map((loc) => (
+                            <option key={loc} value={loc}>
+                              {loc}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : null;
+                  })()}
+
+                  <div className="space-y-3">
+                    {assessmentLocations
+                      .filter(
+                        (loc) =>
+                          locationFilter === 'All' ||
+                          loc.location === locationFilter,
+                      )
+                      .map((loc) => {
+                        const sentAssessment = sentAssessments.find(
+                          (a) =>
+                            a.assessmentId ===
+                            `assess_${selectedCompany.id}_${loc.taskId}`,
+                        );
+                        const isSent = Boolean(sentAssessment);
+                        const isCustomerSubmitted = Boolean(
+                          sentAssessment?.submittedAt,
+                        );
+                        return (
+                          <div
+                            key={loc.taskId}
+                            className={`w-full bg-white border-2 rounded-xl overflow-hidden transition-all ${
+                              isSent
+                                ? 'border-gray-200'
+                                : 'border-gray-200 hover:border-[#174887] hover:shadow-md cursor-pointer'
+                            }`}
+                            onClick={() =>
+                              !isSent && handleLocationSelect(loc)
+                            }
+                          >
+                            <div
+                              className={`p-5 text-left ${isSent ? 'opacity-60' : ''}`}
+                            >
+                              <div className="flex items-center flex-wrap gap-2">
+                                <span className="font-semibold text-gray-900 text-lg">
+                                  {loc.taskName}
+                                </span>
+                                <span
+                                  className="px-2 py-0.5 rounded-full text-xs font-semibold text-white capitalize"
+                                  style={{ backgroundColor: loc.statusColor }}
+                                >
+                                  {loc.status}
+                                </span>
+                                {isSent && !isCustomerSubmitted && (
+                                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                                    Sent to Customer
+                                  </span>
+                                )}
+                                {isCustomerSubmitted && (
+                                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                    Submitted by Customer
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-sm text-gray-500 mt-1">
+                                {loc.location ? `${loc.location} · ` : ''}
+                                {loc.date}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+            {/* Assessment builder */}
+            {!assessmentLoading && !locationsLoading && assessment && (
+              <AssessmentBuilder
+                company={company}
+                assessment={assessment}
+                onBack={handleBack}
+                onBackToAssessments={
+                  assessmentLocations && assessmentLocations.length > 1
+                    ? handleBackToAssessments
+                    : undefined
+                }
+                onSendSuccess={(assessmentId) =>
+                  setSentAssessments((prev) => [
+                    ...prev.filter((a) => a.assessmentId !== assessmentId),
+                    { assessmentId },
+                  ])
+                }
+                isHourly={Boolean(selectedHourlyFolder)}
+                spaceId={
+                  selectedCompany
+                    ? COMMERCIAL_SPACE_ID
+                    : selectedHourlyFolder
+                      ? HOURLY_SPACE_ID
+                      : undefined
+                }
+              />
+            )}
+          </>
+        )}
       </div>
     );
   }

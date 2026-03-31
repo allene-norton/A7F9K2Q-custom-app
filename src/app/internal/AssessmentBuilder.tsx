@@ -25,6 +25,8 @@ interface AssessmentBuilderProps {
   assessment: Assessment;
   onBack: () => void;
   onBackToAssessments?: () => void;
+  onSendSuccess?: (assessmentId: string) => void;
+  isHourly?: boolean;
   spaceId?: string;
 }
 
@@ -52,6 +54,8 @@ export default function AssessmentBuilder({
   assessment,
   onBack,
   onBackToAssessments,
+  onSendSuccess,
+  isHourly,
   spaceId,
 }: AssessmentBuilderProps) {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('All');
@@ -195,9 +199,11 @@ export default function AssessmentBuilder({
           assessmentName: assessment.assessment_name,
           companyName: company.name,
           items: displayItems,
+          isHourly: isHourly ?? false,
         }),
       });
       setSendSuccess(true);
+      onSendSuccess?.(assessment.id);
     } finally {
       setIsSending(false);
     }
