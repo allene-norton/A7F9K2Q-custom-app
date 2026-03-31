@@ -29,16 +29,21 @@ export async function POST(
   // Save to Redis by taskId (independent of WorkOrderRef)
   await appendTaskComment(taskId, comment);
 
-  // Sync to ClickUp (fire-and-forget, one-way only)
+  // Sync to ClickUp
   const now = new Date(comment.createdAt);
   const timestamp = `${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')}/${now.getFullYear()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
   const formatted = `${displayName} [${timestamp}]: ${comment.text}`;
 
-  fetch(`${CLICKUP_BASE}/task/${taskId}/comment`, {
+  const clickupRes = await fetch(`${CLICKUP_BASE}/task/${taskId}/comment`, {
     method: 'POST',
     headers: { Authorization: key, 'Content-Type': 'application/json' },
     body: JSON.stringify({ comment_text: formatted, notify_all: false }),
-  }).catch(() => {}); // non-blocking
+  });
 
-  return Response.json({ success: true, comment });
+  if (!clickupRes.ok) {
+    const errBody = await clickupRes.text();
+    console.error(`ClickUp comment sync failed for task ${taskId}: ${clickupRes.status} ${errBody}`);
+  }
+
+  return Response.json({ success: true, comment, clickupOk: clickupRes.ok });
 }
