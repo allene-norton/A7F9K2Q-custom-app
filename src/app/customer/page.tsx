@@ -269,7 +269,7 @@ function CustomerPageInner() {
         setAssessments(list ?? []);
         if (list?.length === 1) setSelectedAssessment(list[0]);
       } catch (e) {
-        setError('Failed to load assessment. Please try again.');
+        setError('Failed to load. Please try again.');
         console.error(e);
       } finally {
         setLoading(false);
@@ -454,7 +454,7 @@ function CustomerPageInner() {
               d="M4 12a8 8 0 018-8v8H4z"
             />
           </svg>
-          <p className="text-gray-600">Loading your assessment…</p>
+          <p className="text-gray-600">Loading…</p>
         </div>
       </div>
     );
@@ -473,7 +473,6 @@ function CustomerPageInner() {
   const safeCompanyId = companyId ?? '';
   const companyName = assessments[0]?.companyName ?? '';
   const isHourly = assessments.some((a) => a.isHourly);
-  const noun = isHourly ? 'item' : 'assessment';
   const nounPlural = isHourly ? 'items' : 'assessments';
   const selectedCount = selectedAssessment
     ? selectedAssessment.items.filter(
@@ -539,10 +538,10 @@ function CustomerPageInner() {
                 />
               </svg>
               <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                No {nounPlural} currently available for review
+                Nothing available for review yet
               </h2>
               <p className="text-gray-500">
-                Your team will notify you when {noun === 'item' ? 'items are' : 'an assessment is'} ready.
+                Your team will notify you when items are ready for your review.
               </p>
             </div>
           ) : assessments.length > 1 && !selectedAssessment ? (

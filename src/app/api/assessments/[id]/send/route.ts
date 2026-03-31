@@ -6,9 +6,12 @@ export async function POST(
 ) {
   const { id } = await params;
   const body = await req.json();
+  const rawName: string = body.assessmentName ?? 'Assessment';
+  const assessmentName = rawName.replace(/\s*[—–-]+\s*approval needed\s*$/i, '').trim();
+
   await appendAssessment(id, {
     assessmentId: body.assessmentId ?? `assess_${id}_${Date.now()}`,
-    assessmentName: body.assessmentName ?? 'Assessment',
+    assessmentName,
     companyId: id,
     companyName: body.companyName,
     items: body.items,

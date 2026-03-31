@@ -41,7 +41,7 @@ export interface WorkOrderItem extends AssessmentItem {
 
 interface WorkOrdersViewProps {
   companyId: string;
-  companyName: string;
+  companyName?: string;
   mode: 'customer' | 'internal';
   authorName?: string; // customer's display name (customer mode)
   breadcrumbs?: React.ReactNode; // optional breadcrumb nav (internal mode)

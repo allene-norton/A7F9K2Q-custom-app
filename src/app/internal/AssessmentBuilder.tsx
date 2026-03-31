@@ -28,6 +28,7 @@ interface AssessmentBuilderProps {
   onSendSuccess?: (assessmentId: string) => void;
   isHourly?: boolean;
   spaceId?: string;
+  backLabel?: string;
 }
 
 type CategoryFilter = 'All' | AssessmentItem['category'];
@@ -57,6 +58,7 @@ export default function AssessmentBuilder({
   onSendSuccess,
   isHourly,
   spaceId,
+  backLabel = 'Companies',
 }: AssessmentBuilderProps) {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('All');
   const [sortOption, setSortOption] = useState<SortOption>('default');
@@ -218,7 +220,7 @@ export default function AssessmentBuilder({
             onClick={onBack}
             className="text-[#174887] hover:underline font-medium"
           >
-            Companies
+            {backLabel}
           </button>
           {onBackToAssessments && (
             <>
@@ -254,7 +256,7 @@ export default function AssessmentBuilder({
                 Date: {assessment.assessment_date}
               </p>
               <p className="text-sm text-gray-500 mt-1">
-                {displayItems.length} assessment item
+                {displayItems.length} {isHourly ? '' : 'assessment '}item
                 {displayItems.length !== 1 ? 's' : ''}
                 {removedItems.length > 0 && (
                   <span className="text-amber-600 ml-2">
@@ -654,7 +656,7 @@ export default function AssessmentBuilder({
             {/* Assessment Items */}
             <div className="mb-4">
               <h3 className="text-xl font-bold text-gray-900 mb-4">
-                Assessment Items ({filteredAndSortedItems.length}
+                {isHourly ? 'Items' : 'Assessment Items'} ({filteredAndSortedItems.length}
                 {filteredAndSortedItems.length !== displayItems.length &&
                   ` of ${displayItems.length}`}
                 )
@@ -743,7 +745,7 @@ export default function AssessmentBuilder({
                   d="M5 13l4 4L19 7"
                 />
               </svg>
-              Assessment Sent
+              {isHourly ? 'Sent!' : 'Assessment Sent'}
             </div>
           ) : (
             <button
@@ -753,7 +755,7 @@ export default function AssessmentBuilder({
                          transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ backgroundColor: '#174887' }}
             >
-              {isSending ? 'Sending…' : 'Send Assessment'}
+              {isSending ? 'Sending…' : isHourly ? 'Send Items' : 'Send Assessment'}
             </button>
           )}
         </div>
