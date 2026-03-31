@@ -262,6 +262,8 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
       return matchedClient?.companyId ?? undefined;
     })();
 
+    const backLabel = selectedHourlyFolder ? 'Customers' : 'Companies';
+
     const company: Company = selectedCompany || {
       id: hourlyAssemblyId ?? selectedHourlyFolder?.id,
       name: selectedHourlyFolder?.name,
@@ -299,7 +301,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
         {internalView === 'workorders' ? (
           <WorkOrdersView
             companyId={companyId}
-            companyName={companyName}
+            companyName={selectedCompany ? companyName : undefined}
             mode="internal"
             breadcrumbs={
               <nav className="flex items-center gap-2 text-sm mb-6">
@@ -307,7 +309,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                   onClick={handleBack}
                   className="text-[#174887] hover:underline font-medium"
                 >
-                  Companies
+                  {backLabel}
                 </button>
                 <span className="text-gray-400">/</span>
                 <span className="text-gray-700 font-medium">Work Orders</span>
@@ -372,7 +374,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                         d="M15 19l-7-7 7-7"
                       />
                     </svg>
-                    Back to companies
+                    Back to {backLabel.toLowerCase()}
                   </button>
 
                   <h2
@@ -499,6 +501,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                   ])
                 }
                 isHourly={Boolean(selectedHourlyFolder)}
+                backLabel={backLabel}
                 spaceId={
                   selectedCompany
                     ? COMMERCIAL_SPACE_ID
@@ -557,6 +560,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
         <CustomerSelect
           companies={hourlyAsCompanies}
           loading={hourlyLoading}
+          entityLabel="customer"
           onSelect={(company) => {
             const folder = hourlyFolders.find((f) => f.id === company.id);
             if (folder) handleHourlySelect(folder);

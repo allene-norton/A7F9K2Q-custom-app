@@ -28,6 +28,7 @@ interface AssessmentBuilderProps {
   onSendSuccess?: (assessmentId: string) => void;
   isHourly?: boolean;
   spaceId?: string;
+  backLabel?: string;
 }
 
 type CategoryFilter = 'All' | AssessmentItem['category'];
@@ -57,6 +58,7 @@ export default function AssessmentBuilder({
   onSendSuccess,
   isHourly,
   spaceId,
+  backLabel = 'Companies',
 }: AssessmentBuilderProps) {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('All');
   const [sortOption, setSortOption] = useState<SortOption>('default');
@@ -218,7 +220,7 @@ export default function AssessmentBuilder({
             onClick={onBack}
             className="text-[#174887] hover:underline font-medium"
           >
-            Companies
+            {backLabel}
           </button>
           {onBackToAssessments && (
             <>

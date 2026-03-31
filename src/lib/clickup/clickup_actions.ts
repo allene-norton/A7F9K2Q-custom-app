@@ -488,7 +488,7 @@ export async function getHourlyAssessmentForFolder(
     id: `assess_hourly_${folderId}`,
     customer_id: folderId,
     customer_name: folderName,
-    assessment_name: `${folderName} — Approval Needed`,
+    assessment_name: folderName,
     assessment_date: new Date().toISOString().split('T')[0],
     description: '',
     location: '',
