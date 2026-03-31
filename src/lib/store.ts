@@ -20,7 +20,6 @@ export interface WorkOrderRef {
   addedAt: string;
   location?: string;
   assessmentName?: string;
-  comments?: StoredComment[];
 }
 
 const redis = new Redis({
@@ -70,16 +69,16 @@ export async function appendWorkOrderRef(companyId: string, ref: WorkOrderRef): 
   await redis.set(`workorders:${companyId}`, [...without, ref]);
 }
 
-export async function appendWorkOrderComment(
-  companyId: string,
+// ─── Task Comments (stored independently per ClickUp task ID) ─────────────────
+
+export async function getTaskComments(taskId: string): Promise<StoredComment[]> {
+  return (await redis.get<StoredComment[]>(`comments:${taskId}`)) ?? [];
+}
+
+export async function appendTaskComment(
   taskId: string,
   comment: StoredComment,
 ): Promise<void> {
-  const refs = await getWorkOrderRefs(companyId);
-  const updated = refs.map((r) =>
-    r.taskId === taskId
-      ? { ...r, comments: [...(r.comments ?? []), comment] }
-      : r,
-  );
-  await redis.set(`workorders:${companyId}`, updated);
+  const existing = await getTaskComments(taskId);
+  await redis.set(`comments:${taskId}`, [...existing, comment]);
 }

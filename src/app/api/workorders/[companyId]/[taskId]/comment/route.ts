@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { appendWorkOrderComment } from '@/lib/store';
+import { appendTaskComment } from '@/lib/store';
 import { StoredComment } from '@/types/types-index';
 
 const CLICKUP_BASE = 'https://api.clickup.com/api/v2';
@@ -9,7 +9,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ companyId: string; taskId: string }> },
 ) {
-  const { companyId, taskId } = await params;
+  const { taskId } = await params;
   const { text, authorName, isInternal } = await req.json();
   const key = process.env.CLICKUP_KEY;
 
@@ -26,8 +26,8 @@ export async function POST(
     createdAt: new Date().toISOString(),
   };
 
-  // Save to Redis (source of truth)
-  await appendWorkOrderComment(companyId, taskId, comment);
+  // Save to Redis by taskId (independent of WorkOrderRef)
+  await appendTaskComment(taskId, comment);
 
   // Sync to ClickUp (fire-and-forget, one-way only)
   const now = new Date(comment.createdAt);

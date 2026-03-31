@@ -1,13 +1,12 @@
 import { NextRequest } from 'next/server';
-import { getWorkOrderRefs, getAssessmentsForCompany } from '@/lib/store';
-import type { StoredComment } from '@/types/types-index';
+import { getWorkOrderRefs, getAssessmentsForCompany, getTaskComments } from '@/lib/store';
 import { hexToRgba } from '@/lib/utils';
 import { findMatchingFolder, getFolderLists } from '@/lib/clickup/clickup_actions';
 
 const CLICKUP_BASE = 'https://api.clickup.com/api/v2';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function formatTask(task: any, thread: StoredComment[] = []) {
+function formatTask(task: any) {
   return {
     id: task.id,
     clickup_task_id: task.id,
@@ -31,10 +30,15 @@ function formatTask(task: any, thread: StoredComment[] = []) {
       ? new Date(parseInt(task.date_created)).toISOString().split('T')[0]
       : '',
     comments: '',
-    thread,
+    thread: [],
     estimated_cost_min: 0,
     estimated_cost_max: 0,
   };
+}
+
+async function attachThreads<T extends { id: string }>(items: T[]) {
+  const threads = await Promise.all(items.map((item) => getTaskComments(item.id)));
+  return items.map((item, i) => ({ ...item, thread: threads[i] }));
 }
 
 export async function GET(
@@ -48,15 +52,13 @@ export async function GET(
   const companyName = req.nextUrl.searchParams.get('companyName');
 
   // Internal mode: fetch top-level tasks directly from ClickUp,
-  // then overlay location/assessmentName from stored assessment items.
+  // then overlay location from stored assessment items.
   if (companyName) {
     try {
-      const [folderResult, storedAssessments, workOrderRefs] = await Promise.all([
+      const [folderResult, storedAssessments] = await Promise.all([
         findMatchingFolder(companyName),
         getAssessmentsForCompany(companyId),
-        getWorkOrderRefs(companyId),
       ]);
-      const taskComments = new Map(workOrderRefs.map((r) => [r.taskId, r.comments ?? []]));
       if (!folderResult) return Response.json({ items: [] });
 
       const lists = await getFolderLists(folderResult.id);
@@ -85,12 +87,12 @@ export async function GET(
       }
 
       const items = workOrderTasks.map((task) => {
-        const formatted = formatTask(task, taskComments.get((task as unknown as { id: string }).id));
+        const formatted = formatTask(task);
         const storedLocation = nameToLocation.get(formatted.issue);
         return storedLocation ? { ...formatted, location: storedLocation } : formatted;
       });
 
-      return Response.json({ items });
+      return Response.json({ items: await attachThreads(items) });
     } catch {
       return Response.json({ items: [] });
     }
@@ -100,15 +102,12 @@ export async function GET(
   const refs = await getWorkOrderRefs(companyId);
   if (refs.length === 0) return Response.json({ items: [] });
 
-  // Build taskId→ref map to restore stored location
   const refMap = new Map(refs.map((r) => [r.taskId, r]));
 
   const headers = { Authorization: key };
   const tasks = await Promise.allSettled(
     refs.map((ref) =>
-      fetch(`${CLICKUP_BASE}/task/${ref.taskId}`, { headers }).then((r) =>
-        r.json(),
-      ),
+      fetch(`${CLICKUP_BASE}/task/${ref.taskId}`, { headers }).then((r) => r.json()),
     ),
   );
 
@@ -117,11 +116,11 @@ export async function GET(
     .map((r) => (r as PromiseFulfilledResult<unknown>).value)
     .filter((task) => (task as { id?: string })?.id)
     .map((task) => {
-      const ref = refMap.get((task as { id: string }).id);
-      const formatted = formatTask(task, ref?.comments ?? []);
+      const formatted = formatTask(task);
+      const ref = refMap.get(formatted.id);
       if (ref?.location) formatted.location = ref.location;
       return formatted;
     });
 
-  return Response.json({ items });
+  return Response.json({ items: await attachThreads(items) });
 }

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getAssessmentById, appendWorkOrderRef, appendWorkOrderComment, markAssessmentSubmitted } from '@/lib/store';
+import { getAssessmentById, appendWorkOrderRef, appendTaskComment, markAssessmentSubmitted } from '@/lib/store';
 import type { StoredComment } from '@/types/types-index';
 import {
   APPROVAL_NEEDED_FIELD_ID,
@@ -122,7 +122,19 @@ export async function POST(
           ),
         ]);
 
-        // 5. Save customer comment to Redis + sync to ClickUp
+        // 5. Save work order ref to Redis
+        const assessmentItem = assessmentData.items.find(
+          (item) => item.clickup_task_id === clickup_task_id,
+        );
+        await appendWorkOrderRef(id, {
+          taskId: newTaskId,
+          listId,
+          addedAt: new Date().toISOString(),
+          location: assessmentItem?.location ?? '',
+          assessmentName: assessmentData.assessmentName,
+        });
+
+        // 6. Save customer comment to Redis + sync to ClickUp
         if (comment?.trim()) {
           const storedComment: StoredComment = {
             id: crypto.randomUUID(),
@@ -131,7 +143,7 @@ export async function POST(
             isInternal: false,
             createdAt: new Date().toISOString(),
           };
-          await appendWorkOrderComment(id, newTaskId, storedComment);
+          await appendTaskComment(newTaskId, storedComment);
 
           const formattedComment = `Comment from ${assessmentData.companyName} at ${formattedDate}: ${comment}`;
           await fetch(`${CLICKUP_BASE}/task/${newTaskId}/comment`, {
@@ -143,18 +155,6 @@ export async function POST(
             }),
           });
         }
-
-        // 6. Save work order ref to Redis (with location from assessment item)
-        const assessmentItem = assessmentData.items.find(
-          (item) => item.clickup_task_id === clickup_task_id,
-        );
-        await appendWorkOrderRef(id, {
-          taskId: newTaskId,
-          listId,
-          addedAt: new Date().toISOString(),
-          location: assessmentItem?.location ?? '',
-          assessmentName: assessmentData.assessmentName,
-        });
       },
     ),
   );
