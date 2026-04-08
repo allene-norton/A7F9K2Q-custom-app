@@ -982,13 +982,7 @@ export interface InternalUser {
   role?: string;
 }
 
-// Admin SDK instance — no user token required (API key only)
-function createAdminSDK() {
-  if (!copilotApiKey) throw new Error('COPILOT_API_KEY is not configured');
-  return copilotApi({ apiKey: copilotApiKey });
-}
-
-// List clients belonging to a specific company (direct fetch — admin SDK can't list without user token)
+// List clients belonging to a specific company (direct fetch — SDK requires user token)
 export async function listClientsByCompany(companyId: string): Promise<Client[]> {
   if (!copilotApiKey) return [];
   try {
@@ -1035,12 +1029,24 @@ export async function createNotification(requestBody: {
 }): Promise<void> {
   if (!copilotApiKey) return;
   const recipient = requestBody.recipientClientId ?? requestBody.recipientInternalUserId;
-  console.log(`[notify] createNotification sending — recipient=${recipient} body=${JSON.stringify(requestBody)}`);
+  const bodyStr = JSON.stringify(requestBody);
+  console.log(`[notify] createNotification sending — recipient=${recipient} body=${bodyStr}`);
   try {
-    const sdk = createAdminSDK();
-    const result = await sdk.createNotification({ requestBody });
-    console.log(`[notify] createNotification ok — recipient=${recipient} result=${JSON.stringify(result)}`);
-  } catch (error: any) {
-    console.error(`[notify] createNotification failed — recipient=${recipient} error=${JSON.stringify(error?.body ?? error?.message ?? error)}`);
+    const res = await fetch(`${ASSEMBLY_BASE_URI}/notifications`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${copilotApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: bodyStr,
+    });
+    const resBody = await res.text();
+    if (!res.ok) {
+      console.error(`[notify] createNotification ${res.status} — recipient=${recipient} body=${resBody}`);
+    } else {
+      console.log(`[notify] createNotification ok — recipient=${recipient}`);
+    }
+  } catch (error) {
+    console.error(`[notify] createNotification error — recipient=${recipient}:`, error);
   }
 }
