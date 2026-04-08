@@ -74,19 +74,19 @@ export async function notifyInternalUsersAbout(
     return;
   }
 
+  // DEBUG: target single known user
+  const DEBUG_USER_ID = 'c3d094ff-07ce-4e9b-8087-475202b2decf';
   const results = await Promise.allSettled(
-    users
-      .filter((u) => u.id)
-      .map((u) =>
-        createNotification({
-          senderId,
-          appId: APP_ID,
-          recipientInternalUserId: u.id,
-          deliveryTargets: {
-            inProduct: content.inProduct,
-          },
-        }),
-      ),
+    [{ id: DEBUG_USER_ID }].map((u) =>
+      createNotification({
+        senderId,
+        appId: APP_ID,
+        recipientInternalUserId: u.id,
+        deliveryTargets: {
+          inProduct: content.inProduct,
+        },
+      }),
+    ),
   );
 
   const failed = results.filter((r) => r.status === 'rejected').length;
