@@ -971,3 +971,60 @@ export async function getLoggedInUser(clientId?: string, token?: string) {
 }
 
 // comment for deploy
+
+// ─── Notification helpers ─────────────────────────────────────────────────────
+
+export interface InternalUser {
+  id: string;
+  givenName?: string;
+  familyName?: string;
+  email?: string;
+  role?: string;
+}
+
+// List clients belonging to a specific company (admin operation — no user token required)
+export async function listClientsByCompany(companyId: string): Promise<Client[]> {
+  if (!copilotApiKey) return [];
+  try {
+    const sdk = copilotApi({ apiKey: copilotApiKey });
+    const res = await sdk.listClients({ companyId, limit: 100 });
+    return (res as any)?.data ?? [];
+  } catch (error) {
+    console.error('Error listing clients by company:', error);
+    return [];
+  }
+}
+
+// List all internal users in the workspace (admin operation — no user token required)
+export async function listAllInternalUsers(): Promise<InternalUser[]> {
+  if (!copilotApiKey) return [];
+  try {
+    const sdk = copilotApi({ apiKey: copilotApiKey });
+    const res = await sdk.listInternalUsers({ limit: 100 });
+    return (res as any)?.data ?? [];
+  } catch (error) {
+    console.error('Error listing internal users:', error);
+    return [];
+  }
+}
+
+// Create a single notification (admin operation — no user token required)
+export async function createNotification(requestBody: {
+  senderId: string;
+  senderCompanyId?: string;
+  recipientClientId?: string;
+  recipientCompanyId?: string;
+  recipientInternalUserId?: string;
+  deliveryTargets?: {
+    inProduct?: { title: string; body?: string };
+    email?: { subject?: string; body?: string };
+  };
+}): Promise<void> {
+  if (!copilotApiKey) return;
+  try {
+    const sdk = copilotApi({ apiKey: copilotApiKey });
+    await sdk.createNotification({ requestBody });
+  } catch (error) {
+    console.error('Error creating notification:', error);
+  }
+}

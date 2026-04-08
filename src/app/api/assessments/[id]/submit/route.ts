@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getAssessmentById, appendWorkOrderRef, appendTaskComment, markAssessmentSubmitted } from '@/lib/store';
+import { notifyInternalUsersAbout } from '@/lib/notifications';
 import type { StoredComment } from '@/types/types-index';
 import {
   APPROVAL_NEEDED_FIELD_ID,
@@ -14,7 +15,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const { assessmentId, items } = await req.json();
+  const { assessmentId, items, senderId } = await req.json();
   const key = process.env.CLICKUP_KEY;
 
   if (!key) {
@@ -184,5 +185,18 @@ export async function POST(
       ),
     ]);
   }
+  if (failed === 0 && senderId) {
+    notifyInternalUsersAbout(senderId, id, {
+      inProduct: {
+        title: `${assessmentData.companyName} submitted their assessment`,
+        body: `${assessmentData.assessmentName} has been submitted. Work orders have been created in ClickUp.`,
+      },
+      email: {
+        subject: `Assessment submitted by ${assessmentData.companyName}`,
+        body: `${assessmentData.companyName} has submitted their selections for ${assessmentData.assessmentName}. Work orders have been created in ClickUp.`,
+      },
+    }).catch(() => {});
+  }
+
   return Response.json({ success: failed === 0, failed });
 }

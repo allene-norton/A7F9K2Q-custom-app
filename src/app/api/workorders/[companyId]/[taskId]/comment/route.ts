@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { appendTaskComment } from '@/lib/store';
 import { StoredComment } from '@/types/types-index';
+import { notifyClientsAbout, notifyInternalUsersAbout } from '@/lib/notifications';
 
 const CLICKUP_BASE = 'https://api.clickup.com/api/v2';
 const MM_TEAM_NAME = 'MM Team';
@@ -9,8 +10,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ companyId: string; taskId: string }> },
 ) {
-  const { taskId } = await params;
-  const { text, authorName, isInternal } = await req.json();
+  const { companyId, taskId } = await params;
+  const { text, authorName, isInternal, senderId } = await req.json();
   const key = process.env.CLICKUP_KEY;
 
   if (!key) return Response.json({ success: false }, { status: 500 });
@@ -43,6 +44,23 @@ export async function POST(
   if (!clickupRes.ok) {
     const errBody = await clickupRes.text();
     console.error(`ClickUp comment sync failed for task ${taskId}: ${clickupRes.status} ${errBody}`);
+  }
+
+  // Notify the other party — fire without blocking
+  if (isInternal) {
+    notifyClientsAbout(companyId, {
+      inProduct: {
+        title: 'New comment from MM Team',
+        body: comment.text.length > 80 ? comment.text.slice(0, 80) + '…' : comment.text,
+      },
+    }).catch(() => {});
+  } else if (senderId) {
+    notifyInternalUsersAbout(senderId, companyId, {
+      inProduct: {
+        title: `${displayName} left a comment`,
+        body: comment.text.length > 80 ? comment.text.slice(0, 80) + '…' : comment.text,
+      },
+    }).catch(() => {});
   }
 
   return Response.json({ success: true, comment, clickupOk: clickupRes.ok });

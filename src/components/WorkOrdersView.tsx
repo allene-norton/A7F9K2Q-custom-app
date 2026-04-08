@@ -45,6 +45,7 @@ interface WorkOrdersViewProps {
   mode: 'customer' | 'internal';
   authorName?: string; // customer's display name (customer mode)
   breadcrumbs?: React.ReactNode; // optional breadcrumb nav (internal mode)
+  senderId?: string; // Assembly client ID of the current user (customer mode only)
 }
 
 // ─── Comment Box ──────────────────────────────────────────────────────────────
@@ -54,11 +55,12 @@ interface CommentBoxProps {
   companyId: string;
   isInternal: boolean;
   authorName: string;
+  senderId?: string;
   onPosted: (comment: StoredComment) => void;
   onCancel?: () => void;
 }
 
-function CommentBox({ taskId, companyId, isInternal, authorName, onPosted, onCancel }: CommentBoxProps) {
+function CommentBox({ taskId, companyId, isInternal, authorName, senderId, onPosted, onCancel }: CommentBoxProps) {
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
@@ -71,7 +73,7 @@ function CommentBox({ taskId, companyId, isInternal, authorName, onPosted, onCan
       const res = await fetch(`/api/workorders/${companyId}/${taskId}/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: text.trim(), authorName, isInternal }),
+        body: JSON.stringify({ text: text.trim(), authorName, isInternal, senderId }),
       });
       const data = await res.json();
       if (res.ok && data.comment) {
@@ -255,10 +257,11 @@ interface CustomerModalProps {
   item: WorkOrderItem;
   companyId: string;
   authorName: string;
+  senderId?: string;
   onClose: () => void;
 }
 
-function CustomerModal({ item, companyId, authorName, onClose }: CustomerModalProps) {
+function CustomerModal({ item, companyId, authorName, senderId, onClose }: CustomerModalProps) {
   const [activeImage, setActiveImage] = useState(0);
   const [comments, setComments] = useState<StoredComment[]>(item.thread ?? []);
   const [showComment, setShowComment] = useState(false);
@@ -366,6 +369,7 @@ function CustomerModal({ item, companyId, authorName, onClose }: CustomerModalPr
               companyId={companyId}
               isInternal={false}
               authorName={authorName}
+              senderId={senderId}
               onPosted={(c) => {
                 setComments((prev) => [...prev, c]);
                 setShowComment(false);
@@ -397,7 +401,7 @@ function CustomerModal({ item, companyId, authorName, onClose }: CustomerModalPr
 
 // ─── Main WorkOrdersView ──────────────────────────────────────────────────────
 
-export default function WorkOrdersView({ companyId, companyName, mode, authorName = 'Customer', breadcrumbs }: WorkOrdersViewProps) {
+export default function WorkOrdersView({ companyId, companyName, mode, authorName = 'Customer', breadcrumbs, senderId }: WorkOrdersViewProps) {
   const [items, setItems] = useState<WorkOrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeBucket, setActiveBucket] = useState<StatusBucket>('Pending & In Progress');
@@ -795,6 +799,7 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
           item={activeItem}
           companyId={companyId}
           authorName={authorName}
+          senderId={senderId}
           onClose={() => setActiveItem(null)}
         />
       )}
