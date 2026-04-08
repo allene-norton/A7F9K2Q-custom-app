@@ -1036,9 +1036,17 @@ export async function createNotification(requestBody: {
   if (!copilotApiKey) return;
   const recipient = requestBody.recipientClientId ?? requestBody.recipientInternalUserId;
   try {
-    const sdk = createAdminSDK();
-    await sdk.createNotification({ requestBody });
-    console.log(`[notify] createNotification ok — recipient=${recipient}`);
+    const res = await fetch(`${ASSEMBLY_BASE_URI}/notifications`, {
+      method: 'POST',
+      headers: { 'X-API-KEY': copilotApiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    });
+    const body = await res.text();
+    if (!res.ok) {
+      console.error(`[notify] createNotification ${res.status} — recipient=${recipient} body=${body}`);
+    } else {
+      console.log(`[notify] createNotification ok — recipient=${recipient} body=${body}`);
+    }
   } catch (error) {
     console.error(`[notify] createNotification failed — recipient=${recipient}:`, error);
   }
