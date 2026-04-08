@@ -45,6 +45,8 @@ interface WorkOrdersViewProps {
   mode: 'customer' | 'internal';
   authorName?: string; // customer's display name (customer mode)
   breadcrumbs?: React.ReactNode; // optional breadcrumb nav (internal mode)
+  senderId?: string; // Assembly client ID of the current user (customer mode only)
+  token?: string; // session token for Assembly SDK notifications
 }
 
 // ─── Comment Box ──────────────────────────────────────────────────────────────
@@ -54,11 +56,13 @@ interface CommentBoxProps {
   companyId: string;
   isInternal: boolean;
   authorName: string;
+  senderId?: string;
+  token?: string;
   onPosted: (comment: StoredComment) => void;
   onCancel?: () => void;
 }
 
-function CommentBox({ taskId, companyId, isInternal, authorName, onPosted, onCancel }: CommentBoxProps) {
+function CommentBox({ taskId, companyId, isInternal, authorName, senderId, token, onPosted, onCancel }: CommentBoxProps) {
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
@@ -71,7 +75,7 @@ function CommentBox({ taskId, companyId, isInternal, authorName, onPosted, onCan
       const res = await fetch(`/api/workorders/${companyId}/${taskId}/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: text.trim(), authorName, isInternal }),
+        body: JSON.stringify({ text: text.trim(), authorName, isInternal, senderId, token }),
       });
       const data = await res.json();
       if (res.ok && data.comment) {
@@ -128,9 +132,10 @@ interface InternalCardProps {
   item: WorkOrderItem;
   index: number;
   companyId: string;
+  token?: string;
 }
 
-function InternalCard({ item, index, companyId }: InternalCardProps) {
+function InternalCard({ item, index, companyId, token }: InternalCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [comments, setComments] = useState<StoredComment[]>(item.thread ?? []);
 
@@ -241,6 +246,7 @@ function InternalCard({ item, index, companyId }: InternalCardProps) {
             companyId={companyId}
             isInternal={true}
             authorName="MM Team"
+            token={token}
             onPosted={(c) => setComments((prev) => [...prev, c])}
           />
         </div>
@@ -255,10 +261,13 @@ interface CustomerModalProps {
   item: WorkOrderItem;
   companyId: string;
   authorName: string;
+  senderId?: string;
+  token?: string;
+  onCommentPosted: (itemId: string, comment: StoredComment) => void;
   onClose: () => void;
 }
 
-function CustomerModal({ item, companyId, authorName, onClose }: CustomerModalProps) {
+function CustomerModal({ item, companyId, authorName, senderId, token, onCommentPosted, onClose }: CustomerModalProps) {
   const [activeImage, setActiveImage] = useState(0);
   const [comments, setComments] = useState<StoredComment[]>(item.thread ?? []);
   const [showComment, setShowComment] = useState(false);
@@ -366,9 +375,12 @@ function CustomerModal({ item, companyId, authorName, onClose }: CustomerModalPr
               companyId={companyId}
               isInternal={false}
               authorName={authorName}
+              senderId={senderId}
+              token={token}
               onPosted={(c) => {
                 setComments((prev) => [...prev, c]);
                 setShowComment(false);
+                onCommentPosted(item.id, c);
               }}
               onCancel={() => setShowComment(false)}
             />
@@ -397,9 +409,10 @@ function CustomerModal({ item, companyId, authorName, onClose }: CustomerModalPr
 
 // ─── Main WorkOrdersView ──────────────────────────────────────────────────────
 
-export default function WorkOrdersView({ companyId, companyName, mode, authorName = 'Customer', breadcrumbs }: WorkOrdersViewProps) {
+export default function WorkOrdersView({ companyId, companyName, mode, authorName = 'Customer', breadcrumbs, senderId, token }: WorkOrdersViewProps) {
   const [items, setItems] = useState<WorkOrderItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unreadTaskIds, setUnreadTaskIds] = useState<Set<string>>(new Set());
   const [activeBucket, setActiveBucket] = useState<StatusBucket>('Pending & In Progress');
   const [activeItem, setActiveItem] = useState<WorkOrderItem | null>(null);
 
@@ -426,6 +439,15 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [fetchUrl]);
+
+  // Fetch unread task IDs (customer mode only)
+  useEffect(() => {
+    if (mode !== 'customer') return;
+    fetch(`/api/workorders/${companyId}/unread`)
+      .then((r) => r.json())
+      .then((data) => setUnreadTaskIds(new Set(data.taskIds ?? [])))
+      .catch(() => {});
+  }, [companyId, mode]);
 
   // Outside click for tag dropdown
   useEffect(() => {
@@ -494,8 +516,17 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
       result.sort((a, b) => (URGENCY_ORDER[b.category] ?? 99) - (URGENCY_ORDER[a.category] ?? 99));
     }
 
+    // Unread items float to the top (customer mode)
+    if (mode === 'customer' && unreadTaskIds.size > 0) {
+      result.sort((a, b) => {
+        const aUnread = unreadTaskIds.has(a.id) ? 0 : 1;
+        const bUnread = unreadTaskIds.has(b.id) ? 0 : 1;
+        return aUnread - bUnread;
+      });
+    }
+
     return result;
-  }, [items, activeBucket, categoryFilter, locationFilter, searchQuery, selectedTags, sortOption]);
+  }, [items, activeBucket, categoryFilter, locationFilter, searchQuery, selectedTags, sortOption, unreadTaskIds, mode]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -703,13 +734,25 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
       <div className="space-y-3">
         {filteredAndSortedItems.map((item, index) =>
           mode === 'internal' ? (
-            <InternalCard key={item.id} item={item} index={index} companyId={companyId} />
+            <InternalCard key={item.id} item={item} index={index} companyId={companyId} token={token} />
           ) : (
             <button
               key={item.id}
-              onClick={() => setActiveItem(item)}
-              className="w-full text-left bg-white border-2 border-gray-200 rounded-xl p-6
-                         transition-shadow hover:shadow-lg"
+              onClick={() => {
+                setActiveItem(item);
+                if (unreadTaskIds.has(item.id) && token) {
+                  fetch(`/api/workorders/${companyId}/${item.id}/mark-read`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token }),
+                  }).then(() => {
+                    setUnreadTaskIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
+                  }).catch(() => {});
+                }
+              }}
+              className={`w-full text-left bg-white rounded-xl p-6 transition-shadow hover:shadow-lg border-2 ${
+                unreadTaskIds.has(item.id) ? 'border-[#174887]' : 'border-gray-200'
+              }`}
             >
               <div className="flex gap-6">
                 {/* Image */}
@@ -735,6 +778,11 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
                       <div className="flex items-center gap-3 mb-2">
                         <span className="text-sm font-semibold text-gray-500">#{index + 1}</span>
                         <span className="text-sm text-gray-600 font-medium">{item.location}</span>
+                        {unreadTaskIds.has(item.id) && (
+                          <span className="px-2 py-0.5 text-xs font-bold text-white rounded-full" style={{ backgroundColor: '#174887' }}>
+                            New
+                          </span>
+                        )}
                       </div>
                       <h4 className="text-lg font-bold text-gray-900 mb-2">{item.issue}</h4>
                       {item.description && (
@@ -795,6 +843,22 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
           item={activeItem}
           companyId={companyId}
           authorName={authorName}
+          senderId={senderId}
+          token={token}
+          onCommentPosted={(itemId, comment) => {
+            setItems((prev) =>
+              prev.map((i) =>
+                i.id === itemId
+                  ? { ...i, thread: [...(i.thread ?? []), comment] }
+                  : i,
+              ),
+            );
+            setActiveItem((prev) =>
+              prev?.id === itemId
+                ? { ...prev, thread: [...(prev.thread ?? []), comment] }
+                : prev,
+            );
+          }}
           onClose={() => setActiveItem(null)}
         />
       )}

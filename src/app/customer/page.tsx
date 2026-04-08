@@ -228,6 +228,7 @@ function CustomerPageInner() {
   const [selectedAssessment, setSelectedAssessment] =
     useState<StoredAssessment | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [clientId, setClientId] = useState<string | null>(null);
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [comments, setComments] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -264,6 +265,7 @@ function CustomerPageInner() {
         }
 
         setCompanyId(id);
+        setClientId(userData.client?.id ?? null);
         const res = await fetch(`/api/assessments/${id}`);
         const list: StoredAssessment[] = await res.json();
         setAssessments(list ?? []);
@@ -319,6 +321,8 @@ function CustomerPageInner() {
         body: JSON.stringify({
           assessmentId: selectedAssessment.assessmentId,
           items: payload,
+          senderId: clientId ?? undefined,
+          token,
         }),
       });
       const data = await res.json();
@@ -518,6 +522,8 @@ function CustomerPageInner() {
           companyName={companyName}
           mode="customer"
           authorName={companyName}
+          senderId={clientId ?? undefined}
+          token={token}
         />
       ) : (
         <>

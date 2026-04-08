@@ -82,3 +82,29 @@ export async function appendTaskComment(
   const existing = await getTaskComments(taskId);
   await redis.set(`comments:${taskId}`, [...existing, comment]);
 }
+
+// ─── Unread Notification Tracking ─────────────────────────────────────────────
+
+export async function addUnreadNotification(companyId: string, taskId: string, notificationId: string): Promise<void> {
+  await Promise.all([
+    redis.sadd(`unread_tasks:${companyId}`, taskId),
+    redis.sadd(`notification_ids:${taskId}`, notificationId),
+  ]);
+}
+
+export async function getUnreadTaskIds(companyId: string): Promise<string[]> {
+  const members = await redis.smembers(`unread_tasks:${companyId}`);
+  return members as string[];
+}
+
+export async function getNotificationIds(taskId: string): Promise<string[]> {
+  const members = await redis.smembers(`notification_ids:${taskId}`);
+  return members as string[];
+}
+
+export async function clearUnreadTask(companyId: string, taskId: string): Promise<void> {
+  await Promise.all([
+    redis.srem(`unread_tasks:${companyId}`, taskId),
+    redis.del(`notification_ids:${taskId}`),
+  ]);
+}
