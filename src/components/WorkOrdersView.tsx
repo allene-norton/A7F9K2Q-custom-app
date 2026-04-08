@@ -580,9 +580,33 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
     );
   }
 
+  const handleClearAllNotifications = async () => {
+    if (!token || unreadTaskIds.size === 0) return;
+    try {
+      await fetch(`/api/workorders/${companyId}/mark-all-read`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+      setUnreadTaskIds(new Set());
+    } catch {
+      // silent fail
+    }
+  };
+
   return (
     <div className={containerClass}>
       {breadcrumbs}
+      {mode === 'customer' && unreadTaskIds.size > 0 && (
+        <div className="flex justify-end mb-3">
+          <button
+            onClick={handleClearAllNotifications}
+            className="px-4 py-2 text-sm font-medium text-[#174887] border border-[#174887] rounded-lg hover:bg-[#174887] hover:text-white transition-colors"
+          >
+            Clear all notifications
+          </button>
+        </div>
+      )}
       {/* Status bucket tabs */}
       <div className="border-b border-gray-200 bg-white mb-5 -mx-4 px-4 overflow-x-auto">
         <div className="flex gap-0 min-w-max">
