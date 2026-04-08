@@ -5,6 +5,7 @@ import {
   listAllInternalUsers,
   createNotification,
 } from './assembly/client';
+import { addUnreadNotification } from './store';
 
 interface NotificationContent {
   inProduct: { title: string; body?: string };
@@ -18,6 +19,7 @@ export async function notifyClientsAbout(
   token: string,
   companyId: string,
   content: NotificationContent,
+  taskId?: string,
 ): Promise<void> {
   const [clients, internalUsers] = await Promise.all([
     listClientsByCompany(companyId),
@@ -48,6 +50,15 @@ export async function notifyClientsAbout(
         }),
       ),
   );
+
+  // Store notification IDs so customers can mark them as read
+  if (taskId) {
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value) {
+        await addUnreadNotification(companyId, taskId, result.value);
+      }
+    }
+  }
 
   const failed = results.filter((r) => r.status === 'rejected').length;
   console.log(`[notify] notifyClientsAbout: sent=${results.length - failed} failed=${failed}`);

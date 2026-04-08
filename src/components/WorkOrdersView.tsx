@@ -412,6 +412,7 @@ function CustomerModal({ item, companyId, authorName, senderId, token, onComment
 export default function WorkOrdersView({ companyId, companyName, mode, authorName = 'Customer', breadcrumbs, senderId, token }: WorkOrdersViewProps) {
   const [items, setItems] = useState<WorkOrderItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unreadTaskIds, setUnreadTaskIds] = useState<Set<string>>(new Set());
   const [activeBucket, setActiveBucket] = useState<StatusBucket>('Pending & In Progress');
   const [activeItem, setActiveItem] = useState<WorkOrderItem | null>(null);
 
@@ -438,6 +439,15 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [fetchUrl]);
+
+  // Fetch unread task IDs (customer mode only)
+  useEffect(() => {
+    if (mode !== 'customer') return;
+    fetch(`/api/workorders/${companyId}/unread`)
+      .then((r) => r.json())
+      .then((data) => setUnreadTaskIds(new Set(data.taskIds ?? [])))
+      .catch(() => {});
+  }, [companyId, mode]);
 
   // Outside click for tag dropdown
   useEffect(() => {
@@ -506,8 +516,17 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
       result.sort((a, b) => (URGENCY_ORDER[b.category] ?? 99) - (URGENCY_ORDER[a.category] ?? 99));
     }
 
+    // Unread items float to the top (customer mode)
+    if (mode === 'customer' && unreadTaskIds.size > 0) {
+      result.sort((a, b) => {
+        const aUnread = unreadTaskIds.has(a.id) ? 0 : 1;
+        const bUnread = unreadTaskIds.has(b.id) ? 0 : 1;
+        return aUnread - bUnread;
+      });
+    }
+
     return result;
-  }, [items, activeBucket, categoryFilter, locationFilter, searchQuery, selectedTags, sortOption]);
+  }, [items, activeBucket, categoryFilter, locationFilter, searchQuery, selectedTags, sortOption, unreadTaskIds, mode]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -719,9 +738,21 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
           ) : (
             <button
               key={item.id}
-              onClick={() => setActiveItem(item)}
-              className="w-full text-left bg-white border-2 border-gray-200 rounded-xl p-6
-                         transition-shadow hover:shadow-lg"
+              onClick={() => {
+                setActiveItem(item);
+                if (unreadTaskIds.has(item.id) && token) {
+                  fetch(`/api/workorders/${companyId}/${item.id}/mark-read`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token }),
+                  }).then(() => {
+                    setUnreadTaskIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
+                  }).catch(() => {});
+                }
+              }}
+              className={`w-full text-left bg-white rounded-xl p-6 transition-shadow hover:shadow-lg border-2 ${
+                unreadTaskIds.has(item.id) ? 'border-[#174887]' : 'border-gray-200'
+              }`}
             >
               <div className="flex gap-6">
                 {/* Image */}
@@ -747,6 +778,11 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
                       <div className="flex items-center gap-3 mb-2">
                         <span className="text-sm font-semibold text-gray-500">#{index + 1}</span>
                         <span className="text-sm text-gray-600 font-medium">{item.location}</span>
+                        {unreadTaskIds.has(item.id) && (
+                          <span className="px-2 py-0.5 text-xs font-bold text-white rounded-full" style={{ backgroundColor: '#174887' }}>
+                            New
+                          </span>
+                        )}
                       </div>
                       <h4 className="text-lg font-bold text-gray-900 mb-2">{item.issue}</h4>
                       {item.description && (

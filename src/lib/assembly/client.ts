@@ -1025,7 +1025,7 @@ export async function listAllInternalUsers(): Promise<InternalUser[]> {
   }
 }
 
-// Create a single notification using the SDK (requires a valid user session token)
+// Create a single notification — returns the notification ID on success
 export async function createNotification(
   token: string,
   requestBody: {
@@ -1037,14 +1037,27 @@ export async function createNotification(
       inProduct?: { title: string; body?: string };
     };
   },
-): Promise<void> {
+): Promise<string | undefined> {
   const recipient = requestBody.recipientClientId ?? requestBody.recipientInternalUserId;
   console.log(`[notify] createNotification sending — recipient=${recipient}`);
   try {
     const sdk = createSDK(token);
-    await sdk.createNotification({ requestBody });
-    console.log(`[notify] createNotification ok — recipient=${recipient}`);
+    const result = await sdk.createNotification({ requestBody });
+    const id = (result as any)?.id as string | undefined;
+    console.log(`[notify] createNotification ok — recipient=${recipient} id=${id}`);
+    return id;
   } catch (error: any) {
     console.error(`[notify] createNotification failed — recipient=${recipient}:`, error?.body ?? error?.message ?? error);
+    return undefined;
+  }
+}
+
+// Mark a notification as read using the recipient's session token
+export async function markNotificationRead(token: string, notificationId: string): Promise<void> {
+  try {
+    const sdk = createSDK(token);
+    await sdk.markNotificationRead({ id: notificationId });
+  } catch (error: any) {
+    console.error(`[notify] markNotificationRead failed — id=${notificationId}:`, error?.body ?? error?.message ?? error);
   }
 }

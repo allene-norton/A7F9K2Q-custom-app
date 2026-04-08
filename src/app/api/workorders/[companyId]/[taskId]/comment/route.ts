@@ -58,7 +58,7 @@ export async function POST(
           title: 'New comment from MM Team',
           body: truncated,
         },
-      });
+      }, taskId);
     } else if (senderId) {
       await notifyInternalUsersAbout(token, senderId as string, {
         inProduct: {
