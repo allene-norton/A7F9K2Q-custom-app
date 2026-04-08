@@ -982,41 +982,39 @@ export interface InternalUser {
   role?: string;
 }
 
-// List clients belonging to a specific company (direct API call — no user token required)
+// Admin SDK instance — no user token required (API key only)
+function createAdminSDK() {
+  if (!copilotApiKey) throw new Error('COPILOT_API_KEY is not configured');
+  return copilotApi({ apiKey: copilotApiKey });
+}
+
+// List clients belonging to a specific company
 export async function listClientsByCompany(companyId: string): Promise<Client[]> {
   if (!copilotApiKey) return [];
   try {
-    const res = await fetch(
-      `${ASSEMBLY_BASE_URI}/clients?companyId=${encodeURIComponent(companyId)}&limit=100`,
-      { headers: { 'X-API-KEY': copilotApiKey } },
-    );
-    if (!res.ok) throw new Error(`listClientsByCompany ${res.status}`);
-    const data = await res.json();
-    return data?.data ?? [];
+    const sdk = createAdminSDK();
+    const data = await sdk.listClients({ companyId, limit: 100 });
+    return (data?.data as Client[]) ?? [];
   } catch (error) {
     console.error('Error listing clients by company:', error);
     return [];
   }
 }
 
-// List all internal users in the workspace (direct API call — no user token required)
+// List all internal users in the workspace
 export async function listAllInternalUsers(): Promise<InternalUser[]> {
   if (!copilotApiKey) return [];
   try {
-    const res = await fetch(
-      `${ASSEMBLY_BASE_URI}/internal-users?limit=100`,
-      { headers: { 'X-API-KEY': copilotApiKey } },
-    );
-    if (!res.ok) throw new Error(`listAllInternalUsers ${res.status}`);
-    const data = await res.json();
-    return data?.data ?? [];
+    const sdk = createAdminSDK();
+    const data = await sdk.listInternalUsers({ limit: 100 });
+    return (data?.data as InternalUser[]) ?? [];
   } catch (error) {
     console.error('Error listing internal users:', error);
     return [];
   }
 }
 
-// Create a single notification (direct API call — no user token required)
+// Create a single notification
 export async function createNotification(requestBody: {
   senderId: string;
   senderCompanyId?: string;
@@ -1025,23 +1023,14 @@ export async function createNotification(requestBody: {
   recipientInternalUserId?: string;
   deliveryTargets?: {
     inProduct?: { title: string; body?: string };
-    email?: { subject?: string; body?: string };
   };
 }): Promise<void> {
   if (!copilotApiKey) return;
   try {
-    const res = await fetch(`${ASSEMBLY_BASE_URI}/notifications`, {
-      method: 'POST',
-      headers: { 'X-API-KEY': copilotApiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      console.error(`[notify] createNotification ${res.status} — recipient=${requestBody.recipientClientId ?? requestBody.recipientInternalUserId} body=${body}`);
-      return;
-    }
+    const sdk = createAdminSDK();
+    await sdk.createNotification({ requestBody });
     console.log(`[notify] createNotification ok — recipient=${requestBody.recipientClientId ?? requestBody.recipientInternalUserId}`);
   } catch (error) {
-    console.error('[notify] createNotification failed:', JSON.stringify(requestBody), error);
+    console.error(`[notify] createNotification failed — recipient=${requestBody.recipientClientId ?? requestBody.recipientInternalUserId}:`, error);
   }
 }
