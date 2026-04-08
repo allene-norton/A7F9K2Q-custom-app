@@ -21,13 +21,12 @@ export async function POST(
     isHourly: body.isHourly ?? false,
   });
 
-  // Notify clients — fire and don't block the response
-  notifyClientsAbout(id, {
+  await notifyClientsAbout(id, {
     inProduct: {
       title: 'New Assessment Ready for Review',
       body: `${assessmentName} has been sent for your review.`,
     },
-  }).catch(() => {});
+  });
 
   return Response.json({ success: true });
 }

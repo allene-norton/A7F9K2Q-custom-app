@@ -186,12 +186,12 @@ export async function POST(
     ]);
   }
   if (failed === 0 && senderId) {
-    notifyInternalUsersAbout(senderId, {
+    await notifyInternalUsersAbout(senderId, {
       inProduct: {
         title: `${assessmentData.companyName} submitted their assessment`,
         body: `${assessmentData.assessmentName} has been submitted. Work orders have been created in ClickUp.`,
       },
-    }).catch(() => {});
+    });
   }
 
   return Response.json({ success: failed === 0, failed });

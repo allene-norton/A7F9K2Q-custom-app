@@ -46,23 +46,23 @@ export async function POST(
     console.error(`ClickUp comment sync failed for task ${taskId}: ${clickupRes.status} ${errBody}`);
   }
 
-  // Notify the other party — fire without blocking
+  // Notify the other party
   const truncated = comment.text.length > 80 ? comment.text.slice(0, 80) + '…' : comment.text;
 
   if (isInternal) {
-    notifyClientsAbout(companyId, {
+    await notifyClientsAbout(companyId, {
       inProduct: {
         title: 'New comment from MM Team',
         body: truncated,
       },
-    }).catch(() => {});
+    });
   } else if (senderId) {
-    notifyInternalUsersAbout(senderId as string, {
+    await notifyInternalUsersAbout(senderId as string, {
       inProduct: {
         title: `${displayName} left a comment`,
         body: truncated,
       },
-    }).catch(() => {});
+    });
   } else {
     console.warn(`[notify] customer comment — no senderId, skipping notification (companyId=${companyId})`);
   }
