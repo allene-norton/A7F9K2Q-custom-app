@@ -11,7 +11,9 @@ export async function POST(
   { params }: { params: Promise<{ companyId: string; taskId: string }> },
 ) {
   const { companyId, taskId } = await params;
-  const { text, authorName, isInternal, senderId } = await req.json();
+  const body = await req.json();
+  const { text, authorName, isInternal, senderId } = body;
+  console.log(`[comment] companyId=${companyId} taskId=${taskId} isInternal=${isInternal} senderId=${senderId} text="${text?.slice(0, 30)}"`);
   const key = process.env.CLICKUP_KEY;
 
   if (!key) return Response.json({ success: false }, { status: 500 });
