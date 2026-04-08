@@ -78,10 +78,9 @@ export async function notifyInternalUsersAbout(
       .filter((u) => u.id)
       .map((u) =>
         createNotification({
-          senderId,
           recipientInternalUserId: u.id,
           deliveryTargets: {
-            inProduct: { ...content.inProduct, ctaParams: `${APP_URL}/internal` },
+            inProduct: { title: content.inProduct.title, body: content.inProduct.body },
           },
         }),
       ),

@@ -1035,11 +1035,13 @@ export async function createNotification(requestBody: {
 }): Promise<void> {
   if (!copilotApiKey) return;
   const recipient = requestBody.recipientClientId ?? requestBody.recipientInternalUserId;
+  const bodyStr = JSON.stringify(requestBody);
+  console.log(`[notify] createNotification sending — recipient=${recipient} body=${bodyStr}`);
   try {
     const res = await fetch(`${ASSEMBLY_BASE_URI}/notifications`, {
       method: 'POST',
       headers: { 'X-API-KEY': copilotApiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
+      body: bodyStr,
     });
     const body = await res.text();
     if (!res.ok) {
