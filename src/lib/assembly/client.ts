@@ -1035,21 +1035,12 @@ export async function createNotification(requestBody: {
 }): Promise<void> {
   if (!copilotApiKey) return;
   const recipient = requestBody.recipientClientId ?? requestBody.recipientInternalUserId;
-  const bodyStr = JSON.stringify(requestBody);
-  console.log(`[notify] createNotification sending — recipient=${recipient} body=${bodyStr}`);
+  console.log(`[notify] createNotification sending — recipient=${recipient} body=${JSON.stringify(requestBody)}`);
   try {
-    const res = await fetch(`${ASSEMBLY_BASE_URI}/notifications`, {
-      method: 'POST',
-      headers: { 'X-API-KEY': copilotApiKey, 'Content-Type': 'application/json' },
-      body: bodyStr,
-    });
-    const body = await res.text();
-    if (!res.ok) {
-      console.error(`[notify] createNotification ${res.status} — recipient=${recipient} body=${body}`);
-    } else {
-      console.log(`[notify] createNotification ok — recipient=${recipient} body=${body}`);
-    }
-  } catch (error) {
-    console.error(`[notify] createNotification failed — recipient=${recipient}:`, error);
+    const sdk = createAdminSDK();
+    const result = await sdk.createNotification({ requestBody });
+    console.log(`[notify] createNotification ok — recipient=${recipient} result=${JSON.stringify(result)}`);
+  } catch (error: any) {
+    console.error(`[notify] createNotification failed — recipient=${recipient} error=${JSON.stringify(error?.body ?? error?.message ?? error)}`);
   }
 }
