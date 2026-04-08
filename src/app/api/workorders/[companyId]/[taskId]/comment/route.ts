@@ -57,7 +57,7 @@ export async function POST(
       },
     }).catch(() => {});
   } else if (senderId) {
-    notifyInternalUsersAbout(senderId as string, companyId, {
+    notifyInternalUsersAbout(senderId as string, {
       inProduct: {
         title: `${displayName} left a comment`,
         body: truncated,

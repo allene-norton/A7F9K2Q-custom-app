@@ -60,12 +60,11 @@ export async function notifyClientsAbout(
  */
 export async function notifyInternalUsersAbout(
   senderId: string,
-  senderCompanyId: string,
   content: NotificationContent,
 ): Promise<void> {
   const users = await listAllInternalUsers();
 
-  console.log(`[notify] notifyInternalUsersAbout senderId=${senderId} senderCompanyId=${senderCompanyId} users=${users.length}`);
+  console.log(`[notify] notifyInternalUsersAbout senderId=${senderId} users=${users.length}`);
 
   if (users.length === 0) {
     console.error('[notify] notifyInternalUsersAbout: no internal users found');
@@ -78,7 +77,6 @@ export async function notifyInternalUsersAbout(
       .map((u) =>
         createNotification({
           senderId,
-          senderCompanyId,
           recipientInternalUserId: u.id,
           deliveryTargets: {
             inProduct: content.inProduct,
