@@ -29,6 +29,7 @@ interface AssessmentBuilderProps {
   isHourly?: boolean;
   spaceId?: string;
   backLabel?: string;
+  token?: string;
 }
 
 type CategoryFilter = 'All' | AssessmentItem['category'];
@@ -59,6 +60,7 @@ export default function AssessmentBuilder({
   isHourly,
   spaceId,
   backLabel = 'Companies',
+  token,
 }: AssessmentBuilderProps) {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('All');
   const [sortOption, setSortOption] = useState<SortOption>('default');
@@ -202,6 +204,7 @@ export default function AssessmentBuilder({
           companyName: company.name,
           items: displayItems,
           isHourly: isHourly ?? false,
+          token,
         }),
       });
       setSendSuccess(true);

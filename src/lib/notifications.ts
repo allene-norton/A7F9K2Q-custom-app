@@ -6,8 +6,6 @@ import {
   createNotification,
 } from './assembly/client';
 
-const APP_ID = 'ab879134-62e9-4b50-b558-3e7eaa7563b6';
-
 interface NotificationContent {
   inProduct: { title: string; body?: string };
 }
@@ -17,6 +15,7 @@ interface NotificationContent {
  * Resolves senderId from the first internal user found in the workspace.
  */
 export async function notifyClientsAbout(
+  token: string,
   companyId: string,
   content: NotificationContent,
 ): Promise<void> {
@@ -41,14 +40,11 @@ export async function notifyClientsAbout(
     clients
       .filter((c) => c.id)
       .map((c) =>
-        createNotification({
+        createNotification(token, {
           senderId,
-          appId: APP_ID,
           recipientClientId: c.id!,
           recipientCompanyId: companyId,
-          deliveryTargets: {
-            inProduct: content.inProduct,
-          },
+          deliveryTargets: { inProduct: content.inProduct },
         }),
       ),
   );
@@ -62,6 +58,7 @@ export async function notifyClientsAbout(
  * Requires a senderId — the Assembly client ID of whoever triggered the action.
  */
 export async function notifyInternalUsersAbout(
+  token: string,
   senderId: string,
   content: NotificationContent,
 ): Promise<void> {
@@ -74,19 +71,16 @@ export async function notifyInternalUsersAbout(
     return;
   }
 
-  // DEBUG: target single known user
-  const DEBUG_USER_ID = 'c3d094ff-07ce-4e9b-8087-475202b2decf';
   const results = await Promise.allSettled(
-    [{ id: DEBUG_USER_ID }].map((u) =>
-      createNotification({
-        senderId,
-        appId: APP_ID,
-        recipientInternalUserId: u.id,
-        deliveryTargets: {
-          inProduct: content.inProduct,
-        },
-      }),
-    ),
+    users
+      .filter((u) => u.id)
+      .map((u) =>
+        createNotification(token, {
+          senderId,
+          recipientInternalUserId: u.id,
+          deliveryTargets: { inProduct: content.inProduct },
+        }),
+      ),
   );
 
   const failed = results.filter((r) => r.status === 'rejected').length;

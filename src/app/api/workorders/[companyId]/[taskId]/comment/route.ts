@@ -12,8 +12,8 @@ export async function POST(
 ) {
   const { companyId, taskId } = await params;
   const body = await req.json();
-  const { text, authorName, isInternal, senderId } = body;
-  console.log(`[comment] companyId=${companyId} taskId=${taskId} isInternal=${isInternal} senderId=${senderId} text="${text?.slice(0, 30)}"`);
+  const { text, authorName, isInternal, senderId, token } = body;
+  console.log(`[comment] companyId=${companyId} taskId=${taskId} isInternal=${isInternal} senderId=${senderId} hasToken=${!!token} text="${text?.slice(0, 30)}"`);
   const key = process.env.CLICKUP_KEY;
 
   if (!key) return Response.json({ success: false }, { status: 500 });
@@ -51,22 +51,26 @@ export async function POST(
   // Notify the other party
   const truncated = comment.text.length > 80 ? comment.text.slice(0, 80) + '…' : comment.text;
 
-  if (isInternal) {
-    await notifyClientsAbout(companyId, {
-      inProduct: {
-        title: 'New comment from MM Team',
-        body: truncated,
-      },
-    });
-  } else if (senderId) {
-    await notifyInternalUsersAbout(senderId as string, {
-      inProduct: {
-        title: `${displayName} left a comment`,
-        body: truncated,
-      },
-    });
+  if (token) {
+    if (isInternal) {
+      await notifyClientsAbout(token, companyId, {
+        inProduct: {
+          title: 'New comment from MM Team',
+          body: truncated,
+        },
+      });
+    } else if (senderId) {
+      await notifyInternalUsersAbout(token, senderId as string, {
+        inProduct: {
+          title: `${displayName} left a comment`,
+          body: truncated,
+        },
+      });
+    } else {
+      console.warn(`[notify] customer comment — no senderId, skipping notification (companyId=${companyId})`);
+    }
   } else {
-    console.warn(`[notify] customer comment — no senderId, skipping notification (companyId=${companyId})`);
+    console.warn(`[notify] comment — no token, skipping notification`);
   }
 
   return Response.json({ success: true, comment, clickupOk: clickupRes.ok });

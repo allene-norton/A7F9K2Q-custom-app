@@ -15,7 +15,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const { assessmentId, items, senderId } = await req.json();
+  const { assessmentId, items, senderId, token } = await req.json();
   const key = process.env.CLICKUP_KEY;
 
   if (!key) {
@@ -185,8 +185,8 @@ export async function POST(
       ),
     ]);
   }
-  if (failed === 0 && senderId) {
-    await notifyInternalUsersAbout(senderId, {
+  if (failed === 0 && senderId && token) {
+    await notifyInternalUsersAbout(token, senderId, {
       inProduct: {
         title: `${assessmentData.companyName} submitted their assessment`,
         body: `${assessmentData.assessmentName} has been submitted. Work orders have been created in ClickUp.`,

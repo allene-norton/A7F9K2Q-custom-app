@@ -322,6 +322,7 @@ function CustomerPageInner() {
           assessmentId: selectedAssessment.assessmentId,
           items: payload,
           senderId: clientId ?? undefined,
+          token,
         }),
       });
       const data = await res.json();
@@ -522,6 +523,7 @@ function CustomerPageInner() {
           mode="customer"
           authorName={companyName}
           senderId={clientId ?? undefined}
+          token={token}
         />
       ) : (
         <>

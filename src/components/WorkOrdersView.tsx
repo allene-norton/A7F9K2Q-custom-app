@@ -46,6 +46,7 @@ interface WorkOrdersViewProps {
   authorName?: string; // customer's display name (customer mode)
   breadcrumbs?: React.ReactNode; // optional breadcrumb nav (internal mode)
   senderId?: string; // Assembly client ID of the current user (customer mode only)
+  token?: string; // session token for Assembly SDK notifications
 }
 
 // ─── Comment Box ──────────────────────────────────────────────────────────────
@@ -56,11 +57,12 @@ interface CommentBoxProps {
   isInternal: boolean;
   authorName: string;
   senderId?: string;
+  token?: string;
   onPosted: (comment: StoredComment) => void;
   onCancel?: () => void;
 }
 
-function CommentBox({ taskId, companyId, isInternal, authorName, senderId, onPosted, onCancel }: CommentBoxProps) {
+function CommentBox({ taskId, companyId, isInternal, authorName, senderId, token, onPosted, onCancel }: CommentBoxProps) {
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
@@ -73,7 +75,7 @@ function CommentBox({ taskId, companyId, isInternal, authorName, senderId, onPos
       const res = await fetch(`/api/workorders/${companyId}/${taskId}/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: text.trim(), authorName, isInternal, senderId }),
+        body: JSON.stringify({ text: text.trim(), authorName, isInternal, senderId, token }),
       });
       const data = await res.json();
       if (res.ok && data.comment) {
@@ -130,9 +132,10 @@ interface InternalCardProps {
   item: WorkOrderItem;
   index: number;
   companyId: string;
+  token?: string;
 }
 
-function InternalCard({ item, index, companyId }: InternalCardProps) {
+function InternalCard({ item, index, companyId, token }: InternalCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [comments, setComments] = useState<StoredComment[]>(item.thread ?? []);
 
@@ -243,6 +246,7 @@ function InternalCard({ item, index, companyId }: InternalCardProps) {
             companyId={companyId}
             isInternal={true}
             authorName="MM Team"
+            token={token}
             onPosted={(c) => setComments((prev) => [...prev, c])}
           />
         </div>
@@ -258,11 +262,12 @@ interface CustomerModalProps {
   companyId: string;
   authorName: string;
   senderId?: string;
+  token?: string;
   onCommentPosted: (itemId: string, comment: StoredComment) => void;
   onClose: () => void;
 }
 
-function CustomerModal({ item, companyId, authorName, senderId, onCommentPosted, onClose }: CustomerModalProps) {
+function CustomerModal({ item, companyId, authorName, senderId, token, onCommentPosted, onClose }: CustomerModalProps) {
   const [activeImage, setActiveImage] = useState(0);
   const [comments, setComments] = useState<StoredComment[]>(item.thread ?? []);
   const [showComment, setShowComment] = useState(false);
@@ -371,6 +376,7 @@ function CustomerModal({ item, companyId, authorName, senderId, onCommentPosted,
               isInternal={false}
               authorName={authorName}
               senderId={senderId}
+              token={token}
               onPosted={(c) => {
                 setComments((prev) => [...prev, c]);
                 setShowComment(false);
@@ -403,7 +409,7 @@ function CustomerModal({ item, companyId, authorName, senderId, onCommentPosted,
 
 // ─── Main WorkOrdersView ──────────────────────────────────────────────────────
 
-export default function WorkOrdersView({ companyId, companyName, mode, authorName = 'Customer', breadcrumbs, senderId }: WorkOrdersViewProps) {
+export default function WorkOrdersView({ companyId, companyName, mode, authorName = 'Customer', breadcrumbs, senderId, token }: WorkOrdersViewProps) {
   const [items, setItems] = useState<WorkOrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeBucket, setActiveBucket] = useState<StatusBucket>('Pending & In Progress');
@@ -709,7 +715,7 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
       <div className="space-y-3">
         {filteredAndSortedItems.map((item, index) =>
           mode === 'internal' ? (
-            <InternalCard key={item.id} item={item} index={index} companyId={companyId} />
+            <InternalCard key={item.id} item={item} index={index} companyId={companyId} token={token} />
           ) : (
             <button
               key={item.id}
@@ -802,6 +808,7 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
           companyId={companyId}
           authorName={authorName}
           senderId={senderId}
+          token={token}
           onCommentPosted={(itemId, comment) => {
             setItems((prev) =>
               prev.map((i) =>

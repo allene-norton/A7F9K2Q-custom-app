@@ -10,6 +10,7 @@ export async function POST(
   const rawName: string = body.assessmentName ?? 'Assessment';
   const assessmentName = rawName.replace(/\s*[—–-]+\s*approval needed\s*$/i, '').trim();
   const companyName: string = body.companyName ?? 'Your company';
+  const token: string | undefined = body.token;
 
   await appendAssessment(id, {
     assessmentId: body.assessmentId ?? `assess_${id}_${Date.now()}`,
@@ -21,7 +22,7 @@ export async function POST(
     isHourly: body.isHourly ?? false,
   });
 
-  await notifyClientsAbout(id, {
+  if (token) await notifyClientsAbout(token, id, {
     inProduct: {
       title: 'New Assessment Ready for Review',
       body: `${assessmentName} has been sent for your review.`,

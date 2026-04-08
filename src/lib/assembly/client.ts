@@ -52,7 +52,7 @@ export interface ListCompaniesResponse {
 export interface UpdateClientRequest {
   givenName?: string;
   familyName?: string;
-  customFields?: string; 
+  customFields?: string;
 }
 
 export interface CustomFieldsData {
@@ -267,7 +267,7 @@ function createSDK(token: string) {
 export async function listClients(
   token?: string,
 ): Promise<ListClientsResponse> {
-    // console.log(`-----------APP KEY`, process.env.COPILOT_API_KEY)
+  // console.log(`-----------APP KEY`, process.env.COPILOT_API_KEY)
 
   try {
     if (isDev) {
@@ -314,7 +314,7 @@ export async function listClients(
 export async function listCompanies(
   token?: string,
 ): Promise<ListCompaniesResponse> {
-    // console.log(`-----------APP KEY`, process.env.COPILOT_API_KEY)
+  // console.log(`-----------APP KEY`, process.env.COPILOT_API_KEY)
 
   try {
     if (isDev) {
@@ -345,20 +345,27 @@ export async function listCompanies(
       // console.log(token)
 
       const sdk = createSDK(token);
-      const companies = await sdk.listCompanies({ limit: 50, isPlaceholder: false});
+      const companies = await sdk.listCompanies({
+        limit: 50,
+        isPlaceholder: false,
+      });
       revalidatePath('/internal');
       return companies as ListCompaniesResponse;
     }
   } catch (error) {
     console.error('Error fetching companies:', error);
     throw new Error(
-      error instanceof Error ? error.message : 'Failed to fetch companies'
+      error instanceof Error ? error.message : 'Failed to fetch companies',
     );
   }
 }
 
 // updateClient action
-export async function updateClient(clientId: string, body: UpdateClientRequest, token?: string) {
+export async function updateClient(
+  clientId: string,
+  body: UpdateClientRequest,
+  token?: string,
+) {
   try {
     if (isDev) {
       // Dev mode: use Assembly API directly
@@ -371,7 +378,7 @@ export async function updateClient(clientId: string, body: UpdateClientRequest, 
         headers: {
           'X-API-KEY': assemblyApiKey,
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -388,7 +395,10 @@ export async function updateClient(clientId: string, body: UpdateClientRequest, 
       }
 
       const sdk = createSDK(token);
-      const updatedClient = await sdk.updateClient({id: clientId, requestBody: body})
+      const updatedClient = await sdk.updateClient({
+        id: clientId,
+        requestBody: body,
+      });
       revalidatePath('/internal');
       return { success: true, data: updatedClient as Client };
     }
@@ -538,7 +548,7 @@ export async function listFileChannels(token?: string) {
   try {
     if (isDev) {
       // Dev mode: use Assembly API directly
-      console.log(`using dev mode with key:`, process.env.ASSEMBLY_API_KEY)
+      console.log(`using dev mode with key:`, process.env.ASSEMBLY_API_KEY);
       if (!assemblyApiKey) {
         throw new Error('ASSEMBLY_API_KEY is required for dev mode');
       }
@@ -982,7 +992,7 @@ export interface InternalUser {
   role?: string;
 }
 
-// List clients belonging to a specific company (direct fetch — SDK requires user token)
+// List clients belonging to a specific company
 export async function listClientsByCompany(companyId: string): Promise<Client[]> {
   if (!copilotApiKey) return [];
   try {
@@ -1003,10 +1013,9 @@ export async function listClientsByCompany(companyId: string): Promise<Client[]>
 export async function listAllInternalUsers(): Promise<InternalUser[]> {
   if (!copilotApiKey) return [];
   try {
-    const res = await fetch(
-      `${ASSEMBLY_BASE_URI}/internal-users?limit=100`,
-      { headers: { 'X-API-KEY': copilotApiKey } },
-    );
+    const res = await fetch(`${ASSEMBLY_BASE_URI}/internal-users?limit=100`, {
+      headers: { 'X-API-KEY': copilotApiKey },
+    });
     if (!res.ok) throw new Error(`listAllInternalUsers ${res.status}`);
     const data = await res.json();
     return data?.data ?? [];
@@ -1016,37 +1025,26 @@ export async function listAllInternalUsers(): Promise<InternalUser[]> {
   }
 }
 
-// Create a single notification
-export async function createNotification(requestBody: {
-  senderId: string;
-  appId?: string;
-  recipientClientId?: string;
-  recipientCompanyId?: string;
-  recipientInternalUserId?: string;
-  deliveryTargets?: {
-    inProduct?: { title: string; body?: string; ctaParams?: Record<string, string> };
-  };
-}): Promise<void> {
-  if (!copilotApiKey) return;
+// Create a single notification using the SDK (requires a valid user session token)
+export async function createNotification(
+  token: string,
+  requestBody: {
+    senderId: string;
+    recipientClientId?: string;
+    recipientCompanyId?: string;
+    recipientInternalUserId?: string;
+    deliveryTargets?: {
+      inProduct?: { title: string; body?: string };
+    };
+  },
+): Promise<void> {
   const recipient = requestBody.recipientClientId ?? requestBody.recipientInternalUserId;
-  const bodyStr = JSON.stringify(requestBody);
-  console.log(`[notify] createNotification sending — recipient=${recipient} body=${bodyStr}`);
+  console.log(`[notify] createNotification sending — recipient=${recipient}`);
   try {
-    const res = await fetch(`${ASSEMBLY_BASE_URI}/notifications`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${copilotApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: bodyStr,
-    });
-    const resBody = await res.text();
-    if (!res.ok) {
-      console.error(`[notify] createNotification ${res.status} — recipient=${recipient} body=${resBody}`);
-    } else {
-      console.log(`[notify] createNotification ok — recipient=${recipient}`);
-    }
-  } catch (error) {
-    console.error(`[notify] createNotification error — recipient=${recipient}:`, error);
+    const sdk = createSDK(token);
+    await sdk.createNotification({ requestBody });
+    console.log(`[notify] createNotification ok — recipient=${recipient}`);
+  } catch (error: any) {
+    console.error(`[notify] createNotification failed — recipient=${recipient}:`, error?.body ?? error?.message ?? error);
   }
 }

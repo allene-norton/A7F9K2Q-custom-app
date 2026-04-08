@@ -303,6 +303,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
             companyId={companyId}
             companyName={selectedCompany ? companyName : undefined}
             mode="internal"
+            token={token ?? undefined}
             breadcrumbs={
               <nav className="flex items-center gap-2 text-sm mb-6">
                 <button
@@ -509,6 +510,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                       ? HOURLY_SPACE_ID
                       : undefined
                 }
+                token={token ?? undefined}
               />
             )}
           </>
