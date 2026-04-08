@@ -61,7 +61,7 @@ export async function POST(
       },
     }).catch(() => {});
   } else if (senderId) {
-    notifyInternalUsersAbout(senderId, companyId, {
+    notifyInternalUsersAbout(senderId as string, companyId, {
       inProduct: {
         title: `${displayName} left a comment`,
         body: truncated,
@@ -71,6 +71,8 @@ export async function POST(
         body: truncated,
       },
     }).catch(() => {});
+  } else {
+    console.warn(`[notify] customer comment — no senderId, skipping notification (companyId=${companyId})`);
   }
 
   return Response.json({ success: true, comment, clickupOk: clickupRes.ok });

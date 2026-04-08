@@ -1024,7 +1024,8 @@ export async function createNotification(requestBody: {
   try {
     const sdk = copilotApi({ apiKey: copilotApiKey });
     await sdk.createNotification({ requestBody });
+    console.log(`[notify] createNotification ok — recipient=${requestBody.recipientClientId ?? requestBody.recipientInternalUserId}`);
   } catch (error) {
-    console.error('Error creating notification:', error);
+    console.error('[notify] createNotification failed:', JSON.stringify(requestBody), error);
   }
 }

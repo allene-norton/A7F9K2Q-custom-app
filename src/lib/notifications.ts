@@ -24,10 +24,19 @@ export async function notifyClientsAbout(
     listAllInternalUsers(),
   ]);
 
-  const senderId = internalUsers[0]?.id;
-  if (!senderId || clients.length === 0) return;
+  console.log(`[notify] notifyClientsAbout companyId=${companyId} clients=${clients.length} internalUsers=${internalUsers.length}`);
 
-  await Promise.allSettled(
+  const senderId = internalUsers[0]?.id;
+  if (!senderId) {
+    console.error('[notify] notifyClientsAbout: no internal users found to use as senderId');
+    return;
+  }
+  if (clients.length === 0) {
+    console.error(`[notify] notifyClientsAbout: no clients found for companyId=${companyId}`);
+    return;
+  }
+
+  const results = await Promise.allSettled(
     clients
       .filter((c) => c.id)
       .map((c) =>
@@ -42,6 +51,9 @@ export async function notifyClientsAbout(
         }),
       ),
   );
+
+  const failed = results.filter((r) => r.status === 'rejected').length;
+  console.log(`[notify] notifyClientsAbout: sent=${results.length - failed} failed=${failed}`);
 }
 
 /**
@@ -54,9 +66,15 @@ export async function notifyInternalUsersAbout(
   content: NotificationContent,
 ): Promise<void> {
   const users = await listAllInternalUsers();
-  if (users.length === 0) return;
 
-  await Promise.allSettled(
+  console.log(`[notify] notifyInternalUsersAbout senderId=${senderId} senderCompanyId=${senderCompanyId} users=${users.length}`);
+
+  if (users.length === 0) {
+    console.error('[notify] notifyInternalUsersAbout: no internal users found');
+    return;
+  }
+
+  const results = await Promise.allSettled(
     users
       .filter((u) => u.id)
       .map((u) =>
@@ -71,4 +89,7 @@ export async function notifyInternalUsersAbout(
         }),
       ),
   );
+
+  const failed = results.filter((r) => r.status === 'rejected').length;
+  console.log(`[notify] notifyInternalUsersAbout: sent=${results.length - failed} failed=${failed}`);
 }
