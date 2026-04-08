@@ -27,10 +27,6 @@ export async function POST(
       title: 'New Assessment Ready for Review',
       body: `${assessmentName} has been sent for your review.`,
     },
-    email: {
-      subject: 'New Assessment Ready for Review',
-      body: `A new assessment has been shared with you: ${assessmentName}. Please log in to review and submit your selections.`,
-    },
   }).catch(() => {});
 
   return Response.json({ success: true });

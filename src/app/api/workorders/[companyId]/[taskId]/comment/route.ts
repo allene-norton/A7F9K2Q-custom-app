@@ -55,19 +55,11 @@ export async function POST(
         title: 'New comment from MM Team',
         body: truncated,
       },
-      email: {
-        subject: 'New comment from MM Team',
-        body: truncated,
-      },
     }).catch(() => {});
   } else if (senderId) {
     notifyInternalUsersAbout(senderId as string, companyId, {
       inProduct: {
         title: `${displayName} left a comment`,
-        body: truncated,
-      },
-      email: {
-        subject: `New comment from ${displayName}`,
         body: truncated,
       },
     }).catch(() => {});

@@ -8,7 +8,6 @@ import {
 
 interface NotificationContent {
   inProduct: { title: string; body?: string };
-  email?: { subject?: string; body?: string };
 }
 
 /**
@@ -46,7 +45,6 @@ export async function notifyClientsAbout(
           recipientCompanyId: companyId,
           deliveryTargets: {
             inProduct: content.inProduct,
-            ...(content.email ? { email: content.email } : {}),
           },
         }),
       ),
@@ -84,7 +82,6 @@ export async function notifyInternalUsersAbout(
           recipientInternalUserId: u.id,
           deliveryTargets: {
             inProduct: content.inProduct,
-            ...(content.email ? { email: content.email } : {}),
           },
         }),
       ),

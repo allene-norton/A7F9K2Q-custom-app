@@ -191,10 +191,6 @@ export async function POST(
         title: `${assessmentData.companyName} submitted their assessment`,
         body: `${assessmentData.assessmentName} has been submitted. Work orders have been created in ClickUp.`,
       },
-      email: {
-        subject: `Assessment submitted by ${assessmentData.companyName}`,
-        body: `${assessmentData.companyName} has submitted their selections for ${assessmentData.assessmentName}. Work orders have been created in ClickUp.`,
-      },
     }).catch(() => {});
   }
 
