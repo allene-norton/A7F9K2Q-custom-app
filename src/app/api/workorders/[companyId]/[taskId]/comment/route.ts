@@ -47,18 +47,28 @@ export async function POST(
   }
 
   // Notify the other party — fire without blocking
+  const truncated = comment.text.length > 80 ? comment.text.slice(0, 80) + '…' : comment.text;
+
   if (isInternal) {
     notifyClientsAbout(companyId, {
       inProduct: {
         title: 'New comment from MM Team',
-        body: comment.text.length > 80 ? comment.text.slice(0, 80) + '…' : comment.text,
+        body: truncated,
+      },
+      email: {
+        subject: 'New comment from MM Team',
+        body: truncated,
       },
     }).catch(() => {});
   } else if (senderId) {
     notifyInternalUsersAbout(senderId, companyId, {
       inProduct: {
         title: `${displayName} left a comment`,
-        body: comment.text.length > 80 ? comment.text.slice(0, 80) + '…' : comment.text,
+        body: truncated,
+      },
+      email: {
+        subject: `New comment from ${displayName}`,
+        body: truncated,
       },
     }).catch(() => {});
   }
