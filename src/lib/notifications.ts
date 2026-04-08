@@ -6,8 +6,10 @@ import {
   createNotification,
 } from './assembly/client';
 
+const APP_URL = process.env.APP_URL ?? '';
+
 interface NotificationContent {
-  inProduct: { title: string; body?: string };
+  inProduct: { title: string; body?: string; ctaParams?: string };
 }
 
 /**
@@ -44,7 +46,7 @@ export async function notifyClientsAbout(
           recipientClientId: c.id!,
           recipientCompanyId: companyId,
           deliveryTargets: {
-            inProduct: content.inProduct,
+            inProduct: { ...content.inProduct, ctaParams: `${APP_URL}/customer` },
           },
         }),
       ),
@@ -79,7 +81,7 @@ export async function notifyInternalUsersAbout(
           senderId,
           recipientInternalUserId: u.id,
           deliveryTargets: {
-            inProduct: content.inProduct,
+            inProduct: { ...content.inProduct, ctaParams: `${APP_URL}/internal` },
           },
         }),
       ),

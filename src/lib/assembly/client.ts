@@ -1030,7 +1030,7 @@ export async function createNotification(requestBody: {
   recipientCompanyId?: string;
   recipientInternalUserId?: string;
   deliveryTargets?: {
-    inProduct?: { title: string; body?: string };
+    inProduct?: { title: string; body?: string; ctaParams?: string };
   };
 }): Promise<void> {
   if (!copilotApiKey) return;
