@@ -258,10 +258,11 @@ interface CustomerModalProps {
   companyId: string;
   authorName: string;
   senderId?: string;
+  onCommentPosted: (itemId: string, comment: StoredComment) => void;
   onClose: () => void;
 }
 
-function CustomerModal({ item, companyId, authorName, senderId, onClose }: CustomerModalProps) {
+function CustomerModal({ item, companyId, authorName, senderId, onCommentPosted, onClose }: CustomerModalProps) {
   const [activeImage, setActiveImage] = useState(0);
   const [comments, setComments] = useState<StoredComment[]>(item.thread ?? []);
   const [showComment, setShowComment] = useState(false);
@@ -373,6 +374,7 @@ function CustomerModal({ item, companyId, authorName, senderId, onClose }: Custo
               onPosted={(c) => {
                 setComments((prev) => [...prev, c]);
                 setShowComment(false);
+                onCommentPosted(item.id, c);
               }}
               onCancel={() => setShowComment(false)}
             />
@@ -800,6 +802,20 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
           companyId={companyId}
           authorName={authorName}
           senderId={senderId}
+          onCommentPosted={(itemId, comment) => {
+            setItems((prev) =>
+              prev.map((i) =>
+                i.id === itemId
+                  ? { ...i, thread: [...(i.thread ?? []), comment] }
+                  : i,
+              ),
+            );
+            setActiveItem((prev) =>
+              prev?.id === itemId
+                ? { ...prev, thread: [...(prev.thread ?? []), comment] }
+                : prev,
+            );
+          }}
           onClose={() => setActiveItem(null)}
         />
       )}
