@@ -1024,13 +1024,13 @@ export async function listAllInternalUsers(): Promise<InternalUser[]> {
 
 // Create a single notification
 export async function createNotification(requestBody: {
-  senderId?: string;
-  senderCompanyId?: string;
+  senderId: string;
+  appId?: string;
   recipientClientId?: string;
   recipientCompanyId?: string;
   recipientInternalUserId?: string;
   deliveryTargets?: {
-    inProduct?: { title: string; body?: string; ctaParams?: string };
+    inProduct?: { title: string; body?: string; ctaParams?: Record<string, string> };
   };
 }): Promise<void> {
   if (!copilotApiKey) return;

@@ -6,10 +6,10 @@ import {
   createNotification,
 } from './assembly/client';
 
-const APP_URL = process.env.APP_URL ?? '';
+const APP_ID = 'ab879134-62e9-4b50-b558-3e7eaa7563b6';
 
 interface NotificationContent {
-  inProduct: { title: string; body?: string; ctaParams?: string };
+  inProduct: { title: string; body?: string };
 }
 
 /**
@@ -43,10 +43,11 @@ export async function notifyClientsAbout(
       .map((c) =>
         createNotification({
           senderId,
+          appId: APP_ID,
           recipientClientId: c.id!,
           recipientCompanyId: companyId,
           deliveryTargets: {
-            inProduct: { ...content.inProduct, ctaParams: `${APP_URL}/customer` },
+            inProduct: content.inProduct,
           },
         }),
       ),
@@ -78,9 +79,11 @@ export async function notifyInternalUsersAbout(
       .filter((u) => u.id)
       .map((u) =>
         createNotification({
+          senderId,
+          appId: APP_ID,
           recipientInternalUserId: u.id,
           deliveryTargets: {
-            inProduct: { title: content.inProduct.title, body: content.inProduct.body },
+            inProduct: content.inProduct,
           },
         }),
       ),
