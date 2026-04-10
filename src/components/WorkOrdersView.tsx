@@ -496,6 +496,9 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Use externally-managed unread state when provided (customer mode with parent ownership)
+  const effectiveUnreadTaskIds = externalUnreadTaskIds ?? unreadTaskIds;
+
   // Derive unique tags
   const itemTags = useMemo(() => {
     const seen = new Set<string>();
@@ -626,9 +629,6 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
       </div>
     );
   }
-
-  // Use externally-managed unread state when provided (customer mode with parent ownership)
-  const effectiveUnreadTaskIds = externalUnreadTaskIds ?? unreadTaskIds;
 
   return (
     <div className={containerClass}>
