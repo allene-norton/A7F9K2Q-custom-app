@@ -556,7 +556,7 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
     } else if (sortOption === 'date-old') {
       result.sort((a, b) => (a.created_date ?? '').localeCompare(b.created_date ?? ''));
     } else {
-      // default: most recent first
+      // default: most recently created first; status-changed items float to top via unread logic below
       result.sort((a, b) => (b.created_date ?? '').localeCompare(a.created_date ?? ''));
     }
 

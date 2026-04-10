@@ -33,6 +33,7 @@ export interface AssessmentItem {
   tags: Array<{ name: string; fg: string; bg: string }>;
   comments: string;
   created_date: string;
+  updated_date: string;
   technician: string;
 }
 

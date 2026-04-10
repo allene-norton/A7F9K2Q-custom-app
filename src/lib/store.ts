@@ -135,6 +135,22 @@ export async function clearUnreadInternalTask(companyId: string, taskId: string)
   await redis.srem(`unread_internal_tasks:${companyId}`, taskId);
 }
 
+// ─── Task Status Change Tracking ──────────────────────────────────────────────
+
+export async function getTaskStatuses(taskIds: string[]): Promise<Map<string, string>> {
+  if (taskIds.length === 0) return new Map();
+  const values = await redis.mget<(string | null)[]>(...taskIds.map((id) => `task_status:${id}`));
+  const map = new Map<string, string>();
+  taskIds.forEach((id, i) => {
+    if (values[i] != null) map.set(id, values[i] as string);
+  });
+  return map;
+}
+
+export async function setTaskStatus(taskId: string, status: string): Promise<void> {
+  await redis.set(`task_status:${taskId}`, status);
+}
+
 // ─── Work Order → Company Reverse Lookup ──────────────────────────────────────
 
 export async function setWorkOrderCompany(taskId: string, companyId: string): Promise<void> {

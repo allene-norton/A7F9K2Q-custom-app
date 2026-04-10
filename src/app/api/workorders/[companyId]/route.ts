@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getWorkOrderRefs, getAssessmentsForCompany, getTaskComments } from '@/lib/store';
+import { getWorkOrderRefs, getAssessmentsForCompany, getTaskComments, getTaskStatuses, setTaskStatus, addUnreadTask } from '@/lib/store';
 import { hexToRgba } from '@/lib/utils';
 import { findMatchingFolder, getFolderLists } from '@/lib/clickup/clickup_actions';
 
@@ -28,6 +28,9 @@ function formatTask(task: any) {
     technician: task.assignees?.[0]?.username ?? '',
     created_date: task.date_created
       ? new Date(parseInt(task.date_created)).toISOString().split('T')[0]
+      : '',
+    updated_date: task.date_updated
+      ? new Date(parseInt(task.date_updated)).toISOString().split('T')[0]
       : '',
     comments: '',
     thread: [],
@@ -122,5 +125,25 @@ export async function GET(
       return formatted;
     });
 
-  return Response.json({ items: await attachThreads(items) });
+  const itemsWithThreads = await attachThreads(items);
+
+  // Auto-detect status changes and mark unread for customer view
+  const storedStatuses = await getTaskStatuses(items.map((i) => i.id));
+  await Promise.all(
+    items.map(async (item) => {
+      const stored = storedStatuses.get(item.id);
+      if (stored === undefined) {
+        // First time seeing this task — store status, don't mark unread
+        await setTaskStatus(item.id, item.status);
+      } else if (stored !== item.status) {
+        // Status changed — mark unread and update stored status
+        await Promise.all([
+          addUnreadTask(companyId, item.id),
+          setTaskStatus(item.id, item.status),
+        ]);
+      }
+    }),
+  );
+
+  return Response.json({ items: itemsWithThreads });
 }
