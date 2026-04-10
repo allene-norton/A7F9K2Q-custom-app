@@ -92,6 +92,10 @@ export async function copyTaskComments(fromTaskId: string, toTaskId: string): Pr
 
 // ─── Unread Notification Tracking ─────────────────────────────────────────────
 
+export async function addUnreadTask(companyId: string, taskId: string): Promise<void> {
+  await redis.sadd(`unread_tasks:${companyId}`, taskId);
+}
+
 export async function addUnreadNotification(companyId: string, taskId: string, notificationId: string): Promise<void> {
   await Promise.all([
     redis.sadd(`unread_tasks:${companyId}`, taskId),

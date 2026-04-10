@@ -6,7 +6,7 @@ import {
   createNotification,
   createNotificationServerSide,
 } from './assembly/client';
-import { addUnreadNotification, appendInternalNotification, InternalNotificationEntry } from './store';
+import { addUnreadTask, addUnreadNotification, appendInternalNotification, InternalNotificationEntry } from './store';
 
 interface NotificationContent {
   inProduct: { title: string; body?: string };
@@ -74,6 +74,11 @@ export async function notifyClientsServerSide(
   content: NotificationContent,
   taskId?: string,
 ): Promise<void> {
+  // Always mark unread in Redis first — badge works even if Assembly notification fails
+  if (taskId) {
+    await addUnreadTask(companyId, taskId);
+  }
+
   const [clients, internalUsers] = await Promise.all([
     listClientsByCompany(companyId),
     listAllInternalUsers(),
@@ -81,7 +86,7 @@ export async function notifyClientsServerSide(
 
   const senderId = internalUsers[0]?.id;
   if (!senderId || clients.length === 0) {
-    console.error(`[notify] notifyClientsServerSide: no senderId or clients for companyId=${companyId}`);
+    console.log(`[notify] notifyClientsServerSide: skipping Assembly notification — no senderId or clients for companyId=${companyId}`);
     return;
   }
 
@@ -98,6 +103,7 @@ export async function notifyClientsServerSide(
       ),
   );
 
+  // Store notification IDs only when Assembly accepted them (for marking-read later)
   if (taskId) {
     for (const result of results) {
       if (result.status === 'fulfilled' && result.value) {
@@ -106,8 +112,8 @@ export async function notifyClientsServerSide(
     }
   }
 
-  const failed = results.filter((r) => r.status === 'rejected').length;
-  console.log(`[notify] notifyClientsServerSide: sent=${results.length - failed} failed=${failed}`);
+  const succeeded = results.filter((r) => r.status === 'fulfilled' && r.value).length;
+  console.log(`[notify] notifyClientsServerSide: assembly=${succeeded}/${results.length} redis=updated`);
 }
 
 /**
