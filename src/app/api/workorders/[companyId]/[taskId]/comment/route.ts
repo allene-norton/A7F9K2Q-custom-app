@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { appendTaskComment } from '@/lib/store';
+import { appendTaskComment, addUnreadInternalTask } from '@/lib/store';
 import { StoredComment } from '@/types/types-index';
 import { notifyClientsAbout, notifyInternalUsersAbout } from '@/lib/notifications';
 
@@ -46,6 +46,11 @@ export async function POST(
   if (!clickupRes.ok) {
     const errBody = await clickupRes.text();
     console.error(`ClickUp comment sync failed for task ${taskId}: ${clickupRes.status} ${errBody}`);
+  }
+
+  // Track unread for internal users when a customer posts
+  if (!isInternal) {
+    await addUnreadInternalTask(companyId, taskId);
   }
 
   // Notify the other party

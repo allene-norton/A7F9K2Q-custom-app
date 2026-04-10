@@ -109,6 +109,21 @@ export async function clearUnreadTask(companyId: string, taskId: string): Promis
   ]);
 }
 
+// ─── Unread Tracking (internal users — customer comment posted) ───────────────
+
+export async function addUnreadInternalTask(companyId: string, taskId: string): Promise<void> {
+  await redis.sadd(`unread_internal_tasks:${companyId}`, taskId);
+}
+
+export async function getUnreadInternalTaskIds(companyId: string): Promise<string[]> {
+  const members = await redis.smembers(`unread_internal_tasks:${companyId}`);
+  return members as string[];
+}
+
+export async function clearUnreadInternalTask(companyId: string, taskId: string): Promise<void> {
+  await redis.srem(`unread_internal_tasks:${companyId}`, taskId);
+}
+
 // ─── Internal Notification Activity Log ───────────────────────────────────────
 
 export interface InternalNotificationEntry {

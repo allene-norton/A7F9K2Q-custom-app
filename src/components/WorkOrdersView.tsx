@@ -134,16 +134,27 @@ interface InternalCardProps {
   index: number;
   companyId: string;
   token?: string;
+  isUnread?: boolean;
+  onMarkRead?: () => void;
 }
 
-function InternalCard({ item, index, companyId, token }: InternalCardProps) {
+function InternalCard({ item, index, companyId, token, isUnread, onMarkRead }: InternalCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [comments, setComments] = useState<StoredComment[]>(item.thread ?? []);
 
+  const handleClick = () => {
+    setExpanded((v) => !v);
+    if (isUnread && onMarkRead) {
+      onMarkRead();
+    }
+  };
+
   return (
     <div
-      className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden transition-shadow hover:shadow-lg cursor-pointer"
-      onClick={() => setExpanded((v) => !v)}
+      className={`bg-white border-2 rounded-xl overflow-hidden transition-shadow hover:shadow-lg cursor-pointer ${
+        isUnread ? 'border-[#174887]' : 'border-gray-200'
+      }`}
+      onClick={handleClick}
     >
       <div className="p-6">
         <div className="flex gap-6">
@@ -171,6 +182,11 @@ function InternalCard({ item, index, companyId, token }: InternalCardProps) {
                 <div className="flex items-center gap-3 mb-2">
                   <span className="text-sm font-semibold text-gray-500">#{index + 1}</span>
                   <span className="text-sm text-gray-600 font-medium">{item.location}</span>
+                  {isUnread && (
+                    <span className="px-2 py-0.5 text-xs font-bold rounded-full text-white" style={{ backgroundColor: '#174887' }}>
+                      New
+                    </span>
+                  )}
                 </div>
                 <h4 className="text-lg font-bold text-gray-900 mb-2">{item.issue}</h4>
                 {item.description && (
@@ -416,6 +432,7 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
   const [items, setItems] = useState<WorkOrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadTaskIds, setUnreadTaskIds] = useState<Set<string>>(new Set());
+  const [unreadInternalTaskIds, setUnreadInternalTaskIds] = useState<Set<string>>(new Set());
   const [activeBucket, setActiveBucket] = useState<StatusBucket>('Pending & In Progress');
   const [activeItem, setActiveItem] = useState<WorkOrderItem | null>(null);
 
@@ -449,6 +466,15 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
     fetch(`/api/workorders/${companyId}/unread`)
       .then((r) => r.json())
       .then((data) => setUnreadTaskIds(new Set(data.taskIds ?? [])))
+      .catch(() => {});
+  }, [companyId, mode]);
+
+  // Fetch unread internal task IDs (internal mode only)
+  useEffect(() => {
+    if (mode !== 'internal') return;
+    fetch(`/api/workorders/${companyId}/unread-internal`)
+      .then((r) => r.json())
+      .then((data) => setUnreadInternalTaskIds(new Set(data.taskIds ?? [])))
       .catch(() => {});
   }, [companyId, mode]);
 
@@ -519,17 +545,23 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
       result.sort((a, b) => (URGENCY_ORDER[b.category] ?? 99) - (URGENCY_ORDER[a.category] ?? 99));
     }
 
-    // Unread items float to the top (customer mode)
+    // Unread items float to the top
     if (mode === 'customer' && unreadTaskIds.size > 0) {
       result.sort((a, b) => {
         const aUnread = unreadTaskIds.has(a.id) ? 0 : 1;
         const bUnread = unreadTaskIds.has(b.id) ? 0 : 1;
         return aUnread - bUnread;
       });
+    } else if (mode === 'internal' && unreadInternalTaskIds.size > 0) {
+      result.sort((a, b) => {
+        const aUnread = unreadInternalTaskIds.has(a.id) ? 0 : 1;
+        const bUnread = unreadInternalTaskIds.has(b.id) ? 0 : 1;
+        return aUnread - bUnread;
+      });
     }
 
     return result;
-  }, [items, activeBucket, categoryFilter, locationFilter, searchQuery, selectedTags, sortOption, unreadTaskIds, mode]);
+  }, [items, activeBucket, categoryFilter, locationFilter, searchQuery, selectedTags, sortOption, unreadTaskIds, unreadInternalTaskIds, mode]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -761,7 +793,18 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
       <div className="space-y-3">
         {filteredAndSortedItems.map((item, index) =>
           mode === 'internal' ? (
-            <InternalCard key={item.id} item={item} index={index} companyId={companyId} token={token} />
+            <InternalCard
+              key={item.id}
+              item={item}
+              index={index}
+              companyId={companyId}
+              token={token}
+              isUnread={unreadInternalTaskIds.has(item.id)}
+              onMarkRead={() => {
+                fetch(`/api/workorders/${companyId}/${item.id}/mark-internal-read`, { method: 'POST' }).catch(() => {});
+                setUnreadInternalTaskIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
+              }}
+            />
           ) : (
             <button
               key={item.id}

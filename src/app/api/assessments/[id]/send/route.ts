@@ -22,12 +22,17 @@ export async function POST(
     isHourly: body.isHourly ?? false,
   });
 
-  if (token) await notifyClientsAbout(token, id, {
-    inProduct: {
-      title: 'New Assessment Ready for Review',
-      body: `${assessmentName} has been sent for your review.`,
+  if (token) await notifyClientsAbout(
+    token,
+    id,
+    {
+      inProduct: {
+        title: 'New Assessment Ready for Review',
+        body: `${assessmentName} has been sent for your review.`,
+      },
     },
-  });
+    `assess:${id}`,
+  );
 
   return Response.json({ success: true });
 }
