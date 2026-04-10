@@ -4,6 +4,7 @@ import {
   listClientsByCompany,
   listAllInternalUsers,
   createNotification,
+  createNotificationServerSide,
 } from './assembly/client';
 import { addUnreadNotification, appendInternalNotification, InternalNotificationEntry } from './store';
 
@@ -62,6 +63,51 @@ export async function notifyClientsAbout(
 
   const failed = results.filter((r) => r.status === 'rejected').length;
   console.log(`[notify] notifyClientsAbout: sent=${results.length - failed} failed=${failed}`);
+}
+
+/**
+ * Notify all clients of a company using only the API key (no user token).
+ * Use this from webhook handlers and other server-side contexts without a session.
+ */
+export async function notifyClientsServerSide(
+  companyId: string,
+  content: NotificationContent,
+  taskId?: string,
+): Promise<void> {
+  const [clients, internalUsers] = await Promise.all([
+    listClientsByCompany(companyId),
+    listAllInternalUsers(),
+  ]);
+
+  const senderId = internalUsers[0]?.id;
+  if (!senderId || clients.length === 0) {
+    console.error(`[notify] notifyClientsServerSide: no senderId or clients for companyId=${companyId}`);
+    return;
+  }
+
+  const results = await Promise.allSettled(
+    clients
+      .filter((c) => c.id)
+      .map((c) =>
+        createNotificationServerSide({
+          senderId,
+          recipientClientId: c.id!,
+          recipientCompanyId: companyId,
+          deliveryTargets: { inProduct: content.inProduct },
+        }),
+      ),
+  );
+
+  if (taskId) {
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value) {
+        await addUnreadNotification(companyId, taskId, result.value);
+      }
+    }
+  }
+
+  const failed = results.filter((r) => r.status === 'rejected').length;
+  console.log(`[notify] notifyClientsServerSide: sent=${results.length - failed} failed=${failed}`);
 }
 
 /**

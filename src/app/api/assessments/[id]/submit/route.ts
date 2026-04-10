@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getAssessmentById, appendWorkOrderRef, appendTaskComment, copyTaskComments, markAssessmentSubmitted, getNotificationIds, clearUnreadTask } from '@/lib/store';
+import { getAssessmentById, appendWorkOrderRef, appendTaskComment, copyTaskComments, markAssessmentSubmitted, getNotificationIds, clearUnreadTask, setWorkOrderCompany } from '@/lib/store';
 import { markNotificationRead } from '@/lib/assembly/client';
 import { notifyInternalUsersAbout } from '@/lib/notifications';
 import type { StoredComment } from '@/types/types-index';
@@ -124,17 +124,20 @@ export async function POST(
           ),
         ]);
 
-        // 5. Save work order ref to Redis
+        // 5. Save work order ref to Redis + reverse lookup (taskId → companyId)
         const assessmentItem = assessmentData.items.find(
           (item) => item.clickup_task_id === clickup_task_id,
         );
-        await appendWorkOrderRef(id, {
-          taskId: newTaskId,
-          listId,
-          addedAt: new Date().toISOString(),
-          location: assessmentItem?.location ?? '',
-          assessmentName: assessmentData.assessmentName,
-        });
+        await Promise.all([
+          appendWorkOrderRef(id, {
+            taskId: newTaskId,
+            listId,
+            addedAt: new Date().toISOString(),
+            location: assessmentItem?.location ?? '',
+            assessmentName: assessmentData.assessmentName,
+          }),
+          setWorkOrderCompany(newTaskId, id),
+        ]);
 
         // 5b. Copy any pre-submission notes from old task ID to new work order task ID
         await copyTaskComments(clickup_task_id, newTaskId);

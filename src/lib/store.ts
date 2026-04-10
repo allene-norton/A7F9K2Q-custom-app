@@ -131,6 +131,16 @@ export async function clearUnreadInternalTask(companyId: string, taskId: string)
   await redis.srem(`unread_internal_tasks:${companyId}`, taskId);
 }
 
+// ─── Work Order → Company Reverse Lookup ──────────────────────────────────────
+
+export async function setWorkOrderCompany(taskId: string, companyId: string): Promise<void> {
+  await redis.set(`workorder_company:${taskId}`, companyId);
+}
+
+export async function getWorkOrderCompany(taskId: string): Promise<string | null> {
+  return redis.get<string>(`workorder_company:${taskId}`);
+}
+
 // ─── Internal Notification Activity Log ───────────────────────────────────────
 
 export interface InternalNotificationEntry {
