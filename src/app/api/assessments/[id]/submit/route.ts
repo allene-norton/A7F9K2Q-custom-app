@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
-import { getAssessmentById, appendWorkOrderRef, appendTaskComment, markAssessmentSubmitted } from '@/lib/store';
+import { getAssessmentById, appendWorkOrderRef, appendTaskComment, copyTaskComments, markAssessmentSubmitted, getNotificationIds, clearUnreadTask, setWorkOrderCompany } from '@/lib/store';
+import { markNotificationRead } from '@/lib/assembly/client';
 import { notifyInternalUsersAbout } from '@/lib/notifications';
 import type { StoredComment } from '@/types/types-index';
 import {
@@ -123,17 +124,23 @@ export async function POST(
           ),
         ]);
 
-        // 5. Save work order ref to Redis
+        // 5. Save work order ref to Redis + reverse lookup (taskId → companyId)
         const assessmentItem = assessmentData.items.find(
           (item) => item.clickup_task_id === clickup_task_id,
         );
-        await appendWorkOrderRef(id, {
-          taskId: newTaskId,
-          listId,
-          addedAt: new Date().toISOString(),
-          location: assessmentItem?.location ?? '',
-          assessmentName: assessmentData.assessmentName,
-        });
+        await Promise.all([
+          appendWorkOrderRef(id, {
+            taskId: newTaskId,
+            listId,
+            addedAt: new Date().toISOString(),
+            location: assessmentItem?.location ?? '',
+            assessmentName: assessmentData.assessmentName,
+          }),
+          setWorkOrderCompany(newTaskId, id),
+        ]);
+
+        // 5b. Copy any pre-submission notes from old task ID to new work order task ID
+        await copyTaskComments(clickup_task_id, newTaskId);
 
         // 6. Save customer comment to Redis + sync to ClickUp
         if (comment?.trim()) {
@@ -185,13 +192,32 @@ export async function POST(
       ),
     ]);
   }
+  if (failed === 0) {
+    // Clear the assessment-sent notification for this customer
+    const assessNotifIds = await getNotificationIds(`assess:${id}`);
+    if (assessNotifIds.length > 0 && token) {
+      await Promise.allSettled(assessNotifIds.map((nid) => markNotificationRead(token, nid)));
+    }
+    await clearUnreadTask(id, `assess:${id}`);
+  }
+
   if (failed === 0 && senderId && token) {
-    await notifyInternalUsersAbout(token, senderId, {
-      inProduct: {
-        title: `${assessmentData.companyName} submitted their assessment`,
-        body: `${assessmentData.assessmentName} has been submitted. Work orders have been created in ClickUp.`,
+    await notifyInternalUsersAbout(
+      token,
+      senderId,
+      {
+        inProduct: {
+          title: `${assessmentData.companyName} submitted their assessment`,
+          body: `${assessmentData.assessmentName} has been submitted. Work orders have been created in ClickUp.`,
+        },
       },
-    });
+      {
+        type: 'assessment_submitted',
+        companyId: id,
+        companyName: assessmentData.companyName,
+        assessmentName: assessmentData.assessmentName,
+      },
+    );
   }
 
   return Response.json({ success: failed === 0, failed });

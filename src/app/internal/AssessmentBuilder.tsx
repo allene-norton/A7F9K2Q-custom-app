@@ -30,10 +30,11 @@ interface AssessmentBuilderProps {
   spaceId?: string;
   backLabel?: string;
   token?: string;
+  isSent?: boolean;
 }
 
 type CategoryFilter = 'All' | AssessmentItem['category'];
-type SortOption = 'default' | 'urgency-high' | 'urgency-low';
+type SortOption = 'default' | 'urgency-high' | 'urgency-low' | 'date-old';
 
 const CATEGORIES: AssessmentItem['category'][] = [
   'Urgent',
@@ -61,6 +62,7 @@ export default function AssessmentBuilder({
   spaceId,
   backLabel = 'Companies',
   token,
+  isSent,
 }: AssessmentBuilderProps) {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('All');
   const [sortOption, setSortOption] = useState<SortOption>('default');
@@ -88,8 +90,8 @@ export default function AssessmentBuilder({
   useEffect(() => {
     setDisplayItems(assessment.items);
     setRemovedItems([]);
-    setSendSuccess(false);
-  }, [assessment.id]);
+    setSendSuccess(isSent ?? false);
+  }, [assessment.id, isSent]);
 
   // Fetch space tags
   useEffect(() => {
@@ -149,6 +151,11 @@ export default function AssessmentBuilder({
       items.sort(
         (a, b) => URGENCY_ORDER[b.category] - URGENCY_ORDER[a.category],
       );
+    } else if (sortOption === 'date-old') {
+      items.sort((a, b) => (a.created_date ?? '').localeCompare(b.created_date ?? ''));
+    } else {
+      // default: most recent first
+      items.sort((a, b) => (b.created_date ?? '').localeCompare(a.created_date ?? ''));
     }
 
     return items;
@@ -271,7 +278,8 @@ export default function AssessmentBuilder({
             <div className="flex flex-wrap gap-3 justify-end">
               <button
                 onClick={() => setIsManaging((v) => !v)}
-                className={`px-5 py-3 border-2 rounded-lg font-semibold transition-colors ${
+                disabled={sendSuccess}
+                className={`px-5 py-3 border-2 rounded-lg font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                   isManaging
                     ? 'bg-[#174887] text-white border-[#174887]'
                     : 'text-[#174887] border-[#174887] hover:bg-blue-50'
@@ -558,7 +566,8 @@ export default function AssessmentBuilder({
                     className="px-3 py-2 border border-gray-300 rounded-lg bg-white
                                focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-gray"
                   >
-                    <option value="default">Default Order</option>
+                    <option value="default">Most Recent</option>
+                    <option value="date-old">Oldest First</option>
                     <option value="urgency-high">Urgency: High to Low</option>
                     <option value="urgency-low">Urgency: Low to High</option>
                   </select>
@@ -712,6 +721,8 @@ export default function AssessmentBuilder({
           <AssessmentItemDetail
             item={selectedItem}
             onClose={() => setSelectedItem(null)}
+            companyId={company.id}
+            token={token}
           />
         )}
 

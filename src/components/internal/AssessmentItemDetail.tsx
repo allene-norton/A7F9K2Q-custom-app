@@ -7,13 +7,43 @@ import { getCategoryColor } from '@/lib/utils';
 interface AssessmentItemDetailProps {
   item: AssessmentItem;
   onClose: () => void;
+  companyId?: string;
+  token?: string;
 }
 
 export default function AssessmentItemDetail({
   item,
   onClose,
+  companyId,
+  token,
 }: AssessmentItemDetailProps) {
   const [activeImage, setActiveImage] = useState(0);
+  const [noteText, setNoteText] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [noteSaved, setNoteSaved] = useState(false);
+
+  const handlePostNote = async () => {
+    if (!noteText.trim() || !companyId) return;
+    setSaving(true);
+    try {
+      await fetch(`/api/workorders/${companyId}/${item.clickup_task_id}/comment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: noteText.trim(),
+          authorName: 'MM Team',
+          isInternal: false,
+          noNotify: true,
+          token,
+        }),
+      });
+      setNoteText('');
+      setNoteSaved(true);
+      setTimeout(() => setNoteSaved(false), 3000);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div
@@ -151,6 +181,38 @@ export default function AssessmentItemDetail({
                 Technician Notes
               </p>
               <p className="text-sm text-blue-800">{item.comments}</p>
+            </div>
+          )}
+
+          {/* Internal Note (pre-submission) */}
+          {companyId && (
+            <div className="border-t border-gray-200 pt-5">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                Internal Note
+              </p>
+              <textarea
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="Add an internal note (not sent to customer)…"
+                rows={3}
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm resize-none
+                           focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]
+                           placeholder-gray-400"
+              />
+              <div className="flex items-center justify-between mt-2">
+                {noteSaved && (
+                  <span className="text-xs text-green-600 font-medium">Note saved to ClickUp.</span>
+                )}
+                <button
+                  onClick={handlePostNote}
+                  disabled={!noteText.trim() || saving}
+                  className="ml-auto px-4 py-1.5 text-sm font-semibold text-white rounded-lg
+                             hover:opacity-90 transition-opacity disabled:opacity-40"
+                  style={{ backgroundColor: '#174887' }}
+                >
+                  {saving ? 'Saving…' : 'Post Note'}
+                </button>
+              </div>
             </div>
           )}
         </div>

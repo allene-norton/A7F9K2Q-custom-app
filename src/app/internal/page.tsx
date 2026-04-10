@@ -52,6 +52,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   >(null);
   const [locationsLoading, setLocationsLoading] = useState(false);
   const [locationFilter, setLocationFilter] = useState<string>('All');
+  const [assessmentListSort, setAssessmentListSort] = useState<'date-new' | 'date-old'>('date-new');
   const [sentAssessments, setSentAssessments] = useState<
     Array<{ assessmentId: string; submittedAt?: string }>
   >([]);
@@ -138,6 +139,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     setAssessmentError(null);
     setLocationsLoading(true);
     setLocationFilter('All');
+    setAssessmentListSort('date-new');
     setSentAssessments([]);
     setInternalView('assessment');
 
@@ -211,10 +213,32 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     setAssessment(null);
     setAssessmentError(null);
     setAssessmentLoading(true);
+    setSentAssessments([]);
     setInternalView('assessment');
+
+    // Resolve Assembly company ID for this hourly folder (same fuzzy logic as render)
+    const folderName = folder.name.toLowerCase().trim();
+    const fWords = folderName.split(/\s+/).filter((w) => w.length > 2);
+    const matchedClient = allClients.find((c) => {
+      const fullName = `${c.givenName ?? ''} ${c.familyName ?? ''}`.toLowerCase().trim();
+      if (!fullName) return false;
+      if (fullName === folderName || fullName.startsWith(folderName) || folderName.startsWith(fullName)) return true;
+      const cWords = fullName.split(/\s+/).filter((w) => w.length > 2);
+      const overlap = cWords.filter((w) => fWords.includes(w)).length;
+      const total = new Set([...cWords, ...fWords]).size;
+      return total > 0 && overlap / total >= 0.5;
+    });
+    const hourlyCompanyId = matchedClient?.companyId;
+
     try {
-      const result = await getHourlyAssessmentForFolder(folder.id, folder.name);
+      const [result, sentRes] = await Promise.all([
+        getHourlyAssessmentForFolder(folder.id, folder.name),
+        hourlyCompanyId
+          ? fetch(`/api/assessments/${hourlyCompanyId}`).then((r) => r.json()).catch(() => [])
+          : Promise.resolve([]),
+      ]);
       setAssessment(result);
+      setSentAssessments(sentRes ?? []);
     } catch (error) {
       console.error('Failed to fetch hourly assessment:', error);
       setAssessmentError(
@@ -419,8 +443,27 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                     ) : null;
                   })()}
 
+                  {/* Sort */}
+                  <div className="flex items-center gap-3 mb-5">
+                    <label className="text-sm font-medium text-gray-700">Sort:</label>
+                    <select
+                      value={assessmentListSort}
+                      onChange={(e) => setAssessmentListSort(e.target.value as 'date-new' | 'date-old')}
+                      className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                                 focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]"
+                    >
+                      <option value="date-new">Most Recent</option>
+                      <option value="date-old">Oldest First</option>
+                    </select>
+                  </div>
+
                   <div className="space-y-3">
-                    {assessmentLocations
+                    {[...assessmentLocations]
+                      .sort((a, b) =>
+                        assessmentListSort === 'date-new'
+                          ? (b.date ?? '').localeCompare(a.date ?? '')
+                          : (a.date ?? '').localeCompare(b.date ?? ''),
+                      )
                       .filter(
                         (loc) =>
                           locationFilter === 'All' ||
@@ -511,6 +554,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                       : undefined
                 }
                 token={token ?? undefined}
+                isSent={sentAssessments.some((a) => a.assessmentId === assessment.id)}
               />
             )}
           </>

@@ -83,6 +83,13 @@ export async function appendTaskComment(
   await redis.set(`comments:${taskId}`, [...existing, comment]);
 }
 
+export async function copyTaskComments(fromTaskId: string, toTaskId: string): Promise<void> {
+  const comments = await getTaskComments(fromTaskId);
+  if (comments.length === 0) return;
+  const existing = await getTaskComments(toTaskId);
+  await redis.set(`comments:${toTaskId}`, [...comments, ...existing]);
+}
+
 // ─── Unread Notification Tracking ─────────────────────────────────────────────
 
 export async function addUnreadNotification(companyId: string, taskId: string, notificationId: string): Promise<void> {
@@ -107,4 +114,51 @@ export async function clearUnreadTask(companyId: string, taskId: string): Promis
     redis.srem(`unread_tasks:${companyId}`, taskId),
     redis.del(`notification_ids:${taskId}`),
   ]);
+}
+
+// ─── Unread Tracking (internal users — customer comment posted) ───────────────
+
+export async function addUnreadInternalTask(companyId: string, taskId: string): Promise<void> {
+  await redis.sadd(`unread_internal_tasks:${companyId}`, taskId);
+}
+
+export async function getUnreadInternalTaskIds(companyId: string): Promise<string[]> {
+  const members = await redis.smembers(`unread_internal_tasks:${companyId}`);
+  return members as string[];
+}
+
+export async function clearUnreadInternalTask(companyId: string, taskId: string): Promise<void> {
+  await redis.srem(`unread_internal_tasks:${companyId}`, taskId);
+}
+
+// ─── Work Order → Company Reverse Lookup ──────────────────────────────────────
+
+export async function setWorkOrderCompany(taskId: string, companyId: string): Promise<void> {
+  await redis.set(`workorder_company:${taskId}`, companyId);
+}
+
+export async function getWorkOrderCompany(taskId: string): Promise<string | null> {
+  return redis.get<string>(`workorder_company:${taskId}`);
+}
+
+// ─── Internal Notification Activity Log ───────────────────────────────────────
+
+export interface InternalNotificationEntry {
+  type: 'comment' | 'assessment_submitted';
+  companyId: string;
+  companyName?: string;
+  taskId?: string;
+  authorName?: string;
+  commentPreview?: string;
+  assessmentName?: string;
+  createdAt: string;
+}
+
+export async function appendInternalNotification(entry: InternalNotificationEntry): Promise<void> {
+  await redis.lpush('internal_notifications', entry);
+  await redis.ltrim('internal_notifications', 0, 49);
+}
+
+export async function getRecentInternalNotifications(): Promise<InternalNotificationEntry[]> {
+  return redis.lrange<InternalNotificationEntry>('internal_notifications', 0, -1);
 }

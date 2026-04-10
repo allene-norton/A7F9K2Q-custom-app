@@ -153,6 +153,10 @@ export default function AssessmentItemCard({
               <p className="text-sm text-blue-800">{item.comments}</p>
             </div>
           )}
+
+          {item.created_date && (
+            <p className="text-xs text-gray-400 mt-3">Created {item.created_date}</p>
+          )}
         </div>
       </div>
     </div>

@@ -9,7 +9,7 @@ import { getCategoryColor, hexToRgba } from '@/lib/utils';
 import { CUSTOMER_SELECTION_OPTIONS } from '@/lib/constants';
 import WorkOrdersView from '@/components/WorkOrdersView';
 
-type SortOption = 'default' | 'urgency-high' | 'urgency-low';
+type SortOption = 'default' | 'urgency-high' | 'urgency-low' | 'date-old';
 type ActiveView = 'assessment' | 'workorders';
 
 const CATEGORIES: AssessmentItem['category'][] = [
@@ -235,6 +235,7 @@ function CustomerPageInner() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeItem, setActiveItem] = useState<AssessmentItem | null>(null);
   const [activeView, setActiveView] = useState<ActiveView>('assessment');
+  const [unreadTaskIds, setUnreadTaskIds] = useState<Set<string>>(new Set());
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -280,6 +281,15 @@ function CustomerPageInner() {
 
     load();
   }, [token]);
+
+  // Fetch unread notification IDs when company is known
+  useEffect(() => {
+    if (!companyId) return;
+    fetch(`/api/workorders/${companyId}/unread`)
+      .then((r) => r.json())
+      .then((data) => setUnreadTaskIds(new Set(data.taskIds ?? [])))
+      .catch(() => {});
+  }, [companyId]);
 
   // Close tag dropdown on outside click
   useEffect(() => {
@@ -405,6 +415,11 @@ function CustomerPageInner() {
       items.sort(
         (a, b) => URGENCY_ORDER[b.category] - URGENCY_ORDER[a.category],
       );
+    } else if (sortOption === 'date-old') {
+      items.sort((a, b) => (a.created_date ?? '').localeCompare(b.created_date ?? ''));
+    } else {
+      // default: most recent first
+      items.sort((a, b) => (b.created_date ?? '').localeCompare(a.created_date ?? ''));
     }
 
     return items;
@@ -497,20 +512,41 @@ function CustomerPageInner() {
       {/* Tab bar */}
       <div className="border-b border-gray-200 bg-white">
         <div className="max-w-2xl mx-auto px-4">
-          <div className="flex gap-0">
-            {(['assessment', 'workorders'] as ActiveView[]).map((view) => (
+          <div className="flex items-center justify-between">
+            <div className="flex gap-0">
+              {(['assessment', 'workorders'] as ActiveView[]).map((view) => (
+                <button
+                  key={view}
+                  onClick={() => setActiveView(view)}
+                  className={`px-5 py-3.5 text-sm font-semibold border-b-2 transition-colors ${
+                    activeView === view
+                      ? 'border-[#174887] text-[#174887]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {view === 'assessment' ? (isHourly ? 'Items' : 'Assessment') : 'Work Orders'}
+                </button>
+              ))}
+            </div>
+            {unreadTaskIds.size > 0 && (
               <button
-                key={view}
-                onClick={() => setActiveView(view)}
-                className={`px-5 py-3.5 text-sm font-semibold border-b-2 transition-colors ${
-                  activeView === view
-                    ? 'border-[#174887] text-[#174887]'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
+                onClick={async () => {
+                  try {
+                    await fetch(`/api/workorders/${safeCompanyId}/mark-all-read`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ token }),
+                    });
+                    setUnreadTaskIds(new Set());
+                  } catch {
+                    // silent fail
+                  }
+                }}
+                className="text-xs font-medium text-[#174887] hover:underline py-1"
               >
-                {view === 'assessment' ? (isHourly ? 'Items' : 'Assessment') : 'Work Orders'}
+                Clear notifications
               </button>
-            ))}
+            )}
           </div>
         </div>
       </div>
@@ -524,6 +560,14 @@ function CustomerPageInner() {
           authorName={companyName}
           senderId={clientId ?? undefined}
           token={token}
+          externalUnreadTaskIds={unreadTaskIds}
+          onMarkTaskRead={(taskId) =>
+            setUnreadTaskIds((prev) => {
+              const next = new Set(prev);
+              next.delete(taskId);
+              return next;
+            })
+          }
         />
       ) : (
         <>
@@ -759,7 +803,8 @@ function CustomerPageInner() {
                       className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
                                  focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-gray"
                     >
-                      <option value="default">Default Order</option>
+                      <option value="default">Most Recent</option>
+                      <option value="date-old">Oldest First</option>
                       <option value="urgency-high">Urgency: High to Low</option>
                       <option value="urgency-low">Urgency: Low to High</option>
                     </select>

@@ -22,7 +22,7 @@ const URGENCY_ORDER: Record<string, number> = {
   'No Issue': 4,
 };
 
-type SortOption = 'default' | 'urgency-high' | 'urgency-low';
+type SortOption = 'default' | 'urgency-high' | 'urgency-low' | 'date-old';
 
 const CATEGORIES = [
   'Urgent',
@@ -47,6 +47,8 @@ interface WorkOrdersViewProps {
   breadcrumbs?: React.ReactNode; // optional breadcrumb nav (internal mode)
   senderId?: string; // Assembly client ID of the current user (customer mode only)
   token?: string; // session token for Assembly SDK notifications
+  externalUnreadTaskIds?: Set<string>; // customer mode: unread state owned by parent
+  onMarkTaskRead?: (taskId: string) => void; // customer mode: called after marking a task read
 }
 
 // ─── Comment Box ──────────────────────────────────────────────────────────────
@@ -54,6 +56,7 @@ interface WorkOrdersViewProps {
 interface CommentBoxProps {
   taskId: string;
   companyId: string;
+  companyName?: string;
   isInternal: boolean;
   authorName: string;
   senderId?: string;
@@ -62,7 +65,7 @@ interface CommentBoxProps {
   onCancel?: () => void;
 }
 
-function CommentBox({ taskId, companyId, isInternal, authorName, senderId, token, onPosted, onCancel }: CommentBoxProps) {
+function CommentBox({ taskId, companyId, companyName, isInternal, authorName, senderId, token, onPosted, onCancel }: CommentBoxProps) {
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
@@ -75,7 +78,7 @@ function CommentBox({ taskId, companyId, isInternal, authorName, senderId, token
       const res = await fetch(`/api/workorders/${companyId}/${taskId}/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: text.trim(), authorName, isInternal, senderId, token }),
+        body: JSON.stringify({ text: text.trim(), authorName, isInternal, senderId, token, companyName }),
       });
       const data = await res.json();
       if (res.ok && data.comment) {
@@ -133,16 +136,27 @@ interface InternalCardProps {
   index: number;
   companyId: string;
   token?: string;
+  isUnread?: boolean;
+  onMarkRead?: () => void;
 }
 
-function InternalCard({ item, index, companyId, token }: InternalCardProps) {
+function InternalCard({ item, index, companyId, token, isUnread, onMarkRead }: InternalCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [comments, setComments] = useState<StoredComment[]>(item.thread ?? []);
 
+  const handleClick = () => {
+    setExpanded((v) => !v);
+    if (isUnread && onMarkRead) {
+      onMarkRead();
+    }
+  };
+
   return (
     <div
-      className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden transition-shadow hover:shadow-lg cursor-pointer"
-      onClick={() => setExpanded((v) => !v)}
+      className={`bg-white border-2 rounded-xl overflow-hidden transition-shadow hover:shadow-lg cursor-pointer ${
+        isUnread ? 'border-[#174887]' : 'border-gray-200'
+      }`}
+      onClick={handleClick}
     >
       <div className="p-6">
         <div className="flex gap-6">
@@ -170,6 +184,11 @@ function InternalCard({ item, index, companyId, token }: InternalCardProps) {
                 <div className="flex items-center gap-3 mb-2">
                   <span className="text-sm font-semibold text-gray-500">#{index + 1}</span>
                   <span className="text-sm text-gray-600 font-medium">{item.location}</span>
+                  {isUnread && (
+                    <span className="px-2 py-0.5 text-xs font-bold rounded-full text-white" style={{ backgroundColor: '#174887' }}>
+                      New
+                    </span>
+                  )}
                 </div>
                 <h4 className="text-lg font-bold text-gray-900 mb-2">{item.issue}</h4>
                 {item.description && (
@@ -205,12 +224,17 @@ function InternalCard({ item, index, companyId, token }: InternalCardProps) {
                   </span>
                 ))}
               </div>
-              <span
-                className="px-2.5 py-1 rounded-full text-xs font-semibold text-white capitalize flex-shrink-0 ml-3"
-                style={{ backgroundColor: item.statusColor }}
-              >
-                {item.status}
-              </span>
+              <div className="flex items-center gap-3 ml-3 flex-shrink-0">
+                {item.created_date && (
+                  <span className="text-xs text-gray-400">{item.created_date}</span>
+                )}
+                <span
+                  className="px-2.5 py-1 rounded-full text-xs font-semibold text-white capitalize"
+                  style={{ backgroundColor: item.statusColor }}
+                >
+                  {item.status}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -260,6 +284,7 @@ function InternalCard({ item, index, companyId, token }: InternalCardProps) {
 interface CustomerModalProps {
   item: WorkOrderItem;
   companyId: string;
+  companyName?: string;
   authorName: string;
   senderId?: string;
   token?: string;
@@ -267,7 +292,7 @@ interface CustomerModalProps {
   onClose: () => void;
 }
 
-function CustomerModal({ item, companyId, authorName, senderId, token, onCommentPosted, onClose }: CustomerModalProps) {
+function CustomerModal({ item, companyId, companyName, authorName, senderId, token, onCommentPosted, onClose }: CustomerModalProps) {
   const [activeImage, setActiveImage] = useState(0);
   const [comments, setComments] = useState<StoredComment[]>(item.thread ?? []);
   const [showComment, setShowComment] = useState(false);
@@ -373,6 +398,7 @@ function CustomerModal({ item, companyId, authorName, senderId, token, onComment
             <CommentBox
               taskId={item.id}
               companyId={companyId}
+              companyName={companyName}
               isInternal={false}
               authorName={authorName}
               senderId={senderId}
@@ -409,10 +435,11 @@ function CustomerModal({ item, companyId, authorName, senderId, token, onComment
 
 // ─── Main WorkOrdersView ──────────────────────────────────────────────────────
 
-export default function WorkOrdersView({ companyId, companyName, mode, authorName = 'Customer', breadcrumbs, senderId, token }: WorkOrdersViewProps) {
+export default function WorkOrdersView({ companyId, companyName, mode, authorName = 'Customer', breadcrumbs, senderId, token, externalUnreadTaskIds, onMarkTaskRead }: WorkOrdersViewProps) {
   const [items, setItems] = useState<WorkOrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadTaskIds, setUnreadTaskIds] = useState<Set<string>>(new Set());
+  const [unreadInternalTaskIds, setUnreadInternalTaskIds] = useState<Set<string>>(new Set());
   const [activeBucket, setActiveBucket] = useState<StatusBucket>('Pending & In Progress');
   const [activeItem, setActiveItem] = useState<WorkOrderItem | null>(null);
 
@@ -440,12 +467,21 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
       .finally(() => setLoading(false));
   }, [fetchUrl]);
 
-  // Fetch unread task IDs (customer mode only)
+  // Fetch unread task IDs (customer mode only, when not externally managed)
   useEffect(() => {
-    if (mode !== 'customer') return;
+    if (mode !== 'customer' || externalUnreadTaskIds !== undefined) return;
     fetch(`/api/workorders/${companyId}/unread`)
       .then((r) => r.json())
       .then((data) => setUnreadTaskIds(new Set(data.taskIds ?? [])))
+      .catch(() => {});
+  }, [companyId, mode, externalUnreadTaskIds]);
+
+  // Fetch unread internal task IDs (internal mode only)
+  useEffect(() => {
+    if (mode !== 'internal') return;
+    fetch(`/api/workorders/${companyId}/unread-internal`)
+      .then((r) => r.json())
+      .then((data) => setUnreadInternalTaskIds(new Set(data.taskIds ?? [])))
       .catch(() => {});
   }, [companyId, mode]);
 
@@ -514,19 +550,30 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
       result.sort((a, b) => (URGENCY_ORDER[a.category] ?? 99) - (URGENCY_ORDER[b.category] ?? 99));
     } else if (sortOption === 'urgency-low') {
       result.sort((a, b) => (URGENCY_ORDER[b.category] ?? 99) - (URGENCY_ORDER[a.category] ?? 99));
+    } else if (sortOption === 'date-old') {
+      result.sort((a, b) => (a.created_date ?? '').localeCompare(b.created_date ?? ''));
+    } else {
+      // default: most recent first
+      result.sort((a, b) => (b.created_date ?? '').localeCompare(a.created_date ?? ''));
     }
 
-    // Unread items float to the top (customer mode)
-    if (mode === 'customer' && unreadTaskIds.size > 0) {
+    // Unread items float to the top
+    if (mode === 'customer' && effectiveUnreadTaskIds.size > 0) {
       result.sort((a, b) => {
-        const aUnread = unreadTaskIds.has(a.id) ? 0 : 1;
-        const bUnread = unreadTaskIds.has(b.id) ? 0 : 1;
+        const aUnread = effectiveUnreadTaskIds.has(a.id) ? 0 : 1;
+        const bUnread = effectiveUnreadTaskIds.has(b.id) ? 0 : 1;
+        return aUnread - bUnread;
+      });
+    } else if (mode === 'internal' && unreadInternalTaskIds.size > 0) {
+      result.sort((a, b) => {
+        const aUnread = unreadInternalTaskIds.has(a.id) ? 0 : 1;
+        const bUnread = unreadInternalTaskIds.has(b.id) ? 0 : 1;
         return aUnread - bUnread;
       });
     }
 
     return result;
-  }, [items, activeBucket, categoryFilter, locationFilter, searchQuery, selectedTags, sortOption, unreadTaskIds, mode]);
+  }, [items, activeBucket, categoryFilter, locationFilter, searchQuery, selectedTags, sortOption, effectiveUnreadTaskIds, unreadInternalTaskIds, mode]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -580,33 +627,12 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
     );
   }
 
-  const handleClearAllNotifications = async () => {
-    if (!token || unreadTaskIds.size === 0) return;
-    try {
-      await fetch(`/api/workorders/${companyId}/mark-all-read`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
-      });
-      setUnreadTaskIds(new Set());
-    } catch {
-      // silent fail
-    }
-  };
+  // Use externally-managed unread state when provided (customer mode with parent ownership)
+  const effectiveUnreadTaskIds = externalUnreadTaskIds ?? unreadTaskIds;
 
   return (
     <div className={containerClass}>
       {breadcrumbs}
-      {mode === 'customer' && unreadTaskIds.size > 0 && (
-        <div className="flex justify-end mb-3">
-          <button
-            onClick={handleClearAllNotifications}
-            className="px-4 py-2 text-sm font-medium text-[#174887] border border-[#174887] rounded-lg hover:bg-[#174887] hover:text-white transition-colors"
-          >
-            Clear all notifications
-          </button>
-        </div>
-      )}
       {/* Status bucket tabs */}
       <div className="border-b border-gray-200 bg-white mb-5 -mx-4 px-4 overflow-x-auto">
         <div className="flex gap-0 min-w-max">
@@ -694,7 +720,8 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
               className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
                          focus:outline-none focus:ring-2 focus:ring-[#174887]"
             >
-              <option value="default">Default Order</option>
+              <option value="default">Most Recent</option>
+              <option value="date-old">Oldest First</option>
               <option value="urgency-high">Urgency: High to Low</option>
               <option value="urgency-low">Urgency: Low to High</option>
             </select>
@@ -758,24 +785,39 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
       <div className="space-y-3">
         {filteredAndSortedItems.map((item, index) =>
           mode === 'internal' ? (
-            <InternalCard key={item.id} item={item} index={index} companyId={companyId} token={token} />
+            <InternalCard
+              key={item.id}
+              item={item}
+              index={index}
+              companyId={companyId}
+              token={token}
+              isUnread={unreadInternalTaskIds.has(item.id)}
+              onMarkRead={() => {
+                fetch(`/api/workorders/${companyId}/${item.id}/mark-internal-read`, { method: 'POST' }).catch(() => {});
+                setUnreadInternalTaskIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
+              }}
+            />
           ) : (
             <button
               key={item.id}
               onClick={() => {
                 setActiveItem(item);
-                if (unreadTaskIds.has(item.id) && token) {
+                if (effectiveUnreadTaskIds.has(item.id) && token) {
                   fetch(`/api/workorders/${companyId}/${item.id}/mark-read`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ token }),
                   }).then(() => {
-                    setUnreadTaskIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
+                    if (onMarkTaskRead) {
+                      onMarkTaskRead(item.id);
+                    } else {
+                      setUnreadTaskIds((prev) => { const next = new Set(prev); next.delete(item.id); return next; });
+                    }
                   }).catch(() => {});
                 }
               }}
               className={`w-full text-left bg-white rounded-xl p-6 transition-shadow hover:shadow-lg border-2 ${
-                unreadTaskIds.has(item.id) ? 'border-[#174887]' : 'border-gray-200'
+                effectiveUnreadTaskIds.has(item.id) ? 'border-[#174887]' : 'border-gray-200'
               }`}
             >
               <div className="flex gap-6">
@@ -802,7 +844,7 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
                       <div className="flex items-center gap-3 mb-2">
                         <span className="text-sm font-semibold text-gray-500">#{index + 1}</span>
                         <span className="text-sm text-gray-600 font-medium">{item.location}</span>
-                        {unreadTaskIds.has(item.id) && (
+                        {effectiveUnreadTaskIds.has(item.id) && (
                           <span className="px-2 py-0.5 text-xs font-bold text-white rounded-full" style={{ backgroundColor: '#174887' }}>
                             New
                           </span>
@@ -826,8 +868,8 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
                     </span>
                   </div>
 
-                  {item.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-3 border-t border-gray-200">
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                    <div className="flex flex-wrap gap-1.5">
                       {item.tags.map((tag) => (
                         <span
                           key={tag.name}
@@ -838,7 +880,10 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
                         </span>
                       ))}
                     </div>
-                  )}
+                    {item.created_date && (
+                      <span className="text-xs text-gray-400 flex-shrink-0 ml-3">{item.created_date}</span>
+                    )}
+                  </div>
                 </div>
 
                 <svg className="w-4 h-4 text-gray-300 flex-shrink-0 self-center" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -866,6 +911,7 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
         <CustomerModal
           item={activeItem}
           companyId={companyId}
+          companyName={companyName}
           authorName={authorName}
           senderId={senderId}
           token={token}

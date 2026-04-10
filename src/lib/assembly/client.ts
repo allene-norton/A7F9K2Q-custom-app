@@ -1052,6 +1052,34 @@ export async function createNotification(
   }
 }
 
+// Create a notification using the API key (no user session required — for webhook/server-side use)
+export async function createNotificationServerSide(requestBody: {
+  senderId: string;
+  recipientClientId?: string;
+  recipientCompanyId?: string;
+  recipientInternalUserId?: string;
+  deliveryTargets?: { inProduct?: { title: string; body?: string } };
+}): Promise<string | undefined> {
+  if (!copilotApiKey) return undefined;
+  const recipient = requestBody.recipientClientId ?? requestBody.recipientInternalUserId;
+  try {
+    const res = await fetch(`${ASSEMBLY_BASE_URI}/notifications`, {
+      method: 'POST',
+      headers: { 'X-API-KEY': copilotApiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    });
+    if (!res.ok) {
+      console.error(`[notify] createNotificationServerSide failed — recipient=${recipient} status=${res.status}`);
+      return undefined;
+    }
+    const data = await res.json();
+    return data?.id as string | undefined;
+  } catch (error: any) {
+    console.error(`[notify] createNotificationServerSide error — recipient=${recipient}:`, error?.message ?? error);
+    return undefined;
+  }
+}
+
 // Mark a notification as read using the recipient's session token
 export async function markNotificationRead(token: string, notificationId: string): Promise<void> {
   try {

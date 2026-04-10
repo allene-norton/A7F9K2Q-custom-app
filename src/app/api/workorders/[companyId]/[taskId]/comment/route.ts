@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { appendTaskComment } from '@/lib/store';
+import { appendTaskComment, addUnreadInternalTask } from '@/lib/store';
 import { StoredComment } from '@/types/types-index';
 import { notifyClientsAbout, notifyInternalUsersAbout } from '@/lib/notifications';
 
@@ -12,7 +12,7 @@ export async function POST(
 ) {
   const { companyId, taskId } = await params;
   const body = await req.json();
-  const { text, authorName, isInternal, senderId, token } = body;
+  const { text, authorName, isInternal, senderId, token, companyName, noNotify } = body;
   console.log(`[comment] companyId=${companyId} taskId=${taskId} isInternal=${isInternal} senderId=${senderId} hasToken=${!!token} text="${text?.slice(0, 30)}"`);
   const key = process.env.CLICKUP_KEY;
 
@@ -48,10 +48,15 @@ export async function POST(
     console.error(`ClickUp comment sync failed for task ${taskId}: ${clickupRes.status} ${errBody}`);
   }
 
+  // Track unread for internal users when a customer posts (skip for no-notify internal notes)
+  if (!isInternal && !noNotify) {
+    await addUnreadInternalTask(companyId, taskId);
+  }
+
   // Notify the other party
   const truncated = comment.text.length > 80 ? comment.text.slice(0, 80) + '…' : comment.text;
 
-  if (token) {
+  if (token && !noNotify) {
     if (isInternal) {
       await notifyClientsAbout(token, companyId, {
         inProduct: {
@@ -60,12 +65,24 @@ export async function POST(
         },
       }, taskId);
     } else if (senderId) {
-      await notifyInternalUsersAbout(token, senderId as string, {
-        inProduct: {
-          title: `${displayName} left a comment`,
-          body: truncated,
+      await notifyInternalUsersAbout(
+        token,
+        senderId as string,
+        {
+          inProduct: {
+            title: `${displayName} left a comment`,
+            body: truncated,
+          },
         },
-      });
+        {
+          type: 'comment',
+          companyId,
+          companyName: companyName ?? undefined,
+          taskId,
+          authorName: displayName,
+          commentPreview: comment.text.slice(0, 100),
+        },
+      );
     } else {
       console.warn(`[notify] customer comment — no senderId, skipping notification (companyId=${companyId})`);
     }
