@@ -6,6 +6,8 @@ import { fi } from 'date-fns/locale';
 
 const copilotApiKey = process.env.COPILOT_API_KEY;
 const assemblyApiKey = process.env.ASSEMBLY_API_KEY;
+// Use whichever key is configured — ASSEMBLY_API_KEY takes precedence if both are set
+const serverApiKey = assemblyApiKey ?? copilotApiKey;
 // const isDev = process.env.NODE_ENV === 'development';
 const isDev = false;
 
@@ -249,8 +251,8 @@ export type FilesArray = FileObject[];
 
 // Helper function to create SDK instance
 function createSDK(token: string) {
-  if (!copilotApiKey) {
-    throw new Error('COPILOT_API_KEY is not configured');
+  if (!serverApiKey) {
+    throw new Error('COPILOT_API_KEY or ASSEMBLY_API_KEY is not configured');
   }
   if (!token) {
     throw new Error('Token is required');
@@ -258,7 +260,7 @@ function createSDK(token: string) {
   // process.env.COPILOT_DEBUG = 'true'
 
   return copilotApi({
-    apiKey: copilotApiKey,
+    apiKey: serverApiKey,
     token: token,
   });
 }
@@ -994,11 +996,11 @@ export interface InternalUser {
 
 // List clients belonging to a specific company
 export async function listClientsByCompany(companyId: string): Promise<Client[]> {
-  if (!copilotApiKey) return [];
+  if (!serverApiKey) return [];
   try {
     const res = await fetch(
       `${ASSEMBLY_BASE_URI}/clients?companyId=${encodeURIComponent(companyId)}&limit=100`,
-      { headers: { 'X-API-KEY': copilotApiKey } },
+      { headers: { 'X-API-KEY': serverApiKey } },
     );
     if (!res.ok) throw new Error(`listClientsByCompany ${res.status}`);
     const data = await res.json();
@@ -1011,10 +1013,10 @@ export async function listClientsByCompany(companyId: string): Promise<Client[]>
 
 // List all internal users in the workspace (direct fetch — admin SDK can't list without user token)
 export async function listAllInternalUsers(): Promise<InternalUser[]> {
-  if (!copilotApiKey) return [];
+  if (!serverApiKey) return [];
   try {
     const res = await fetch(`${ASSEMBLY_BASE_URI}/internal-users?limit=100`, {
-      headers: { 'X-API-KEY': copilotApiKey },
+      headers: { 'X-API-KEY': serverApiKey },
     });
     if (!res.ok) throw new Error(`listAllInternalUsers ${res.status}`);
     const data = await res.json();
@@ -1060,16 +1062,17 @@ export async function createNotificationServerSide(requestBody: {
   recipientInternalUserId?: string;
   deliveryTargets?: { inProduct?: { title: string; body?: string } };
 }): Promise<string | undefined> {
-  if (!copilotApiKey) return undefined;
+  if (!serverApiKey) return undefined;
   const recipient = requestBody.recipientClientId ?? requestBody.recipientInternalUserId;
   try {
     const res = await fetch(`${ASSEMBLY_BASE_URI}/notifications`, {
       method: 'POST',
-      headers: { 'X-API-KEY': copilotApiKey, 'Content-Type': 'application/json' },
+      headers: { 'X-API-KEY': serverApiKey, 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody),
     });
     if (!res.ok) {
-      console.error(`[notify] createNotificationServerSide failed — recipient=${recipient} status=${res.status}`);
+      const errBody = await res.text().catch(() => '');
+      console.error(`[notify] createNotificationServerSide failed — recipient=${recipient} status=${res.status} body=${errBody}`);
       return undefined;
     }
     const data = await res.json();
