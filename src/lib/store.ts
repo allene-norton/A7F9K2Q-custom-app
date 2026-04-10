@@ -83,6 +83,13 @@ export async function appendTaskComment(
   await redis.set(`comments:${taskId}`, [...existing, comment]);
 }
 
+export async function copyTaskComments(fromTaskId: string, toTaskId: string): Promise<void> {
+  const comments = await getTaskComments(fromTaskId);
+  if (comments.length === 0) return;
+  const existing = await getTaskComments(toTaskId);
+  await redis.set(`comments:${toTaskId}`, [...comments, ...existing]);
+}
+
 // ─── Unread Notification Tracking ─────────────────────────────────────────────
 
 export async function addUnreadNotification(companyId: string, taskId: string, notificationId: string): Promise<void> {

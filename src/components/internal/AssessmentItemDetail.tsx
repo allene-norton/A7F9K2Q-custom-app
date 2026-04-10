@@ -32,7 +32,7 @@ export default function AssessmentItemDetail({
         body: JSON.stringify({
           text: noteText.trim(),
           authorName: 'MM Team',
-          isInternal: true,
+          isInternal: false,
           noNotify: true,
           token,
         }),

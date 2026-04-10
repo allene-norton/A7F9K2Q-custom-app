@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
-import { getAssessmentById, appendWorkOrderRef, appendTaskComment, markAssessmentSubmitted } from '@/lib/store';
+import { getAssessmentById, appendWorkOrderRef, appendTaskComment, copyTaskComments, markAssessmentSubmitted, getNotificationIds, clearUnreadTask } from '@/lib/store';
+import { markNotificationRead } from '@/lib/assembly/client';
 import { notifyInternalUsersAbout } from '@/lib/notifications';
 import type { StoredComment } from '@/types/types-index';
 import {
@@ -135,6 +136,9 @@ export async function POST(
           assessmentName: assessmentData.assessmentName,
         });
 
+        // 5b. Copy any pre-submission notes from old task ID to new work order task ID
+        await copyTaskComments(clickup_task_id, newTaskId);
+
         // 6. Save customer comment to Redis + sync to ClickUp
         if (comment?.trim()) {
           const storedComment: StoredComment = {
@@ -185,6 +189,15 @@ export async function POST(
       ),
     ]);
   }
+  if (failed === 0) {
+    // Clear the assessment-sent notification for this customer
+    const assessNotifIds = await getNotificationIds(`assess:${id}`);
+    if (assessNotifIds.length > 0 && token) {
+      await Promise.allSettled(assessNotifIds.map((nid) => markNotificationRead(token, nid)));
+    }
+    await clearUnreadTask(id, `assess:${id}`);
+  }
+
   if (failed === 0 && senderId && token) {
     await notifyInternalUsersAbout(
       token,
