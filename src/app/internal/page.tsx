@@ -568,6 +568,9 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   const hourlyAsCompanies: Company[] = hourlyFolders.map((f) => ({
     id: f.id,
     name: f.name,
+    createdAt: f.date_created
+      ? new Date(parseInt(f.date_created)).toISOString().split('T')[0]
+      : undefined,
   }));
 
   return (

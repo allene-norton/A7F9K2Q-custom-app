@@ -125,10 +125,13 @@ export async function GET(
       return formatted;
     });
 
-  const itemsWithThreads = await attachThreads(items);
+  const [itemsWithThreads, storedStatuses] = await Promise.all([
+    attachThreads(items),
+    getTaskStatuses(items.map((i) => i.id)),
+  ]);
 
-  // Auto-detect status changes and mark unread for customer view
-  const storedStatuses = await getTaskStatuses(items.map((i) => i.id));
+  // Detect status changes; collect IDs so the client can merge them into unread state immediately
+  const newlyUnreadIds: string[] = [];
   await Promise.all(
     items.map(async (item) => {
       const stored = storedStatuses.get(item.id);
@@ -136,7 +139,7 @@ export async function GET(
         // First time seeing this task — store status, don't mark unread
         await setTaskStatus(item.id, item.status);
       } else if (stored !== item.status) {
-        // Status changed — mark unread and update stored status
+        newlyUnreadIds.push(item.id);
         await Promise.all([
           addUnreadTask(companyId, item.id),
           setTaskStatus(item.id, item.status),
@@ -145,5 +148,5 @@ export async function GET(
     }),
   );
 
-  return Response.json({ items: itemsWithThreads });
+  return Response.json({ items: itemsWithThreads, newlyUnreadIds });
 }

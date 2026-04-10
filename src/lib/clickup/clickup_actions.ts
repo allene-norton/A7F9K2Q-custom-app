@@ -22,6 +22,7 @@ export interface ClickUpFolder {
   name: string;
   task_count: string;
   archived: boolean;
+  date_created?: string; // ms timestamp string from ClickUp
   lists?: ClickUpList[];
 }
 

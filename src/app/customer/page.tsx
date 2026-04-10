@@ -568,6 +568,13 @@ function CustomerPageInner() {
               return next;
             })
           }
+          onUnreadUpdate={(ids) =>
+            setUnreadTaskIds((prev) => {
+              const next = new Set(prev);
+              ids.forEach((id) => next.add(id));
+              return next;
+            })
+          }
         />
       ) : (
         <>

@@ -49,6 +49,7 @@ interface WorkOrdersViewProps {
   token?: string; // session token for Assembly SDK notifications
   externalUnreadTaskIds?: Set<string>; // customer mode: unread state owned by parent
   onMarkTaskRead?: (taskId: string) => void; // customer mode: called after marking a task read
+  onUnreadUpdate?: (taskIds: string[]) => void; // customer mode: called when new unread IDs are detected
 }
 
 // ─── Comment Box ──────────────────────────────────────────────────────────────
@@ -435,7 +436,7 @@ function CustomerModal({ item, companyId, companyName, authorName, senderId, tok
 
 // ─── Main WorkOrdersView ──────────────────────────────────────────────────────
 
-export default function WorkOrdersView({ companyId, companyName, mode, authorName = 'Customer', breadcrumbs, senderId, token, externalUnreadTaskIds, onMarkTaskRead }: WorkOrdersViewProps) {
+export default function WorkOrdersView({ companyId, companyName, mode, authorName = 'Customer', breadcrumbs, senderId, token, externalUnreadTaskIds, onMarkTaskRead, onUnreadUpdate }: WorkOrdersViewProps) {
   const [items, setItems] = useState<WorkOrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadTaskIds, setUnreadTaskIds] = useState<Set<string>>(new Set());
@@ -462,6 +463,9 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
       .then((r) => r.json())
       .then((data) => {
         setItems(data.items ?? []);
+        if (data.newlyUnreadIds?.length && onUnreadUpdate) {
+          onUnreadUpdate(data.newlyUnreadIds);
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
