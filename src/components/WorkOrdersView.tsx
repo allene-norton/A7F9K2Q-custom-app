@@ -54,6 +54,7 @@ interface WorkOrdersViewProps {
 interface CommentBoxProps {
   taskId: string;
   companyId: string;
+  companyName?: string;
   isInternal: boolean;
   authorName: string;
   senderId?: string;
@@ -62,7 +63,7 @@ interface CommentBoxProps {
   onCancel?: () => void;
 }
 
-function CommentBox({ taskId, companyId, isInternal, authorName, senderId, token, onPosted, onCancel }: CommentBoxProps) {
+function CommentBox({ taskId, companyId, companyName, isInternal, authorName, senderId, token, onPosted, onCancel }: CommentBoxProps) {
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
@@ -75,7 +76,7 @@ function CommentBox({ taskId, companyId, isInternal, authorName, senderId, token
       const res = await fetch(`/api/workorders/${companyId}/${taskId}/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: text.trim(), authorName, isInternal, senderId, token }),
+        body: JSON.stringify({ text: text.trim(), authorName, isInternal, senderId, token, companyName }),
       });
       const data = await res.json();
       if (res.ok && data.comment) {
@@ -260,6 +261,7 @@ function InternalCard({ item, index, companyId, token }: InternalCardProps) {
 interface CustomerModalProps {
   item: WorkOrderItem;
   companyId: string;
+  companyName?: string;
   authorName: string;
   senderId?: string;
   token?: string;
@@ -267,7 +269,7 @@ interface CustomerModalProps {
   onClose: () => void;
 }
 
-function CustomerModal({ item, companyId, authorName, senderId, token, onCommentPosted, onClose }: CustomerModalProps) {
+function CustomerModal({ item, companyId, companyName, authorName, senderId, token, onCommentPosted, onClose }: CustomerModalProps) {
   const [activeImage, setActiveImage] = useState(0);
   const [comments, setComments] = useState<StoredComment[]>(item.thread ?? []);
   const [showComment, setShowComment] = useState(false);
@@ -373,6 +375,7 @@ function CustomerModal({ item, companyId, authorName, senderId, token, onComment
             <CommentBox
               taskId={item.id}
               companyId={companyId}
+              companyName={companyName}
               isInternal={false}
               authorName={authorName}
               senderId={senderId}
@@ -866,6 +869,7 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
         <CustomerModal
           item={activeItem}
           companyId={companyId}
+          companyName={companyName}
           authorName={authorName}
           senderId={senderId}
           token={token}

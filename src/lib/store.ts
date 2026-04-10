@@ -108,3 +108,25 @@ export async function clearUnreadTask(companyId: string, taskId: string): Promis
     redis.del(`notification_ids:${taskId}`),
   ]);
 }
+
+// ─── Internal Notification Activity Log ───────────────────────────────────────
+
+export interface InternalNotificationEntry {
+  type: 'comment' | 'assessment_submitted';
+  companyId: string;
+  companyName?: string;
+  taskId?: string;
+  authorName?: string;
+  commentPreview?: string;
+  assessmentName?: string;
+  createdAt: string;
+}
+
+export async function appendInternalNotification(entry: InternalNotificationEntry): Promise<void> {
+  await redis.lpush('internal_notifications', entry);
+  await redis.ltrim('internal_notifications', 0, 49);
+}
+
+export async function getRecentInternalNotifications(): Promise<InternalNotificationEntry[]> {
+  return redis.lrange<InternalNotificationEntry>('internal_notifications', 0, -1);
+}

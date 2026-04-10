@@ -12,7 +12,7 @@ export async function POST(
 ) {
   const { companyId, taskId } = await params;
   const body = await req.json();
-  const { text, authorName, isInternal, senderId, token } = body;
+  const { text, authorName, isInternal, senderId, token, companyName } = body;
   console.log(`[comment] companyId=${companyId} taskId=${taskId} isInternal=${isInternal} senderId=${senderId} hasToken=${!!token} text="${text?.slice(0, 30)}"`);
   const key = process.env.CLICKUP_KEY;
 
@@ -60,12 +60,24 @@ export async function POST(
         },
       }, taskId);
     } else if (senderId) {
-      await notifyInternalUsersAbout(token, senderId as string, {
-        inProduct: {
-          title: `${displayName} left a comment`,
-          body: truncated,
+      await notifyInternalUsersAbout(
+        token,
+        senderId as string,
+        {
+          inProduct: {
+            title: `${displayName} left a comment`,
+            body: truncated,
+          },
         },
-      });
+        {
+          type: 'comment',
+          companyId,
+          companyName: companyName ?? undefined,
+          taskId,
+          authorName: displayName,
+          commentPreview: comment.text.slice(0, 100),
+        },
+      );
     } else {
       console.warn(`[notify] customer comment — no senderId, skipping notification (companyId=${companyId})`);
     }

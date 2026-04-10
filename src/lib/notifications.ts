@@ -5,7 +5,7 @@ import {
   listAllInternalUsers,
   createNotification,
 } from './assembly/client';
-import { addUnreadNotification } from './store';
+import { addUnreadNotification, appendInternalNotification, InternalNotificationEntry } from './store';
 
 interface NotificationContent {
   inProduct: { title: string; body?: string };
@@ -72,6 +72,7 @@ export async function notifyInternalUsersAbout(
   token: string,
   senderId: string,
   content: NotificationContent,
+  context?: Omit<InternalNotificationEntry, 'createdAt'>,
 ): Promise<void> {
   const users = await listAllInternalUsers();
 
@@ -96,4 +97,8 @@ export async function notifyInternalUsersAbout(
 
   const failed = results.filter((r) => r.status === 'rejected').length;
   console.log(`[notify] notifyInternalUsersAbout: sent=${results.length - failed} failed=${failed}`);
+
+  if (context) {
+    await appendInternalNotification({ ...context, createdAt: new Date().toISOString() });
+  }
 }
