@@ -22,7 +22,7 @@ const URGENCY_ORDER: Record<string, number> = {
   'No Issue': 4,
 };
 
-type SortOption = 'default' | 'urgency-high' | 'urgency-low';
+type SortOption = 'default' | 'urgency-high' | 'urgency-low' | 'date-old';
 
 const CATEGORIES = [
   'Urgent',
@@ -222,12 +222,17 @@ function InternalCard({ item, index, companyId, token, isUnread, onMarkRead }: I
                   </span>
                 ))}
               </div>
-              <span
-                className="px-2.5 py-1 rounded-full text-xs font-semibold text-white capitalize flex-shrink-0 ml-3"
-                style={{ backgroundColor: item.statusColor }}
-              >
-                {item.status}
-              </span>
+              <div className="flex items-center gap-3 ml-3 flex-shrink-0">
+                {item.created_date && (
+                  <span className="text-xs text-gray-400">{item.created_date}</span>
+                )}
+                <span
+                  className="px-2.5 py-1 rounded-full text-xs font-semibold text-white capitalize"
+                  style={{ backgroundColor: item.statusColor }}
+                >
+                  {item.status}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -543,6 +548,11 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
       result.sort((a, b) => (URGENCY_ORDER[a.category] ?? 99) - (URGENCY_ORDER[b.category] ?? 99));
     } else if (sortOption === 'urgency-low') {
       result.sort((a, b) => (URGENCY_ORDER[b.category] ?? 99) - (URGENCY_ORDER[a.category] ?? 99));
+    } else if (sortOption === 'date-old') {
+      result.sort((a, b) => (a.created_date ?? '').localeCompare(b.created_date ?? ''));
+    } else {
+      // default: most recent first
+      result.sort((a, b) => (b.created_date ?? '').localeCompare(a.created_date ?? ''));
     }
 
     // Unread items float to the top
@@ -729,7 +739,8 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
               className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
                          focus:outline-none focus:ring-2 focus:ring-[#174887]"
             >
-              <option value="default">Default Order</option>
+              <option value="default">Most Recent</option>
+              <option value="date-old">Oldest First</option>
               <option value="urgency-high">Urgency: High to Low</option>
               <option value="urgency-low">Urgency: Low to High</option>
             </select>
@@ -872,8 +883,8 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
                     </span>
                   </div>
 
-                  {item.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-3 border-t border-gray-200">
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                    <div className="flex flex-wrap gap-1.5">
                       {item.tags.map((tag) => (
                         <span
                           key={tag.name}
@@ -884,7 +895,10 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
                         </span>
                       ))}
                     </div>
-                  )}
+                    {item.created_date && (
+                      <span className="text-xs text-gray-400 flex-shrink-0 ml-3">{item.created_date}</span>
+                    )}
+                  </div>
                 </div>
 
                 <svg className="w-4 h-4 text-gray-300 flex-shrink-0 self-center" fill="none" stroke="currentColor" viewBox="0 0 24 24">
