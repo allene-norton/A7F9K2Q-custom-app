@@ -1,5 +1,13 @@
 // src/types/index.ts
 
+export interface StoredComment {
+  id: string;
+  text: string;
+  authorName: string;
+  isInternal: boolean;
+  createdAt: string;
+}
+
 export interface Customer {
   id?: string;
   clickup_id: string;
@@ -19,7 +27,6 @@ export interface AssessmentItem {
   status: string | null;
   issue: string;
   description: string | undefined;
-  recommendation: string;
   images: string[];
   estimated_cost_min: number; // remove
   estimated_cost_max: number; // remove

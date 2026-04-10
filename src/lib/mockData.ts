@@ -40,7 +40,7 @@ export const mockAssessmentItems: Record<string, AssessmentItem[]> = {
       location: "Unit 10-12",
       category: "Recommended",
       issue: "Sewage smell detected in common area",
-      recommendation: "Inspect and clean drain lines, check for potential blockages or venting issues. May need professional plumber if issue persists.",
+      description: "Inspect and clean drain lines, check for potential blockages or venting issues. May need professional plumber if issue persists.",
       images: [
         "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800",
         "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800"
@@ -58,7 +58,7 @@ export const mockAssessmentItems: Record<string, AssessmentItem[]> = {
       location: "Exterior - West Side",
       category: "Urgent",
       issue: "Heat tape falling off gutters",
-      recommendation: "Reattach heat tape and secure with new clips before winter weather arrives. Risk of ice damming if not addressed.",
+      description: "Reattach heat tape and secure with new clips before winter weather arrives. Risk of ice damming if not addressed.",
       images: [
         "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=800"
       ],
@@ -75,7 +75,7 @@ export const mockAssessmentItems: Record<string, AssessmentItem[]> = {
       location: "Parking Lot",
       category: "Cosmetic",
       issue: "Faded parking lot striping",
-      recommendation: "Repaint parking lot lines and directional arrows for improved visibility and safety.",
+      description: "Repaint parking lot lines and directional arrows for improved visibility and safety.",
       images: [
         "https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=800"
       ],
@@ -92,7 +92,7 @@ export const mockAssessmentItems: Record<string, AssessmentItem[]> = {
       location: "Unit 14",
       category: "Recommended",
       issue: "HVAC filter replacement needed",
-      recommendation: "Replace air filters and inspect system operation. Schedule for routine maintenance.",
+      description: "Replace air filters and inspect system operation. Schedule for routine maintenance.",
       images: [
         "https://images.unsplash.com/photo-1581094271901-8022df4466f9?w=800"
       ],
@@ -109,7 +109,7 @@ export const mockAssessmentItems: Record<string, AssessmentItem[]> = {
       location: "Unit 6 - Kitchen",
       category: "Urgent",
       issue: "Refrigerator not cooling properly",
-      recommendation: "Diagnose and repair refrigerator. May need compressor replacement or refrigerant recharge.",
+      description: "Diagnose and repair refrigerator. May need compressor replacement or refrigerant recharge.",
       images: [
         "https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=800"
       ],
@@ -128,7 +128,7 @@ export const mockAssessmentItems: Record<string, AssessmentItem[]> = {
       location: "Roof - Section B",
       category: "Urgent",
       issue: "Roof leak in northwest corner",
-      recommendation: "Emergency repair needed. Inspect for damaged shingles and flashing. May require temporary tarp until full repair.",
+      description: "Emergency repair needed. Inspect for damaged shingles and flashing. May require temporary tarp until full repair.",
       images: [
         "https://images.unsplash.com/photo-1590856029826-c7a73142bbf1?w=800"
       ],
@@ -145,7 +145,7 @@ export const mockAssessmentItems: Record<string, AssessmentItem[]> = {
       location: "Main Entrance",
       category: "Recommended",
       issue: "Automatic door malfunction",
-      recommendation: "Adjust door sensors and lubricate track. May need sensor replacement if issue persists.",
+      description: "Adjust door sensors and lubricate track. May need sensor replacement if issue persists.",
       images: [
         "https://images.unsplash.com/photo-1565116319565-c4366be6eb4e?w=800"
       ],
@@ -164,7 +164,7 @@ export const mockAssessmentItems: Record<string, AssessmentItem[]> = {
       location: "Common Area",
       category: "Cosmetic",
       issue: "Carpet staining in hallway",
-      recommendation: "Professional carpet cleaning or replacement of high-traffic area carpet tiles.",
+      description: "Professional carpet cleaning or replacement of high-traffic area carpet tiles.",
       images: [
         "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800"
       ],
@@ -223,7 +223,7 @@ const sampleMockItems: AssessmentItem[] = [
     location: "Main Entrance",
     category: "Recommended",
     issue: "Door hinges need lubrication",
-    recommendation: "Apply lubricant to all entrance door hinges. Schedule for routine maintenance.",
+    description: "Apply lubricant to all entrance door hinges. Schedule for routine maintenance.",
     images: [
       "https://images.unsplash.com/photo-1698244415220-3d1ca844ed67?w=800"
     ],
@@ -240,7 +240,7 @@ const sampleMockItems: AssessmentItem[] = [
     location: "Parking Lot",
     category: "Cosmetic",
     issue: "Faded parking lot striping",
-    recommendation: "Repaint parking lot lines and directional arrows for improved visibility and safety.",
+    description: "Repaint parking lot lines and directional arrows for improved visibility and safety.",
     images: [
       "https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=800"
     ],
@@ -257,7 +257,7 @@ const sampleMockItems: AssessmentItem[] = [
     location: "HVAC System",
     category: "Urgent",
     issue: "Air filter replacement needed",
-    recommendation: "Replace air filters and inspect system operation. Schedule for routine maintenance.",
+    description: "Replace air filters and inspect system operation. Schedule for routine maintenance.",
     images: [
       "https://images.unsplash.com/photo-1581094271901-8022df4466f9?w=800"
     ],

@@ -22,7 +22,7 @@ app.prepare().then(async () => {
   createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
     res.setHeader('Set-Cookie', `ngrokUrl=${ngrokUrl}`);
-    // res.setHeader('X-Frame-Options', ``);
+    res.setHeader('X-Frame-Options', ``);
     handle(req, res, parsedUrl);
   }).listen(port);
 

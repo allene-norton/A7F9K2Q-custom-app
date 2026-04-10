@@ -10,19 +10,19 @@ import {
 interface AssessmentItemCardProps {
   item: AssessmentItem;
   index: number;
+  onExpand?: (item: AssessmentItem) => void;
 }
 
 export default function AssessmentItemCard({
   item,
   index,
+  onExpand,
 }: AssessmentItemCardProps) {
-  console.log(item);
-  {
-    console.log(item.technician);
-  }
-
   return (
-    <div className="bg-white border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
+    <div
+      className="bg-white border-2 border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow cursor-pointer"
+      onClick={() => onExpand?.(item)}
+    >
       <div className="flex gap-6">
         {/* Image */}
         {item.images.length > 0 && (
@@ -58,11 +58,16 @@ export default function AssessmentItemCard({
                 {item.issue}
               </h4>
 
-              {/* Description from ClickUp task */}
+              {/* Description & Recommendations */}
               {item.description && (
-                <p className="text-sm text-gray-700 mb-3 leading-relaxed">
-                  {item.description}
-                </p>
+                <div className="mb-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                    Description &amp; Recommendations
+                  </p>
+                  <p className="text-sm text-gray-700 leading-relaxed">
+                    {item.description}
+                  </p>
+                </div>
               )}
 
               {/* Priority Badge under item name --- REMOVE - UNUSED*/}
@@ -147,6 +152,10 @@ export default function AssessmentItemCard({
               </p>
               <p className="text-sm text-blue-800">{item.comments}</p>
             </div>
+          )}
+
+          {item.created_date && (
+            <p className="text-xs text-gray-400 mt-3">Created {item.created_date}</p>
           )}
         </div>
       </div>

@@ -9,9 +9,11 @@ interface CustomerSelectProps {
   companies: Company[];
   loading?: boolean;
   onSelect: (company: Company) => void;
+  entityLabel?: string; // singular, e.g. "company" or "customer"
 }
 
-export default function CustomerSelect({ companies, loading, onSelect }: CustomerSelectProps) {
+export default function CustomerSelect({ companies, loading, onSelect, entityLabel = 'company' }: CustomerSelectProps) {
+  const entityLabelPlural = entityLabel === 'company' ? 'companies' : `${entityLabel}s`;
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredCompanies = useMemo(() => {
@@ -28,6 +30,7 @@ export default function CustomerSelect({ companies, loading, onSelect }: Custome
       return dateB - dateA; // Descending order
     });
   }, [searchTerm, companies]);
+
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
@@ -74,12 +77,12 @@ export default function CustomerSelect({ companies, loading, onSelect }: Custome
         <div className="space-y-4">
           {loading ? (
             <div className="bg-white rounded-xl p-12 text-center border-2 border-gray-200">
-              <p className="text-gray-500 text-lg">Loading companies...</p>
+              <p className="text-gray-500 text-lg">Loading {entityLabelPlural}...</p>
             </div>
           ) : filteredCompanies.length === 0 ? (
             <div className="bg-white rounded-xl p-12 text-center border-2 border-gray-200">
               <p className="text-gray-500 text-lg">
-                {searchTerm ? `No companies found matching "${searchTerm}"` : "No companies found"}
+                {searchTerm ? `No ${entityLabelPlural} found matching "${searchTerm}"` : `No ${entityLabelPlural} found`}
               </p>
             </div>
           ) : (
@@ -149,7 +152,7 @@ export default function CustomerSelect({ companies, loading, onSelect }: Custome
 
         {/* Footer */}
         <div className="mt-8 text-center text-sm text-gray-500">
-          Showing {filteredCompanies.length} of {companies.length} companies
+          Showing {filteredCompanies.length} of {companies.length} {entityLabelPlural}
         </div>
       </div>
     </div>

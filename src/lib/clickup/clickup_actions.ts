@@ -1,6 +1,10 @@
 'use server';
 
-import { AssessmentItem, Assessment, AssessmentParent } from '@/types/types-index';
+import {
+  AssessmentItem,
+  Assessment,
+  AssessmentParent,
+} from '@/types/types-index';
 import { hexToRgba } from '@/lib/utils';
 
 const CLICKUP_API_KEY = process.env.CLICKUP_KEY;
@@ -10,9 +14,7 @@ const CLICKUP_BASE_URL = 'https://api.clickup.com/api/v2';
 const COMMERCIAL_SPACE_ID = '26324040';
 const HOURLY_SPACE_ID = '32286697';
 
-// Custom field IDs
-const APPROVAL_NEEDED_FIELD_ID = 'cad5546f-2c00-40b2-98f0-142efd801b0b';
-const LOCATION_FIELD_ID = '307c69e8-44ba-49e6-a244-1c870000211d';
+import { APPROVAL_NEEDED_FIELD_ID } from '@/lib/constants';
 
 // ClickUp API types
 export interface ClickUpFolder {
@@ -128,6 +130,37 @@ export async function getFolderLists(folderId: string): Promise<ClickUpList[]> {
     `/folder/${folderId}/list`,
   );
   return data.lists;
+}
+
+interface LocationFieldDef {
+  id: string;
+  options: Array<{ id: string; name: string; orderindex: number }>;
+}
+
+// Fetch the "Location" custom field definition for a folder, including its dropdown options.
+// The folder/field endpoint returns full type_config; task responses often omit it.
+async function getFolderLocationField(
+  folderId: string,
+): Promise<LocationFieldDef | null> {
+  const data = await clickupFetch<{
+    fields: Array<{
+      id: string;
+      name: string;
+      type_config?: {
+        options?: Array<{ id: string; name: string; orderindex: number }>;
+      };
+    }>;
+  }>(`/folder/${folderId}/field`);
+
+  const field = (data.fields ?? []).find((f) =>
+    f.name.toLowerCase().includes('location'),
+  );
+  if (!field) return null;
+
+  return {
+    id: field.id,
+    options: field.type_config?.options ?? [],
+  };
 }
 
 // Get tasks from a specific list (includes subtasks in response)
@@ -273,8 +306,7 @@ function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
       null,
     issue: task.name,
     status: task.status.status,
-    recommendation: task.text_content || task.description || '',
-    description: task.description || '',
+    description: task.text_content || task.description || '',
     images: (task.attachments || [])
       .filter((a) => a.url)
       .map((a) => a.thumbnail_large || a.url),
@@ -321,30 +353,51 @@ async function getAssessmentListForFolder(
   );
 }
 
-// Returns true if the Approval Needed custom field is checked on a task
+// Returns true if the Approval Needed custom field is checked on a task.
+// Falls back to name match so hourly-space tasks (different field ID, same name) are handled.
 function extractApprovalNeeded(task: ClickUpTask): boolean {
-  const field = task.custom_fields?.find(
-    (f) => f.id === APPROVAL_NEEDED_FIELD_ID,
-  );
+  const field =
+    task.custom_fields?.find((f) => f.id === APPROVAL_NEEDED_FIELD_ID) ??
+    task.custom_fields?.find(
+      (f) => f.name?.toLowerCase() === 'approval needed',
+    );
   if (!field) return false;
-  return field.value === true || field.value === 'true' || field.value === 1;
+  return (
+    field.value === true ||
+    field.value === 'true' ||
+    field.value === 1 ||
+    field.value === '1'
+  );
 }
 
-// Returns the Location custom field value, falling back to the task name
-function extractLocationField(task: ClickUpTask): string {
-    const field = task.custom_fields?.find((f) => f.id === LOCATION_FIELD_ID);
-    if (field?.value !== undefined && field?.value !== null && field.type_config?.options) {
-      const valueAsNumber =
-        typeof field.value === 'string'
-          ? parseInt(field.value, 10)
-          : Number(field.value);
-      const option = field.type_config.options.find(
-        (opt) => opt.orderindex === valueAsNumber,
-      );
-      if (option) return option.name;
-    }
-    return task.name;
+// Returns the Location dropdown value for a task.
+// Uses the folder field definition's options as fallback when the task response
+// omits type_config (common in list/task endpoints).
+function extractLocationField(
+  task: ClickUpTask,
+  locationField: LocationFieldDef | null,
+): string {
+  if (!locationField) return '';
+
+  const taskField = task.custom_fields?.find((f) => f.id === locationField.id);
+  if (taskField?.value === undefined || taskField?.value === null) return '';
+
+  // Text / short_text fields — value is already the string
+  const options = taskField.type_config?.options ?? locationField.options;
+  if (options.length === 0) {
+    return typeof taskField.value === 'string'
+      ? taskField.value
+      : String(taskField.value);
   }
+
+  // Dropdown — resolve orderindex to option name
+  const valueAsNumber =
+    typeof taskField.value === 'string'
+      ? parseInt(taskField.value, 10)
+      : Number(taskField.value);
+  const option = options.find((opt) => opt.orderindex === valueAsNumber);
+  return option?.name ?? '';
+}
 
 // Get all assessment parent tasks (locations) for a commercial company.
 // Looks for the "Assessments" list in the matching folder.
@@ -354,7 +407,10 @@ export async function getCommercialAssessmentLocations(
   const folder = await findMatchingFolder(companyName);
   if (!folder) return [];
 
-  const assessmentList = await getAssessmentListForFolder(folder.id);
+  const [assessmentList, locationField] = await Promise.all([
+    getAssessmentListForFolder(folder.id),
+    getFolderLocationField(folder.id),
+  ]);
   if (!assessmentList) return [];
 
   const tasks = await getListTasks(assessmentList.id, false);
@@ -367,13 +423,13 @@ export async function getCommercialAssessmentLocations(
   );
 
   return parentTasks.map((t) => ({
-      taskId: t.id,
-      taskName: t.name,
-      location: extractLocationField(t),
-      date: new Date(parseInt(t.date_created)).toISOString().split('T')[0],
-      status: t.status.status,
-      statusColor: t.status.color || '#6b7280',
-    }));
+    taskId: t.id,
+    taskName: t.name,
+    location: extractLocationField(t, locationField),
+    date: new Date(parseInt(t.date_created)).toISOString().split('T')[0],
+    status: t.status.status,
+    statusColor: t.status.color || '#6b7280',
+  }));
 }
 
 // Build an Assessment from a selected commercial parent task.
@@ -388,7 +444,10 @@ export async function buildCommercialAssessment(
   const approvedSubtasks = (fullTask.subtasks || []).filter(
     extractApprovalNeeded,
   );
-  const items = approvedSubtasks.map(transformTaskToAssessmentItem);
+  const items = approvedSubtasks.map((t) => ({
+    ...transformTaskToAssessmentItem(t),
+    location: parent.location,
+  }));
 
   return {
     id: `assess_${companyId}_${parent.taskId}`,
@@ -429,7 +488,7 @@ export async function getHourlyAssessmentForFolder(
     id: `assess_hourly_${folderId}`,
     customer_id: folderId,
     customer_name: folderName,
-    assessment_name: `${folderName} — Approval Needed`,
+    assessment_name: folderName,
     assessment_date: new Date().toISOString().split('T')[0],
     description: '',
     location: '',
