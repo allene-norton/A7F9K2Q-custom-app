@@ -9,7 +9,7 @@ import { getCategoryColor, hexToRgba } from '@/lib/utils';
 import { CUSTOMER_SELECTION_OPTIONS } from '@/lib/constants';
 import WorkOrdersView from '@/components/WorkOrdersView';
 
-type SortOption = 'default' | 'urgency-high' | 'urgency-low';
+type SortOption = 'default' | 'urgency-high' | 'urgency-low' | 'date-old';
 type ActiveView = 'assessment' | 'workorders';
 
 const CATEGORIES: AssessmentItem['category'][] = [
@@ -405,6 +405,11 @@ function CustomerPageInner() {
       items.sort(
         (a, b) => URGENCY_ORDER[b.category] - URGENCY_ORDER[a.category],
       );
+    } else if (sortOption === 'date-old') {
+      items.sort((a, b) => (a.created_date ?? '').localeCompare(b.created_date ?? ''));
+    } else {
+      // default: most recent first
+      items.sort((a, b) => (b.created_date ?? '').localeCompare(a.created_date ?? ''));
     }
 
     return items;
@@ -759,7 +764,8 @@ function CustomerPageInner() {
                       className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
                                  focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-gray"
                     >
-                      <option value="default">Default Order</option>
+                      <option value="default">Most Recent</option>
+                      <option value="date-old">Oldest First</option>
                       <option value="urgency-high">Urgency: High to Low</option>
                       <option value="urgency-low">Urgency: Low to High</option>
                     </select>

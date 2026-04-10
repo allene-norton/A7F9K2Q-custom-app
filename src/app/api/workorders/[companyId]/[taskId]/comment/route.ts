@@ -12,7 +12,7 @@ export async function POST(
 ) {
   const { companyId, taskId } = await params;
   const body = await req.json();
-  const { text, authorName, isInternal, senderId, token, companyName } = body;
+  const { text, authorName, isInternal, senderId, token, companyName, noNotify } = body;
   console.log(`[comment] companyId=${companyId} taskId=${taskId} isInternal=${isInternal} senderId=${senderId} hasToken=${!!token} text="${text?.slice(0, 30)}"`);
   const key = process.env.CLICKUP_KEY;
 
@@ -48,15 +48,15 @@ export async function POST(
     console.error(`ClickUp comment sync failed for task ${taskId}: ${clickupRes.status} ${errBody}`);
   }
 
-  // Track unread for internal users when a customer posts
-  if (!isInternal) {
+  // Track unread for internal users when a customer posts (skip for no-notify internal notes)
+  if (!isInternal && !noNotify) {
     await addUnreadInternalTask(companyId, taskId);
   }
 
   // Notify the other party
   const truncated = comment.text.length > 80 ? comment.text.slice(0, 80) + '…' : comment.text;
 
-  if (token) {
+  if (token && !noNotify) {
     if (isInternal) {
       await notifyClientsAbout(token, companyId, {
         inProduct: {
