@@ -9,6 +9,7 @@ import {
   buildCommercialAssessment,
   getHourlyFolders,
   getHourlyAssessmentForFolder,
+  getResidentialFolders,
   getCommercialFolders,
   ClickUpFolder,
 } from '@/lib/clickup/clickup_actions';
@@ -22,7 +23,7 @@ interface InternalPageProps {
   searchParams: { token?: string };
 }
 
-type ActiveTab = 'commercial' | 'hourly';
+type ActiveTab = 'commercial' | 'hourly' | 'residential';
 type InternalView = 'assessment' | 'workorders';
 
 export default function InternalPage({ searchParams }: InternalPageProps) {
@@ -41,10 +42,15 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   const [hourlyLoading, setHourlyLoading] = useState(false);
   const [hourlyLoaded, setHourlyLoaded] = useState(false);
 
+  // Residential state
+  const [residentialFolders, setResidentialFolders] = useState<ClickUpFolder[]>([]);
+  const [residentialLoading, setResidentialLoading] = useState(false);
+  const [residentialLoaded, setResidentialLoaded] = useState(false);
+
   // Shared selection state
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
-  const [selectedHourlyFolder, setSelectedHourlyFolder] =
-    useState<ClickUpFolder | null>(null);
+  const [selectedHourlyFolder, setSelectedHourlyFolder] = useState<ClickUpFolder | null>(null);
+  const [selectedResidentialFolder, setSelectedResidentialFolder] = useState<ClickUpFolder | null>(null);
 
   // Location selector state (commercial multi-location)
   const [assessmentLocations, setAssessmentLocations] = useState<
@@ -130,6 +136,24 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     };
     fetchHourly();
   }, [activeTab, hourlyLoaded]);
+
+  // Lazily fetch residential folders when the tab is first activated
+  useEffect(() => {
+    if (activeTab !== 'residential' || residentialLoaded) return;
+    const fetchResidential = async () => {
+      try {
+        setResidentialLoading(true);
+        const folders = await getResidentialFolders();
+        setResidentialFolders(folders);
+        setResidentialLoaded(true);
+      } catch (error) {
+        console.error('Failed to fetch residential folders:', error);
+      } finally {
+        setResidentialLoading(false);
+      }
+    };
+    fetchResidential();
+  }, [activeTab, residentialLoaded]);
 
   // Commercial company selected → fetch assessment locations
   const handleCommercialSelect = async (company: Company) => {
@@ -255,9 +279,49 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     setInternalView('assessment');
   };
 
+  // Residential folder selected — identical flow to hourly
+  const handleResidentialSelect = async (folder: ClickUpFolder) => {
+    setSelectedResidentialFolder(folder);
+    setAssessment(null);
+    setAssessmentError(null);
+    setAssessmentLoading(true);
+    setSentAssessments([]);
+    setInternalView('assessment');
+
+    const folderName = folder.name.toLowerCase().trim();
+    const fWords = folderName.split(/\s+/).filter((w) => w.length > 2);
+    const matchedClient = allClients.find((c) => {
+      const fullName = `${c.givenName ?? ''} ${c.familyName ?? ''}`.toLowerCase().trim();
+      if (!fullName) return false;
+      if (fullName === folderName || fullName.startsWith(folderName) || folderName.startsWith(fullName)) return true;
+      const cWords = fullName.split(/\s+/).filter((w) => w.length > 2);
+      const overlap = cWords.filter((w) => fWords.includes(w)).length;
+      const total = new Set([...cWords, ...fWords]).size;
+      return total > 0 && overlap / total >= 0.5;
+    });
+    const companyId = matchedClient?.companyId;
+
+    try {
+      const [result, sentRes] = await Promise.all([
+        getHourlyAssessmentForFolder(folder.id, folder.name),
+        companyId
+          ? fetch(`/api/assessments/${companyId}`).then((r) => r.json()).catch(() => [])
+          : Promise.resolve([]),
+      ]);
+      setAssessment(result);
+      setSentAssessments(sentRes ?? []);
+    } catch (error) {
+      console.error('Failed to fetch residential assessment:', error);
+      setAssessmentError(error instanceof Error ? error.message : 'Failed to load assessment');
+    } finally {
+      setAssessmentLoading(false);
+    }
+  };
+
   const handleBack = () => {
     setSelectedCompany(null);
     setSelectedHourlyFolder(null);
+    setSelectedResidentialFolder(null);
     setAssessment(null);
     setAssessmentLocations(null);
     setAssessmentError(null);
@@ -265,13 +329,12 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   };
 
   // --- Render: company selected (Assessment + Work Orders tabs) ---
-  if (selectedCompany || selectedHourlyFolder) {
-    // For hourly customers, match the ClickUp folder name against Assembly client
-    // full names (givenName + familyName). Hourly clients have placeholder companies
-    // so listCompanies (isPlaceholder: false) won't include them.
-    const hourlyAssemblyId = (() => {
-      if (selectedCompany || !selectedHourlyFolder) return undefined;
-      const folderName = selectedHourlyFolder.name.toLowerCase().trim();
+  const selectedFolder = selectedHourlyFolder ?? selectedResidentialFolder;
+  if (selectedCompany || selectedFolder) {
+    // For hourly/residential, match folder name to Assembly client to get the Assembly company ID
+    const folderAssemblyId = (() => {
+      if (selectedCompany || !selectedFolder) return undefined;
+      const folderName = selectedFolder.name.toLowerCase().trim();
       const fWords = folderName.split(/\s+/).filter((w) => w.length > 2);
       const matchedClient = allClients.find((c) => {
         const fullName = `${c.givenName ?? ''} ${c.familyName ?? ''}`.toLowerCase().trim();
@@ -286,11 +349,11 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
       return matchedClient?.companyId ?? undefined;
     })();
 
-    const backLabel = selectedHourlyFolder ? 'Customers' : 'Companies';
+    const backLabel = selectedFolder ? 'Customers' : 'Companies';
 
     const company: Company = selectedCompany || {
-      id: hourlyAssemblyId ?? selectedHourlyFolder?.id,
-      name: selectedHourlyFolder?.name,
+      id: folderAssemblyId ?? selectedFolder?.id,
+      name: selectedFolder?.name,
     };
     const companyId = company.id ?? '';
     const companyName = company.name ?? '';
@@ -564,14 +627,31 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   }
 
   // --- Render: customer/folder selection with tabs ---
-  // Convert hourly folders to Company-shaped objects for CustomerSelect
-  const hourlyAsCompanies: Company[] = hourlyFolders.map((f) => ({
-    id: f.id,
-    name: f.name,
-    createdAt: f.date_created
-      ? new Date(parseInt(f.date_created)).toISOString().split('T')[0]
-      : undefined,
-  }));
+  // Helper: match a folder to an Assembly client and return a Company-shaped object
+  const folderToCompany = (f: ClickUpFolder): Company => {
+    const folderName = f.name.toLowerCase().trim();
+    const fWords = folderName.split(/\s+/).filter((w) => w.length > 2);
+    const matchedClient = allClients.find((c) => {
+      const fullName = `${c.givenName ?? ''} ${c.familyName ?? ''}`.toLowerCase().trim();
+      if (!fullName) return false;
+      if (fullName === folderName || fullName.startsWith(folderName) || folderName.startsWith(fullName)) return true;
+      const cWords = fullName.split(/\s+/).filter((w) => w.length > 2);
+      const overlap = cWords.filter((w) => fWords.includes(w)).length;
+      const total = new Set([...cWords, ...fWords]).size;
+      return total > 0 && overlap / total >= 0.5;
+    });
+    return {
+      id: f.id,
+      name: f.name,
+      createdAt: matchedClient?.createdAt ?? undefined,
+    };
+  };
+
+  const TAB_LABELS: Record<ActiveTab, string> = {
+    commercial: 'Commercial Customers',
+    hourly: 'Hourly Customers',
+    residential: 'Residential Customers',
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -579,7 +659,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
       <div className="border-b border-gray-200 bg-white">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex gap-0">
-            {(['commercial', 'hourly'] as ActiveTab[]).map((tab) => (
+            {(['commercial', 'hourly', 'residential'] as ActiveTab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -589,9 +669,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                {tab === 'commercial'
-                  ? 'Commercial Customers'
-                  : 'Hourly Customers'}
+                {TAB_LABELS[tab]}
               </button>
             ))}
           </div>
@@ -605,14 +683,24 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
           loading={companiesLoading}
           onSelect={handleCommercialSelect}
         />
-      ) : (
+      ) : activeTab === 'hourly' ? (
         <CustomerSelect
-          companies={hourlyAsCompanies}
+          companies={hourlyFolders.map(folderToCompany)}
           loading={hourlyLoading}
           entityLabel="customer"
           onSelect={(company) => {
             const folder = hourlyFolders.find((f) => f.id === company.id);
             if (folder) handleHourlySelect(folder);
+          }}
+        />
+      ) : (
+        <CustomerSelect
+          companies={residentialFolders.map(folderToCompany)}
+          loading={residentialLoading}
+          entityLabel="customer"
+          onSelect={(company) => {
+            const folder = residentialFolders.find((f) => f.id === company.id);
+            if (folder) handleResidentialSelect(folder);
           }}
         />
       )}

@@ -5,6 +5,7 @@ export const APPROVAL_NEEDED_FIELD_ID = 'cad5546f-2c00-40b2-98f0-142efd801b0b';
 
 export const COMMERCIAL_SPACE_ID = '26324040';
 export const HOURLY_SPACE_ID = '32286697';
+export const RESIDENTIAL_SPACE_ID = '32103279';
 
 export const CUSTOMER_SELECTION_OPTIONS = [
   {

@@ -125,6 +125,11 @@ export async function getHourlyFolders(): Promise<ClickUpFolder[]> {
   return getSpaceFolders(HOURLY_SPACE_ID);
 }
 
+// Get all folders (customers) from Residential Customers space
+export async function getResidentialFolders(): Promise<ClickUpFolder[]> {
+  return getSpaceFolders(RESIDENTIAL_SPACE_ID);
+}
+
 // Get lists for a specific folder
 export async function getFolderLists(folderId: string): Promise<ClickUpList[]> {
   const data = await clickupFetch<{ lists: ClickUpList[] }>(
