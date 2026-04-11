@@ -13,6 +13,7 @@ const CLICKUP_BASE_URL = 'https://api.clickup.com/api/v2';
 // Space IDs
 const COMMERCIAL_SPACE_ID = '26324040';
 const HOURLY_SPACE_ID = '32286697';
+const RESIDENTIAL_SPACE_ID = '32103279';
 
 import { APPROVAL_NEEDED_FIELD_ID } from '@/lib/constants';
 
