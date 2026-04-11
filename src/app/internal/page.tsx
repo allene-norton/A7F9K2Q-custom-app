@@ -390,7 +390,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
         {internalView === 'workorders' ? (
           <WorkOrdersView
             companyId={companyId}
-            companyName={selectedCompany ? companyName : undefined}
+            companyName={companyName}
             mode="internal"
             token={token ?? undefined}
             breadcrumbs={

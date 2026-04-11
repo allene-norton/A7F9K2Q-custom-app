@@ -236,6 +236,7 @@ function CustomerPageInner() {
   const [activeItem, setActiveItem] = useState<AssessmentItem | null>(null);
   const [activeView, setActiveView] = useState<ActiveView>('assessment');
   const [unreadTaskIds, setUnreadTaskIds] = useState<Set<string>>(new Set());
+  const [assessmentSort, setAssessmentSort] = useState<'date-new' | 'date-old'>('date-new');
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -610,12 +611,29 @@ function CustomerPageInner() {
               >
                 {companyName}
               </h2>
-              <p className="text-gray-500 text-sm mb-6">
-                You have {assessments.length} {nounPlural} ready for review.
-                Select one to get started.
-              </p>
+              <div className="flex items-center justify-between mb-6">
+                <p className="text-gray-500 text-sm">
+                  You have {assessments.length} {nounPlural} ready for review.
+                  Select one to get started.
+                </p>
+                <select
+                  value={assessmentSort}
+                  onChange={(e) => setAssessmentSort(e.target.value as 'date-new' | 'date-old')}
+                  className="text-sm border border-gray-300 rounded-lg px-2 py-1.5 bg-white
+                             focus:outline-none focus:ring-2 focus:ring-[#174887] ml-4 flex-shrink-0"
+                >
+                  <option value="date-new">Most Recent</option>
+                  <option value="date-old">Oldest First</option>
+                </select>
+              </div>
               <div className="space-y-3">
-                {assessments.map((a) => {
+                {[...assessments]
+                  .sort((a, b) =>
+                    assessmentSort === 'date-new'
+                      ? new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime()
+                      : new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime(),
+                  )
+                  .map((a) => {
                   const alreadySubmitted = Boolean(a.submittedAt);
                   return (
                     <button
