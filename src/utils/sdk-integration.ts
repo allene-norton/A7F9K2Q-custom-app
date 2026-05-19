@@ -20,7 +20,7 @@ export interface SDKClient {
 // Document retrieval functions
 export async function fetchClientDocuments(clientId: string): Promise<SDKDocument[]> {
   // TODO: Implement with copilot-node-sdk
-  console.log("Fetching documents for client:", clientId)
+  // console.log("Fetching documents for client:", clientId)
 
   // Mock data for development
   return [
@@ -41,7 +41,7 @@ export async function fetchClientDocuments(clientId: string): Promise<SDKDocumen
 
 export async function uploadDocument(file: File, clientId: string): Promise<SDKDocument> {
   // TODO: Implement with copilot-node-sdk
-  console.log("Uploading document for client:", clientId, file.name)
+  // console.log("Uploading document for client:", clientId, file.name)
 
   // Mock response for development
   return {
