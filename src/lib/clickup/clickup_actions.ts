@@ -267,7 +267,7 @@ function extractCategory(task: ClickUpTask): AssessmentItem['category'] {
 
     // Check if it's a dropdown field with options
     if (categoryField.type_config?.options) {
-      console.log(`OPTS`, categoryField.type_config?.options);
+      // console.log(`OPTS`, categoryField.type_config?.options);
 
       // Convert value to number for comparison since orderindex is a number
       const valueAsNumber =
