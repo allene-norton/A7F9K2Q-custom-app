@@ -13,7 +13,7 @@ export async function POST(
   const { companyId, taskId } = await params;
   const body = await req.json();
   const { text, authorName, isInternal, senderId, token, companyName, noNotify } = body;
-  console.log(`[comment] companyId=${companyId} taskId=${taskId} isInternal=${isInternal} senderId=${senderId} hasToken=${!!token} text="${text?.slice(0, 30)}"`);
+  // console.log(`[comment] companyId=${companyId} taskId=${taskId} isInternal=${isInternal} senderId=${senderId} hasToken=${!!token} text="${text?.slice(0, 30)}"`);
   const key = process.env.CLICKUP_KEY;
 
   if (!key) return Response.json({ success: false }, { status: 500 });
