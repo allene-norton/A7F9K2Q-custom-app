@@ -550,7 +550,7 @@ export async function listFileChannels(token?: string) {
   try {
     if (isDev) {
       // Dev mode: use Assembly API directly
-      console.log(`using dev mode with key:`, process.env.ASSEMBLY_API_KEY);
+      // console.log(`using dev mode with key:`, process.env.ASSEMBLY_API_KEY);
       if (!assemblyApiKey) {
         throw new Error('ASSEMBLY_API_KEY is required for dev mode');
       }
@@ -701,7 +701,7 @@ export async function createFile(
         bytes[i] = binaryString.charCodeAt(i);
       }
       uploadContent = new Blob([bytes]);
-      console.log('Converted base64 to Blob:', uploadContent.size, 'bytes');
+      // console.log('Converted base64 to Blob:', uploadContent.size, 'bytes');
     } else {
       uploadContent = fileContent;
     }

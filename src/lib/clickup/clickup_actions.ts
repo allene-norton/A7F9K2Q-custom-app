@@ -263,7 +263,7 @@ function extractCategory(task: ClickUpTask): AssessmentItem['category'] {
       categoryField.value,
       `(type: ${typeof categoryField.value})`,
     );
-    console.log(`categoryField.name:`, categoryField.name);
+    // console.log(`categoryField.name:`, categoryField.name);
 
     // Check if it's a dropdown field with options
     if (categoryField.type_config?.options) {

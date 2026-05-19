@@ -27,7 +27,7 @@ export async function notifyClientsAbout(
     listAllInternalUsers(),
   ]);
 
-  console.log(`[notify] notifyClientsAbout companyId=${companyId} clients=${clients.length} internalUsers=${internalUsers.length}`);
+  // console.log(`[notify] notifyClientsAbout companyId=${companyId} clients=${clients.length} internalUsers=${internalUsers.length}`);
 
   const senderId = internalUsers[0]?.id;
   if (!senderId) {
@@ -62,7 +62,7 @@ export async function notifyClientsAbout(
   }
 
   const failed = results.filter((r) => r.status === 'rejected').length;
-  console.log(`[notify] notifyClientsAbout: sent=${results.length - failed} failed=${failed}`);
+  // console.log(`[notify] notifyClientsAbout: sent=${results.length - failed} failed=${failed}`);
 }
 
 /**
@@ -86,7 +86,7 @@ export async function notifyClientsServerSide(
 
   const senderId = internalUsers[0]?.id;
   if (!senderId || clients.length === 0) {
-    console.log(`[notify] notifyClientsServerSide: skipping Assembly notification — no senderId or clients for companyId=${companyId}`);
+    // console.log(`[notify] notifyClientsServerSide: skipping Assembly notification — no senderId or clients for companyId=${companyId}`);
     return;
   }
 
@@ -113,7 +113,7 @@ export async function notifyClientsServerSide(
   }
 
   const succeeded = results.filter((r) => r.status === 'fulfilled' && r.value).length;
-  console.log(`[notify] notifyClientsServerSide: assembly=${succeeded}/${results.length} redis=updated`);
+  // console.log(`[notify] notifyClientsServerSide: assembly=${succeeded}/${results.length} redis=updated`);
 }
 
 /**
@@ -128,7 +128,7 @@ export async function notifyInternalUsersAbout(
 ): Promise<void> {
   const users = await listAllInternalUsers();
 
-  console.log(`[notify] notifyInternalUsersAbout senderId=${senderId} users=${users.length}`);
+  // console.log(`[notify] notifyInternalUsersAbout senderId=${senderId} users=${users.length}`);
 
   if (users.length === 0) {
     console.error('[notify] notifyInternalUsersAbout: no internal users found');
@@ -148,7 +148,7 @@ export async function notifyInternalUsersAbout(
   );
 
   const failed = results.filter((r) => r.status === 'rejected').length;
-  console.log(`[notify] notifyInternalUsersAbout: sent=${results.length - failed} failed=${failed}`);
+  // console.log(`[notify] notifyInternalUsersAbout: sent=${results.length - failed} failed=${failed}`);
 
   if (context) {
     await appendInternalNotification({ ...context, createdAt: new Date().toISOString() });
