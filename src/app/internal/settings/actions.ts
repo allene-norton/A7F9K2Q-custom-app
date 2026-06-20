@@ -29,11 +29,15 @@ export async function loadSettingsData() {
       hourly: hourly.map((f) => ({ id: f.id, name: f.name })),
       residential: residential.map((f) => ({ id: f.id, name: f.name })),
     },
-    companies: companies.map((c) => ({ id: c.id ?? '', name: c.name ?? '' })),
-    clients: clients.map((c) => ({
-      id: c.id ?? '',
-      name: `${c.givenName ?? ''} ${c.familyName ?? ''}`.trim(),
-      companyId: c.companyId,
-    })),
+    companies: companies
+      .map((c) => ({ id: c.id ?? '', name: c.name ?? '' }))
+      .filter((c) => c.id && c.name),
+    clients: clients
+      .map((c) => ({
+        id: c.id ?? '',
+        name: `${c.givenName ?? ''} ${c.familyName ?? ''}`.trim(),
+        companyId: c.companyId,
+      }))
+      .filter((c) => c.id && c.name),
   };
 }

@@ -66,7 +66,7 @@ function SearchableSelect({ value, onChange, placeholder, groups }: ComboboxProp
           <CommandInput placeholder="Search…" className="h-9" />
           <CommandList className="max-h-64">
             <CommandEmpty>No results found.</CommandEmpty>
-            {groups.map((group) => (
+            {groups.filter((g) => g.items.length > 0).map((group) => (
               <CommandGroup key={group.label} heading={group.label}>
                 {group.items.map((item) => (
                   <CommandItem
@@ -103,14 +103,14 @@ export default function MappingsManager({ folders, entities, initialMappings }: 
     {
       label: 'Companies',
       items: entities
-        .filter((e) => e.type === 'company')
+        .filter((e) => e.type === 'company' && e.name.trim())
         .sort((a, b) => a.name.localeCompare(b.name))
         .map((e) => ({ value: e.id, label: e.name })),
     },
     {
       label: 'Clients',
       items: entities
-        .filter((e) => e.type === 'client')
+        .filter((e) => e.type === 'client' && e.name.trim())
         .sort((a, b) => a.name.localeCompare(b.name))
         .map((e) => ({ value: e.id, label: e.name })),
     },
