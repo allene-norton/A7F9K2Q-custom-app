@@ -691,7 +691,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
               href={settingsHref}
               className="px-4 py-2 text-sm text-gray-500 hover:text-[#174887] font-medium transition-colors"
             >
-              Folder Mappings
+              Settings
             </a>
           </div>
         </div>
