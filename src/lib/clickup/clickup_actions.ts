@@ -16,6 +16,7 @@ const HOURLY_SPACE_ID = '32286697';
 const RESIDENTIAL_SPACE_ID = '32103279';
 
 import { APPROVAL_NEEDED_FIELD_ID } from '@/lib/constants';
+import { getFolderMappings } from '@/lib/store';
 
 // ClickUp API types
 export interface ClickUpFolder {
@@ -216,8 +217,20 @@ function normalizeForMatch(str: string): string {
 // Find best matching ClickUp folder for an Assembly company name
 export async function findMatchingFolder(
   companyName: string,
+  assemblyId?: string,
 ): Promise<ClickUpFolder | null> {
   const folders = await getCommercialFolders();
+
+  // Check manual override first
+  if (assemblyId) {
+    const overrides = await getFolderMappings();
+    const override = overrides[assemblyId];
+    if (override && override.clickupSpace === 'commercial') {
+      const found = folders.find((f) => f.id === override.clickupFolderId);
+      if (found) return found;
+    }
+  }
+
   const normalizedCompany = normalizeForMatch(companyName);
 
   // Try exact match first (normalized)
@@ -413,8 +426,9 @@ function extractLocationField(
 // Looks for the "Assessments" list in the matching folder.
 export async function getCommercialAssessmentLocations(
   companyName: string,
+  assemblyId?: string,
 ): Promise<AssessmentParent[]> {
-  const folder = await findMatchingFolder(companyName);
+  const folder = await findMatchingFolder(companyName, assemblyId);
   if (!folder) return [];
 
   const [assessmentList, locationField] = await Promise.all([

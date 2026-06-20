@@ -982,6 +982,37 @@ export async function getLoggedInUser(clientId?: string, token?: string) {
   }
 }
 
+// Server-side fetchers using API key directly (no user token required)
+export async function listAllCompaniesServerSide(): Promise<Company[]> {
+  if (!serverApiKey) return [];
+  try {
+    const res = await fetch(`${ASSEMBLY_BASE_URI}/companies?limit=100`, {
+      headers: { 'X-API-KEY': serverApiKey },
+    });
+    if (!res.ok) throw new Error(`listAllCompaniesServerSide ${res.status}`);
+    const data = await res.json();
+    return data?.data ?? [];
+  } catch (error) {
+    console.error('Error listing companies server-side:', error);
+    return [];
+  }
+}
+
+export async function listAllClientsServerSide(): Promise<Client[]> {
+  if (!serverApiKey) return [];
+  try {
+    const res = await fetch(`${ASSEMBLY_BASE_URI}/clients?limit=2000`, {
+      headers: { 'X-API-KEY': serverApiKey },
+    });
+    if (!res.ok) throw new Error(`listAllClientsServerSide ${res.status}`);
+    const data = await res.json();
+    return data?.data ?? [];
+  } catch (error) {
+    console.error('Error listing clients server-side:', error);
+    return [];
+  }
+}
+
 // comment for deploy
 
 // ─── Notification helpers ─────────────────────────────────────────────────────

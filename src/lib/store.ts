@@ -161,6 +161,33 @@ export async function getWorkOrderCompany(taskId: string): Promise<string | null
   return redis.get<string>(`workorder_company:${taskId}`);
 }
 
+// ─── Folder Overrides (Assembly → ClickUp manual mapping) ────────────────────
+
+export interface FolderMapping {
+  assemblyId: string;
+  assemblyType: 'company' | 'client';
+  assemblyName: string;
+  clickupFolderId: string;
+  clickupFolderName: string;
+  clickupSpace: 'commercial' | 'hourly' | 'residential';
+}
+
+export async function getFolderMappings(): Promise<Record<string, FolderMapping>> {
+  return (await redis.get<Record<string, FolderMapping>>('folder_overrides')) ?? {};
+}
+
+export async function setFolderMapping(assemblyId: string, mapping: FolderMapping): Promise<void> {
+  const existing = await getFolderMappings();
+  existing[assemblyId] = mapping;
+  await redis.set('folder_overrides', existing);
+}
+
+export async function deleteFolderMapping(assemblyId: string): Promise<void> {
+  const existing = await getFolderMappings();
+  delete existing[assemblyId];
+  await redis.set('folder_overrides', existing);
+}
+
 // ─── Internal Notification Activity Log ───────────────────────────────────────
 
 export interface InternalNotificationEntry {

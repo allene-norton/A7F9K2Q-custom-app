@@ -79,12 +79,15 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     const fetchCompanies = async () => {
       try {
         setCompaniesLoading(true);
-        const [response, folders, clientsRes] = await Promise.all([
+        const [response, folders, clientsRes, overridesRes] = await Promise.all([
           listCompanies(token),
           getCommercialFolders(),
           listClients(token),
+          fetch('/api/folder-mappings').then((r) => r.json()).catch(() => ({})),
         ]);
         if (!response.data) throw new Error('No company data returned');
+
+        const overriddenIds = new Set<string>(Object.keys(overridesRes ?? {}));
 
         // Build a lowercase folder name list for matching
         const folderNames = folders.map((f) => f.name.toLowerCase().trim());
@@ -110,7 +113,9 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
 
         setAllClients(clientsRes.data?.data ?? []);
         setAllCompanies(response.data ?? []);
-        const matched = response.data.filter((c) => hasFolder(c.name ?? ''));
+        const matched = response.data.filter(
+          (c) => hasFolder(c.name ?? '') || (c.id && overriddenIds.has(c.id)),
+        );
         setCompanies(matched);
       } catch (error) {
         console.error('Failed to fetch companies:', error);
@@ -171,7 +176,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
 
     try {
       const [locations, sentRes] = await Promise.all([
-        getCommercialAssessmentLocations(company.name || ''),
+        getCommercialAssessmentLocations(company.name || '', company.id),
         company.id
           ? fetch(`/api/assessments/${company.id}`)
               .then((r) => r.json())
@@ -659,25 +664,35 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     residential: 'Residential Customers',
   };
 
+  const settingsHref = token ? `/internal/settings?token=${token}` : '/internal/settings';
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Tab bar */}
       <div className="border-b border-gray-200 bg-white">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="flex gap-0">
-            {(['commercial', 'hourly', 'residential'] as ActiveTab[]).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
-                  activeTab === tab
-                    ? 'border-[#174887] text-[#174887]'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {TAB_LABELS[tab]}
-              </button>
-            ))}
+          <div className="flex items-center justify-between">
+            <div className="flex gap-0">
+              {(['commercial', 'hourly', 'residential'] as ActiveTab[]).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
+                    activeTab === tab
+                      ? 'border-[#174887] text-[#174887]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {TAB_LABELS[tab]}
+                </button>
+              ))}
+            </div>
+            <a
+              href={settingsHref}
+              className="px-4 py-2 text-sm text-gray-500 hover:text-[#174887] font-medium transition-colors"
+            >
+              Folder Mappings
+            </a>
           </div>
         </div>
       </div>
