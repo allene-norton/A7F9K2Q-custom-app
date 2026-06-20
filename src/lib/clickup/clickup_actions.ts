@@ -214,23 +214,33 @@ function normalizeForMatch(str: string): string {
     .trim();
 }
 
-// Find best matching ClickUp folder for an Assembly company name
-export async function findMatchingFolder(
+// Return all ClickUp folders matching an Assembly entity (overrides + fuzzy fallback)
+async function findMatchingFolders(
   companyName: string,
   assemblyId?: string,
-): Promise<ClickUpFolder | null> {
+): Promise<ClickUpFolder[]> {
   const folders = await getCommercialFolders();
 
-  // Check manual override first
   if (assemblyId) {
     const overrides = await getFolderMappings();
-    const override = overrides[assemblyId];
-    if (override && override.clickupSpace === 'commercial') {
-      const found = folders.find((f) => f.id === override.clickupFolderId);
-      if (found) return found;
+    const mappings = (overrides[assemblyId] ?? []).filter((m) => m.clickupSpace === 'commercial');
+    if (mappings.length > 0) {
+      const found = mappings
+        .map((m) => folders.find((f) => f.id === m.clickupFolderId))
+        .filter(Boolean) as ClickUpFolder[];
+      if (found.length > 0) return found;
     }
   }
 
+  const single = await findMatchingFolder(companyName);
+  return single ? [single] : [];
+}
+
+// Find best matching ClickUp folder for an Assembly company name (fuzzy, no overrides)
+export async function findMatchingFolder(
+  companyName: string,
+): Promise<ClickUpFolder | null> {
+  const folders = await getCommercialFolders();
   const normalizedCompany = normalizeForMatch(companyName);
 
   // Try exact match first (normalized)
@@ -428,32 +438,34 @@ export async function getCommercialAssessmentLocations(
   companyName: string,
   assemblyId?: string,
 ): Promise<AssessmentParent[]> {
-  const folder = await findMatchingFolder(companyName, assemblyId);
-  if (!folder) return [];
+  const folders = await findMatchingFolders(companyName, assemblyId);
+  if (folders.length === 0) return [];
 
-  const [assessmentList, locationField] = await Promise.all([
-    getAssessmentListForFolder(folder.id),
-    getFolderLocationField(folder.id),
-  ]);
-  if (!assessmentList) return [];
+  const folderResults = await Promise.all(
+    folders.map(async (folder) => {
+      const [assessmentList, locationField] = await Promise.all([
+        getAssessmentListForFolder(folder.id),
+        getFolderLocationField(folder.id),
+      ]);
+      if (!assessmentList) return [];
 
-  const tasks = await getListTasks(assessmentList.id, false);
-  const parentTasks = tasks.filter(
-    (t) => !t.parent && t.name.toLowerCase().includes('assessment'),
+      const tasks = await getListTasks(assessmentList.id, false);
+      return tasks
+        .filter((t) => !t.parent && t.name.toLowerCase().includes('assessment'))
+        .map((t) => ({
+          taskId: t.id,
+          taskName: t.name,
+          location: extractLocationField(t, locationField),
+          date: new Date(parseInt(t.date_created)).toISOString().split('T')[0],
+          status: t.status.status,
+          statusColor: t.status.color || '#6b7280',
+        }));
+    }),
   );
 
-  parentTasks.sort(
-    (a, b) => parseInt(b.date_created) - parseInt(a.date_created),
-  );
-
-  return parentTasks.map((t) => ({
-    taskId: t.id,
-    taskName: t.name,
-    location: extractLocationField(t, locationField),
-    date: new Date(parseInt(t.date_created)).toISOString().split('T')[0],
-    status: t.status.status,
-    statusColor: t.status.color || '#6b7280',
-  }));
+  const all = folderResults.flat();
+  all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  return all;
 }
 
 // Build an Assessment from a selected commercial parent task.

@@ -1,17 +1,17 @@
 'use server';
 
-import { getFolderMappings, setFolderMapping, deleteFolderMapping, FolderMapping } from '@/lib/store';
+import { getFolderMappings, addFolderMapping, deleteFolderMapping, FolderMapping } from '@/lib/store';
 import { getCommercialFolders, getHourlyFolders, getResidentialFolders } from '@/lib/clickup/clickup_actions';
 import { listAllCompaniesServerSide, listAllClientsServerSide } from '@/lib/assembly/client';
 
 export { getFolderMappings };
 
 export async function saveMapping(mapping: FolderMapping) {
-  await setFolderMapping(mapping.assemblyId, mapping);
+  await addFolderMapping(mapping.assemblyId, mapping);
 }
 
-export async function removeMapping(assemblyId: string) {
-  await deleteFolderMapping(assemblyId);
+export async function removeMapping(assemblyId: string, clickupFolderId: string) {
+  await deleteFolderMapping(assemblyId, clickupFolderId);
 }
 
 export async function loadSettingsData() {

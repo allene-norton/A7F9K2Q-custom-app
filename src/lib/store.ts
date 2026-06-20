@@ -172,19 +172,33 @@ export interface FolderMapping {
   clickupSpace: 'commercial' | 'hourly' | 'residential';
 }
 
-export async function getFolderMappings(): Promise<Record<string, FolderMapping>> {
-  return (await redis.get<Record<string, FolderMapping>>('folder_overrides')) ?? {};
+// Returns all folder mappings, normalizing legacy single-object values to arrays
+export async function getFolderMappings(): Promise<Record<string, FolderMapping[]>> {
+  const raw = (await redis.get<Record<string, FolderMapping | FolderMapping[]>>('folder_overrides')) ?? {};
+  const result: Record<string, FolderMapping[]> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    result[k] = Array.isArray(v) ? v : [v];
+  }
+  return result;
 }
 
-export async function setFolderMapping(assemblyId: string, mapping: FolderMapping): Promise<void> {
+export async function addFolderMapping(assemblyId: string, mapping: FolderMapping): Promise<void> {
   const existing = await getFolderMappings();
-  existing[assemblyId] = mapping;
+  const current = existing[assemblyId] ?? [];
+  const without = current.filter((m) => m.clickupFolderId !== mapping.clickupFolderId);
+  existing[assemblyId] = [...without, mapping];
   await redis.set('folder_overrides', existing);
 }
 
-export async function deleteFolderMapping(assemblyId: string): Promise<void> {
+export async function deleteFolderMapping(assemblyId: string, clickupFolderId?: string): Promise<void> {
   const existing = await getFolderMappings();
-  delete existing[assemblyId];
+  if (clickupFolderId) {
+    const filtered = (existing[assemblyId] ?? []).filter((m) => m.clickupFolderId !== clickupFolderId);
+    if (filtered.length === 0) delete existing[assemblyId];
+    else existing[assemblyId] = filtered;
+  } else {
+    delete existing[assemblyId];
+  }
   await redis.set('folder_overrides', existing);
 }
 
