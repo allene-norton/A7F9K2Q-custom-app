@@ -37,6 +37,7 @@ export interface WorkOrderItem extends AssessmentItem {
   status: string;
   statusColor: string;
   thread: StoredComment[];
+  folderName?: string;
 }
 
 interface WorkOrdersViewProps {
@@ -50,6 +51,7 @@ interface WorkOrdersViewProps {
   externalUnreadTaskIds?: Set<string>; // customer mode: unread state owned by parent
   onMarkTaskRead?: (taskId: string) => void; // customer mode: called after marking a task read
   onUnreadUpdate?: (taskIds: string[]) => void; // customer mode: called when new unread IDs are detected
+  linkedFolderNames?: string[]; // internal commercial: folder names from Redis mappings
 }
 
 // ─── Comment Box ──────────────────────────────────────────────────────────────
@@ -436,7 +438,7 @@ function CustomerModal({ item, companyId, companyName, authorName, senderId, tok
 
 // ─── Main WorkOrdersView ──────────────────────────────────────────────────────
 
-export default function WorkOrdersView({ companyId, companyName, mode, authorName = 'Customer', breadcrumbs, senderId, token, externalUnreadTaskIds, onMarkTaskRead, onUnreadUpdate }: WorkOrdersViewProps) {
+export default function WorkOrdersView({ companyId, companyName, mode, authorName = 'Customer', breadcrumbs, senderId, token, externalUnreadTaskIds, onMarkTaskRead, onUnreadUpdate, linkedFolderNames }: WorkOrdersViewProps) {
   const [items, setItems] = useState<WorkOrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadTaskIds, setUnreadTaskIds] = useState<Set<string>>(new Set());
@@ -449,6 +451,7 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
   const [sortOption, setSortOption] = useState<SortOption>('default');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('All');
   const [locationFilter, setLocationFilter] = useState('All');
+  const [folderFilter, setFolderFilter] = useState('All');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
@@ -522,6 +525,13 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
     [items],
   );
 
+  // Derive unique folder names (internal commercial only)
+  const folderNames = useMemo(
+    () =>
+      Array.from(new Set(items.map((i) => i.folderName).filter(Boolean))).sort() as string[],
+    [items],
+  );
+
   const filteredAndSortedItems = useMemo(() => {
     let result = [...items];
 
@@ -534,6 +544,10 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
 
     if (locationFilter !== 'All') {
       result = result.filter((i) => i.location === locationFilter);
+    }
+
+    if (folderFilter !== 'All') {
+      result = result.filter((i) => i.folderName === folderFilter);
     }
 
     if (searchQuery.trim()) {
@@ -580,13 +594,14 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
     }
 
     return result;
-  }, [items, activeBucket, categoryFilter, locationFilter, searchQuery, selectedTags, sortOption, effectiveUnreadTaskIds, unreadInternalTaskIds, mode]);
+  }, [items, activeBucket, categoryFilter, locationFilter, folderFilter, searchQuery, selectedTags, sortOption, effectiveUnreadTaskIds, unreadInternalTaskIds, mode]);
 
   const clearFilters = () => {
     setSearchQuery('');
     setSortOption('default');
     setCategoryFilter('All');
     setLocationFilter('All');
+    setFolderFilter('All');
     setSelectedTags([]);
   };
 
@@ -595,6 +610,7 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
     sortOption !== 'default' ||
     categoryFilter !== 'All' ||
     locationFilter !== 'All' ||
+    folderFilter !== 'All' ||
     selectedTags.length > 0;
 
   const toggleTag = (name: string) => {
@@ -710,6 +726,24 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
                 <option value="All">All</option>
                 {locations.map((loc) => (
                   <option key={loc} value={loc}>{loc}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Folder location (internal only, when folders are linked via mappings) */}
+          {mode === 'internal' && linkedFolderNames && linkedFolderNames.length > 0 && (
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Filter by folder location:</label>
+              <select
+                value={folderFilter}
+                onChange={(e) => setFolderFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                           focus:outline-none focus:ring-2 focus:ring-[#174887]"
+              >
+                <option value="All">All</option>
+                {linkedFolderNames.map((name) => (
+                  <option key={name} value={name}>{name}</option>
                 ))}
               </select>
             </div>

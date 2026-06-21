@@ -1,6 +1,15 @@
 import { NextRequest } from 'next/server';
-import { appendTaskComment, addUnreadInternalTask } from '@/lib/store';
+import { appendTaskComment, addUnreadInternalTask, getTaskComments } from '@/lib/store';
 import { StoredComment } from '@/types/types-index';
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ companyId: string; taskId: string }> },
+) {
+  const { taskId } = await params;
+  const comments = await getTaskComments(taskId);
+  return Response.json(comments);
+}
 import { notifyClientsAbout, notifyInternalUsersAbout } from '@/lib/notifications';
 
 const CLICKUP_BASE = 'https://api.clickup.com/api/v2';

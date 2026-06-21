@@ -59,10 +59,14 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   >(null);
   const [locationsLoading, setLocationsLoading] = useState(false);
   const [locationFilter, setLocationFilter] = useState<string>('All');
+  const [folderLocationFilter, setFolderLocationFilter] = useState<string>('All');
   const [assessmentListSort, setAssessmentListSort] = useState<'date-new' | 'date-old'>('date-new');
   const [sentAssessments, setSentAssessments] = useState<
     Array<{ assessmentId: string; submittedAt?: string }>
   >([]);
+
+  // Folder overrides (assemblyId → FolderMapping[])
+  const [folderOverrides, setFolderOverrides] = useState<Record<string, { clickupFolderName: string }[]>>({});
 
   // Assessment state
   const [assessment, setAssessment] = useState<Assessment | null>(null);
@@ -113,6 +117,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
 
         setAllClients(clientsRes.data?.data ?? []);
         setAllCompanies(response.data ?? []);
+        setFolderOverrides(overridesRes ?? {});
         const matched = response.data.filter(
           (c) => hasFolder(c.name ?? '') || (c.id && overriddenIds.has(c.id)),
         );
@@ -170,6 +175,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     setAssessmentError(null);
     setLocationsLoading(true);
     setLocationFilter('All');
+    setFolderLocationFilter('All');
     setAssessmentListSort('date-new');
     setSentAssessments([]);
     setInternalView('assessment');
@@ -398,6 +404,11 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
             companyName={companyName}
             mode="internal"
             token={token ?? undefined}
+            linkedFolderNames={
+              company.id && folderOverrides[company.id]
+                ? folderOverrides[company.id].map((m) => m.clickupFolderName)
+                : undefined
+            }
             breadcrumbs={
               <nav className="flex items-center gap-2 text-sm mb-6">
                 <button
@@ -406,6 +417,8 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                 >
                   {backLabel}
                 </button>
+                <span className="text-gray-400">/</span>
+                <span className="text-gray-700 font-medium">{companyName}</span>
                 <span className="text-gray-400">/</span>
                 <span className="text-gray-700 font-medium">Work Orders</span>
               </nav>
@@ -482,36 +495,61 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                     Multiple assessments found. Select a location to view:
                   </p>
 
-                  {/* Location filter */}
-                  {(() => {
-                    const uniqueLocations = Array.from(
-                      new Set(
-                        assessmentLocations
-                          .map((l) => l.location)
-                          .filter(Boolean),
-                      ),
-                    ).sort();
-                    return uniqueLocations.length > 1 ? (
-                      <div className="flex items-center gap-3 mb-5">
+                  {/* Filter bar */}
+                  <div className="flex flex-wrap items-center gap-4 mb-5">
+                    {/* Filter by folder location (from linked mappings) */}
+                    {selectedCompany?.id && folderOverrides[selectedCompany.id]?.length > 0 && (
+                      <div className="flex items-center gap-2">
                         <label className="text-sm font-medium text-gray-700">
-                          Filter by location:
+                          Filter by folder location:
                         </label>
                         <select
-                          value={locationFilter}
-                          onChange={(e) => setLocationFilter(e.target.value)}
+                          value={folderLocationFilter}
+                          onChange={(e) => setFolderLocationFilter(e.target.value)}
                           className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
                                      focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]"
                         >
                           <option value="All">All</option>
-                          {uniqueLocations.map((loc) => (
-                            <option key={loc} value={loc}>
-                              {loc}
+                          {folderOverrides[selectedCompany.id].map((m) => (
+                            <option key={m.clickupFolderName} value={m.clickupFolderName}>
+                              {m.clickupFolderName}
                             </option>
                           ))}
                         </select>
                       </div>
-                    ) : null;
-                  })()}
+                    )}
+
+                    {/* Filter by location (custom field) */}
+                    {(() => {
+                      const uniqueLocations = Array.from(
+                        new Set(
+                          assessmentLocations
+                            .map((l) => l.location)
+                            .filter(Boolean),
+                        ),
+                      ).sort();
+                      return uniqueLocations.length > 1 ? (
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium text-gray-700">
+                            Filter by location:
+                          </label>
+                          <select
+                            value={locationFilter}
+                            onChange={(e) => setLocationFilter(e.target.value)}
+                            className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                                       focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]"
+                          >
+                            <option value="All">All</option>
+                            {uniqueLocations.map((loc) => (
+                              <option key={loc} value={loc}>
+                                {loc}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
 
                   {/* Sort */}
                   <div className="flex items-center gap-3 mb-5">
@@ -536,8 +574,8 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                       )
                       .filter(
                         (loc) =>
-                          locationFilter === 'All' ||
-                          loc.location === locationFilter,
+                          (locationFilter === 'All' || loc.location === locationFilter) &&
+                          (folderLocationFilter === 'All' || loc.folderName === folderLocationFilter),
                       )
                       .map((loc) => {
                         const sentAssessment = sentAssessments.find(

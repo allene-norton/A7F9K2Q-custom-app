@@ -58,6 +58,7 @@ export interface AssessmentParent {
   date: string;
   status: string;
   statusColor: string;
+  folderName?: string;
 }
 
 export interface WorkOrder {

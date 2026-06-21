@@ -215,7 +215,7 @@ function normalizeForMatch(str: string): string {
 }
 
 // Return all ClickUp folders matching an Assembly entity (overrides + fuzzy fallback)
-async function findMatchingFolders(
+export async function findMatchingFolders(
   companyName: string,
   assemblyId?: string,
 ): Promise<ClickUpFolder[]> {
@@ -459,6 +459,7 @@ export async function getCommercialAssessmentLocations(
           date: new Date(parseInt(t.date_created)).toISOString().split('T')[0],
           status: t.status.status,
           statusColor: t.status.color || '#6b7280',
+          folderName: folder.name,
         }));
     }),
   );

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { AssessmentItem } from '@/types/types-index';
+import { useState, useEffect } from 'react';
+import { AssessmentItem, StoredComment } from '@/types/types-index';
 import { getCategoryColor } from '@/lib/utils';
 
 interface AssessmentItemDetailProps {
@@ -20,26 +20,34 @@ export default function AssessmentItemDetail({
   const [activeImage, setActiveImage] = useState(0);
   const [noteText, setNoteText] = useState('');
   const [saving, setSaving] = useState(false);
-  const [noteSaved, setNoteSaved] = useState(false);
+  const [notes, setNotes] = useState<StoredComment[]>([]);
+
+  useEffect(() => {
+    if (!companyId || !item.clickup_task_id) return;
+    fetch(`/api/workorders/${companyId}/${item.clickup_task_id}/comment`)
+      .then((r) => r.json())
+      .then((data: StoredComment[]) => setNotes(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [companyId, item.clickup_task_id]);
 
   const handlePostNote = async () => {
     if (!noteText.trim() || !companyId) return;
     setSaving(true);
     try {
-      await fetch(`/api/workorders/${companyId}/${item.clickup_task_id}/comment`, {
+      const res = await fetch(`/api/workorders/${companyId}/${item.clickup_task_id}/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: noteText.trim(),
           authorName: 'MM Team',
-          isInternal: false,
+          isInternal: true,
           noNotify: true,
           token,
         }),
       });
+      const data = await res.json();
+      if (data.comment) setNotes((prev) => [...prev, data.comment]);
       setNoteText('');
-      setNoteSaved(true);
-      setTimeout(() => setNoteSaved(false), 3000);
     } finally {
       setSaving(false);
     }
@@ -174,22 +182,32 @@ export default function AssessmentItemDetail({
             )}
           </div>
 
-          {/* Comments */}
-          {item.comments && (
-            <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg">
-              <p className="text-xs font-semibold text-blue-900 mb-1">
-                Technician Notes
-              </p>
-              <p className="text-sm text-blue-800">{item.comments}</p>
-            </div>
-          )}
-
-          {/* Internal Note (pre-submission) */}
+          {/* Internal Notes (staff only) */}
           {companyId && (
-            <div className="border-t border-gray-200 pt-5">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                Internal Note
+            <div className="border-t border-gray-200 pt-5 space-y-3">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Internal Notes
               </p>
+
+              {notes.length > 0 && (
+                <div className="space-y-2">
+                  {notes.map((n) => (
+                    <div key={n.id} className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-semibold text-amber-900">{n.authorName}</span>
+                        <span className="text-xs text-amber-600">
+                          {new Date(n.createdAt).toLocaleDateString(undefined, {
+                            month: 'short', day: 'numeric', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-amber-900">{n.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <textarea
                 value={noteText}
                 onChange={(e) => setNoteText(e.target.value)}
@@ -199,14 +217,11 @@ export default function AssessmentItemDetail({
                            focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]
                            placeholder-gray-400"
               />
-              <div className="flex items-center justify-between mt-2">
-                {noteSaved && (
-                  <span className="text-xs text-green-600 font-medium">Note saved to ClickUp.</span>
-                )}
+              <div className="flex justify-end">
                 <button
                   onClick={handlePostNote}
                   disabled={!noteText.trim() || saving}
-                  className="ml-auto px-4 py-1.5 text-sm font-semibold text-white rounded-lg
+                  className="px-4 py-1.5 text-sm font-semibold text-white rounded-lg
                              hover:opacity-90 transition-opacity disabled:opacity-40"
                   style={{ backgroundColor: '#174887' }}
                 >

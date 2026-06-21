@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getWorkOrderRefs, getAssessmentsForCompany, getTaskComments, getTaskStatuses, setTaskStatus, addUnreadTask } from '@/lib/store';
 import { hexToRgba } from '@/lib/utils';
-import { findMatchingFolder, getFolderLists } from '@/lib/clickup/clickup_actions';
+import { findMatchingFolders, getFolderLists } from '@/lib/clickup/clickup_actions';
 
 const CLICKUP_BASE = 'https://api.clickup.com/api/v2';
 
@@ -58,28 +58,11 @@ export async function GET(
   // then overlay location from stored assessment items.
   if (companyName) {
     try {
-      const [folderResult, storedAssessments] = await Promise.all([
-        findMatchingFolder(companyName),
+      const [folders, storedAssessments] = await Promise.all([
+        findMatchingFolders(companyName, companyId),
         getAssessmentsForCompany(companyId),
       ]);
-      if (!folderResult) return Response.json({ items: [] });
-
-      const lists = await getFolderLists(folderResult.id);
-      const assessmentsList = lists.find((l) =>
-        l.name.toLowerCase().includes('assessment'),
-      );
-      if (!assessmentsList) return Response.json({ items: [] });
-
-      const res = await fetch(
-        `${CLICKUP_BASE}/list/${assessmentsList.id}/task?subtasks=false&include_closed=true`,
-        { headers: { Authorization: key } },
-      );
-      const data = await res.json();
-      const allTasks: unknown[] = data.tasks ?? [];
-
-      const workOrderTasks = (allTasks as Array<{ name: string }>).filter(
-        (t) => !t.name.toLowerCase().includes('assessment'),
-      );
+      if (folders.length === 0) return Response.json({ items: [] });
 
       // Build a name→location lookup from all stored assessment items
       const nameToLocation = new Map<string, string>();
@@ -89,12 +72,36 @@ export async function GET(
         }
       }
 
-      const items = workOrderTasks.map((task) => {
-        const formatted = formatTask(task);
-        const storedLocation = nameToLocation.get(formatted.issue);
-        return storedLocation ? { ...formatted, location: storedLocation } : formatted;
-      });
+      const folderItems = await Promise.all(
+        folders.map(async (folder) => {
+          const lists = await getFolderLists(folder.id);
+          const assessmentsList = lists.find((l) =>
+            l.name.toLowerCase().includes('assessment'),
+          );
+          if (!assessmentsList) return [];
 
+          const res = await fetch(
+            `${CLICKUP_BASE}/list/${assessmentsList.id}/task?subtasks=false&include_closed=true`,
+            { headers: { Authorization: key } },
+          );
+          const data = await res.json();
+          const workOrderTasks = (data.tasks ?? []).filter(
+            (t: { name: string }) => !t.name.toLowerCase().includes('assessment'),
+          );
+
+          return workOrderTasks.map((task: unknown) => {
+            const formatted = formatTask(task);
+            const storedLocation = nameToLocation.get(formatted.issue);
+            return {
+              ...formatted,
+              ...(storedLocation ? { location: storedLocation } : {}),
+              folderName: folder.name,
+            };
+          });
+        }),
+      );
+
+      const items = folderItems.flat();
       return Response.json({ items: await attachThreads(items) });
     } catch {
       return Response.json({ items: [] });
