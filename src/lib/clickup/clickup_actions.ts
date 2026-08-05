@@ -318,18 +318,7 @@ function extractCategory(task: ClickUpTask): AssessmentItem['category'] {
   )[0];
 
   if (categoryField?.value !== undefined && categoryField?.value !== null) {
-    console.log(
-      `Task: ${task.name} - categoryField.value:`,
-      categoryField.value,
-      `(type: ${typeof categoryField.value})`,
-    );
-    // console.log(`categoryField.name:`, categoryField.name);
-
-    // Check if it's a dropdown field with options
     if (categoryField.type_config?.options) {
-      // console.log(`OPTS`, categoryField.type_config?.options);
-
-      // Convert value to number for comparison since orderindex is a number
       const valueAsNumber =
         typeof categoryField.value === 'string'
           ? parseInt(categoryField.value, 10)
@@ -338,26 +327,12 @@ function extractCategory(task: ClickUpTask): AssessmentItem['category'] {
       const option = categoryField.type_config.options.find(
         (opt) => opt.orderindex === valueAsNumber,
       );
-      if (option) {
-        console.log(`Found matching option:`, option.name);
-        return option.name;
-      } else {
-        console.log(`No matching option found for orderindex ${valueAsNumber}`);
-      }
+      if (option) return option.name;
     }
-  } else {
-    console.log(`Task: ${task.name} - No category field value found`);
   }
 
   // Fall back to priority if no custom field
-  if (!task.priority) {
-    console.log(
-      `Task: ${task.name} - No priority found, returning Uncategorized`,
-    );
-    return 'Uncategorized';
-  }
-
-  console.log(`Task: ${task.name} - Using priority: ${task.priority.priority}`);
+  if (!task.priority) return 'Uncategorized';
   return task.priority.priority;
 }
 
@@ -373,7 +348,7 @@ function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
       null,
     issue: task.name,
     status: task.status.status,
-    description: task.text_content || task.description || '',
+    description: task.description || task.text_content || '',
     images: (task.attachments || [])
       .filter((a) => a.url)
       .map((a) => a.thumbnail_large || a.url),
@@ -533,7 +508,7 @@ export async function buildCommercialAssessment(
     customer_name: companyName,
     assessment_name: parent.taskName,
     assessment_date: parent.date,
-    description: fullTask.text_content || fullTask.description || '',
+    description: fullTask.description || fullTask.text_content || '',
     location: parent.location,
     technician:
       fullTask.assignees?.[0]?.username || fullTask.creator?.username || 'N/A',

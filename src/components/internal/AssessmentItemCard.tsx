@@ -6,6 +6,7 @@ import {
   formatCostRange,
   // getPriorityColor,
 } from '@/lib/utils';
+import MarkdownContent from '@/components/MarkdownContent';
 
 interface AssessmentItemCardProps {
   item: AssessmentItem;
@@ -64,9 +65,7 @@ export default function AssessmentItemCard({
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
                     Description &amp; Recommendations
                   </p>
-                  <p className="text-sm text-gray-700 leading-relaxed">
-                    {item.description}
-                  </p>
+                  <MarkdownContent content={item.description} />
                 </div>
               )}
 

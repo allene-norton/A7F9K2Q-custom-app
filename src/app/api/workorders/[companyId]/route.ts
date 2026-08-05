@@ -34,7 +34,7 @@ function formatTask(task: any) {
     id: task.id,
     clickup_task_id: task.id,
     issue: task.name,
-    description: task.text_content || task.description || '',
+    description: task.description || task.text_content || '',
     status: task.status?.status ?? '',
     statusColor: task.status?.color ?? '#6b7280',
     location: task.list?.name ?? '',

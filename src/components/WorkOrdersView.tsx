@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { AssessmentItem, StoredComment } from '@/types/types-index';
 import { getCategoryColor } from '@/lib/utils';
+import MarkdownContent from '@/components/MarkdownContent';
 
 type StatusBucket = 'Pending & In Progress' | 'On Hold' | 'Closed';
 
@@ -199,7 +200,7 @@ function InternalCard({ item, index, companyId, token, isUnread, onMarkRead }: I
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
                       Description &amp; Recommendations
                     </p>
-                    <p className="text-sm text-gray-700 leading-relaxed">{item.description}</p>
+                    <MarkdownContent content={item.description} />
                   </div>
                 )}
               </div>
@@ -364,7 +365,7 @@ function CustomerModal({ item, companyId, companyName, authorName, senderId, tok
           {item.description && (
             <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Description &amp; Recommendations</p>
-              <p className="text-sm text-gray-800">{item.description}</p>
+              <MarkdownContent content={item.description} />
             </div>
           )}
 
@@ -908,7 +909,7 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
                           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
                             Description &amp; Recommendations
                           </p>
-                          <p className="text-sm text-gray-700 leading-relaxed">{item.description}</p>
+                          <MarkdownContent content={item.description} />
                         </div>
                       )}
                     </div>
