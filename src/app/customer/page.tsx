@@ -348,7 +348,9 @@ function CustomerPageInner() {
           ),
         );
       } else {
-        alert('Some items failed to update. Please try again.');
+        const detail = data.errors?.length ? `\n\n${data.errors.join('\n')}` : '';
+        console.error('[submit] failed:', data);
+        alert(`Some items failed to update. Please try again.${detail}`);
       }
     } finally {
       setIsSubmitting(false);

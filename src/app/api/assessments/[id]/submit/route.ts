@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getAssessmentById, appendWorkOrderRef, appendTaskComment, copyTaskComments, markAssessmentSubmitted, getNotificationIds, clearUnreadTask, setWorkOrderCompany } from '@/lib/store';
+import { getAssessmentById, getWorkOrderRefs, appendTaskComment, copyTaskComments, markAssessmentSubmitted, getNotificationIds, clearUnreadTask, setWorkOrderCompany, redis } from '@/lib/store';
 import { markNotificationRead } from '@/lib/assembly/client';
 import { notifyInternalUsersAbout } from '@/lib/notifications';
 import type { StoredComment } from '@/types/types-index';
@@ -56,128 +56,146 @@ export async function POST(
   const now = new Date();
   const formattedDate = `${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')}/${now.getFullYear()}`;
 
-  const results = await withConcurrency(
-    items.map(
-      ({ clickup_task_id, orderindex, comment }: { clickup_task_id: string; orderindex: number; comment?: string }) =>
-      async () => {
-        const selectedOption = CUSTOMER_SELECTION_OPTIONS.find(
-          (opt) => opt.orderindex === orderindex,
-        );
+  // Process items sequentially to avoid ClickUp rate limits.
+  // Each item makes ~6 API calls; concurrent processing reliably triggers 429s.
+  type ItemResult = { clickup_task_id: string; newTaskId: string; listId: string; comment?: string };
+  const succeeded: ItemResult[] = [];
+  const errors: string[] = [];
 
-        // 1. Fetch the original subtask to get list ID, name, tags, assignees
-        const taskRes = await fetch(
-          `${CLICKUP_BASE}/task/${clickup_task_id}`,
-          { headers: { Authorization: key } },
-        );
-        const task = await taskRes.json();
-        const listId: string = task.list?.id;
+  for (const { clickup_task_id, orderindex, comment } of items as { clickup_task_id: string; orderindex: number; comment?: string }[]) {
+    try {
+      const selectedOption = CUSTOMER_SELECTION_OPTIONS.find(
+        (opt) => opt.orderindex === orderindex,
+      );
 
-        if (!listId) {
-          throw new Error(`Could not resolve list ID for task ${clickup_task_id}`);
-        }
+      // 1. Fetch the original subtask to get list ID, name, tags, assignees
+      const taskRes = await fetch(
+        `${CLICKUP_BASE}/task/${clickup_task_id}`,
+        { headers: { Authorization: key } },
+      );
+      const task = await taskRes.json();
+      const listId: string = task.list?.id;
 
-        // 2. Create a new top-level task in the same list
-        // description is intentionally omitted — the merge (step 3) brings it
-        // from the original subtask, avoiding duplication
-        const createRes = await fetch(`${CLICKUP_BASE}/list/${listId}/task`, {
+      if (!listId) {
+        throw new Error(`Could not resolve list ID for task ${clickup_task_id}`);
+      }
+
+      // 2. Create a new top-level task in the same list
+      // description is intentionally omitted — the merge (step 3) brings it
+      // from the original subtask, avoiding duplication
+      const createRes = await fetch(`${CLICKUP_BASE}/list/${listId}/task`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({
+          name: task.name,
+          status: selectedOption?.clickupStatus,
+          tags: (task.tags ?? []).map((t: { name: string }) => t.name),
+          assignees: (task.assignees ?? []).map((a: { id: number }) => a.id),
+        }),
+      });
+      const newTask = await createRes.json();
+      const newTaskId: string = newTask.id;
+
+      if (!newTaskId) {
+        throw new Error(`Failed to create new task for ${clickup_task_id}: ${JSON.stringify(newTask)}`);
+      }
+
+      // 3. Merge the original subtask into the new task
+      await fetch(`${CLICKUP_BASE}/task/${newTaskId}/merge`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({ source_task_ids: [clickup_task_id] }),
+      });
+
+      // 4. After merge, explicitly set description to the original's content
+      //    (ClickUp's merge can concatenate descriptions, causing duplication)
+      //    + Set Customer Selection field + clear Approval Needed
+      const originalDescription = task.description ?? task.text_content ?? '';
+      await Promise.all([
+        fetch(`${CLICKUP_BASE}/task/${newTaskId}`, {
+          method: 'PUT',
+          headers: authHeaders,
+          body: JSON.stringify({ description: originalDescription }),
+        }),
+        fetch(
+          `${CLICKUP_BASE}/task/${newTaskId}/field/${CUSTOMER_SELECTION_FIELD_ID}`,
+          {
+            method: 'POST',
+            headers: authHeaders,
+            body: JSON.stringify({ value: orderindex }),
+          },
+        ),
+        fetch(
+          `${CLICKUP_BASE}/task/${newTaskId}/field/${APPROVAL_NEEDED_FIELD_ID}`,
+          {
+            method: 'POST',
+            headers: authHeaders,
+            body: JSON.stringify({ value: false }),
+          },
+        ),
+      ]);
+
+      // 5b. Copy any pre-submission notes from old task ID to new work order task ID
+      await copyTaskComments(clickup_task_id, newTaskId);
+
+      // 6. Sync customer comment to ClickUp (Redis write batched below)
+      if (comment?.trim()) {
+        const formattedComment = `Comment from ${assessmentData.companyName} at ${formattedDate}: ${comment}`;
+        await fetch(`${CLICKUP_BASE}/task/${newTaskId}/comment`, {
           method: 'POST',
           headers: authHeaders,
           body: JSON.stringify({
-            name: task.name,
-            status: selectedOption?.clickupStatus,
-            tags: (task.tags ?? []).map((t: { name: string }) => t.name),
-            assignees: (task.assignees ?? []).map((a: { id: number }) => a.id),
+            comment_text: formattedComment,
+            notify_all: false,
           }),
         });
-        const newTask = await createRes.json();
-        const newTaskId: string = newTask.id;
+      }
 
-        if (!newTaskId) {
-          throw new Error(`Failed to create new task for ${clickup_task_id}`);
-        }
+      succeeded.push({ clickup_task_id, newTaskId, listId, comment });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('[submit] item failed:', msg);
+      errors.push(msg);
+    }
+  }
 
-        // 3. Merge the original subtask into the new task
-        await fetch(`${CLICKUP_BASE}/task/${newTaskId}/merge`, {
-          method: 'POST',
-          headers: authHeaders,
-          body: JSON.stringify({ source_task_ids: [clickup_task_id] }),
-        });
-
-        // 4. After merge, explicitly set description to the original's content
-        //    (ClickUp's merge can concatenate descriptions, causing duplication)
-        //    + Set Customer Selection field + clear Approval Needed
-        const originalDescription = task.description ?? task.text_content ?? '';
-        await Promise.all([
-          fetch(`${CLICKUP_BASE}/task/${newTaskId}`, {
-            method: 'PUT',
-            headers: authHeaders,
-            body: JSON.stringify({ description: originalDescription }),
-          }),
-          fetch(
-            `${CLICKUP_BASE}/task/${newTaskId}/field/${CUSTOMER_SELECTION_FIELD_ID}`,
-            {
-              method: 'POST',
-              headers: authHeaders,
-              body: JSON.stringify({ value: orderindex }),
-            },
-          ),
-          fetch(
-            `${CLICKUP_BASE}/task/${newTaskId}/field/${APPROVAL_NEEDED_FIELD_ID}`,
-            {
-              method: 'POST',
-              headers: authHeaders,
-              body: JSON.stringify({ value: false }),
-            },
-          ),
-        ]);
-
-        // 5. Save work order ref to Redis + reverse lookup (taskId → companyId)
-        const assessmentItem = assessmentData.items.find(
-          (item) => item.clickup_task_id === clickup_task_id,
-        );
-        await Promise.all([
-          appendWorkOrderRef(id, {
-            taskId: newTaskId,
-            listId,
-            addedAt: new Date().toISOString(),
-            location: assessmentItem?.location ?? '',
-            assessmentName: assessmentData.assessmentName,
-          }),
-          setWorkOrderCompany(newTaskId, id),
-        ]);
-
-        // 5b. Copy any pre-submission notes from old task ID to new work order task ID
-        await copyTaskComments(clickup_task_id, newTaskId);
-
-        // 6. Save customer comment to Redis + sync to ClickUp
-        if (comment?.trim()) {
-          const storedComment: StoredComment = {
-            id: crypto.randomUUID(),
-            text: comment.trim(),
-            authorName: assessmentData.companyName,
-            isInternal: false,
-            createdAt: new Date().toISOString(),
-          };
-          await appendTaskComment(newTaskId, storedComment);
-
-          const formattedComment = `Comment from ${assessmentData.companyName} at ${formattedDate}: ${comment}`;
-          await fetch(`${CLICKUP_BASE}/task/${newTaskId}/comment`, {
-            method: 'POST',
-            headers: authHeaders,
-            body: JSON.stringify({
-              comment_text: formattedComment,
-              notify_all: false,
-            }),
-          });
-        }
-      }),
-    3,
-  );
-
-  const failed = results.filter((r) => r.status === 'rejected').length;
-  results.filter((r) => r.status === 'rejected').forEach((r) => {
-    console.error('[submit] item failed:', (r as PromiseRejectedResult).reason);
+  // Batch all Redis writes after ClickUp processing completes.
+  // Doing this serially avoids read-modify-write race conditions when
+  // appendWorkOrderRef is called concurrently (last writer would overwrite others).
+  const existingRefs = await getWorkOrderRefs(id);
+  const newRefs = succeeded.map(({ clickup_task_id, newTaskId, listId }) => {
+    const assessmentItem = assessmentData.items.find(
+      (item) => item.clickup_task_id === clickup_task_id,
+    );
+    return {
+      taskId: newTaskId,
+      listId,
+      addedAt: new Date().toISOString(),
+      location: assessmentItem?.location ?? '',
+      assessmentName: assessmentData.assessmentName,
+    };
   });
+  const existingIds = new Set(existingRefs.map((r) => r.taskId));
+  const mergedRefs = [...existingRefs, ...newRefs.filter((r) => !existingIds.has(r.taskId))];
+
+  await Promise.all([
+    redis.set(`workorders:${id}`, mergedRefs),
+    ...succeeded.map(({ newTaskId }) => setWorkOrderCompany(newTaskId, id)),
+    ...succeeded
+      .filter(({ comment }) => comment?.trim())
+      .map(({ newTaskId, comment }) => {
+        const storedComment: StoredComment = {
+          id: crypto.randomUUID(),
+          text: comment!.trim(),
+          authorName: assessmentData.companyName,
+          isInternal: false,
+          createdAt: new Date().toISOString(),
+        };
+        return appendTaskComment(newTaskId, storedComment);
+      }),
+  ]);
+
+  const failed = errors.length;
   if (failed === 0) {
     // assessmentId is stored as "assess_{companyId}_{clickupTaskId}" — extract the real ClickUp ID
     const prefix = `assess_${id}_`;
@@ -230,5 +248,5 @@ export async function POST(
     );
   }
 
-  return Response.json({ success: failed === 0, failed });
+  return Response.json({ success: failed === 0, failed, errors });
 }
