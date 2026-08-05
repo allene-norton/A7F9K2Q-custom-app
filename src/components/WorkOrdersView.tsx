@@ -7,7 +7,7 @@ import { getCategoryColor } from '@/lib/utils';
 type StatusBucket = 'Pending & In Progress' | 'On Hold' | 'Closed';
 
 const BUCKET_STATUSES: Record<StatusBucket, string[]> = {
-  'Pending & In Progress': ['yes - please complete', 'in progress'],
+  'Pending & In Progress': ['open', 'to do', 'yes - please complete', 'in progress'],
   'On Hold': ['maybe - more info', 'not now - keep open', 'needs quote'],
   'Closed': ['declined by owner', 'completed by others', 'complete'],
 };
