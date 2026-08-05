@@ -492,7 +492,7 @@ export async function getCommercialAssessmentLocations(
           taskId: t.id,
           taskName: t.name,
           location: extractLocationField(t, locationField),
-          date: new Date(parseInt(t.date_created)).toISOString().split('T')[0],
+          date: new Date(parseInt(t.date_updated)).toISOString().split('T')[0],
           status: t.status.status,
           statusColor: t.status.color || '#6b7280',
           folderName: folder.name,
