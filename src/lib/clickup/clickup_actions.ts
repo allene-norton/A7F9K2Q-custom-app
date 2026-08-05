@@ -521,6 +521,7 @@ export async function buildCommercialAssessment(
   const items = approvedSubtasks.map((t) => ({
     ...transformTaskToAssessmentItem(t),
     location: parent.location,
+    parentTaskName: parent.taskName,
   }));
 
   return {

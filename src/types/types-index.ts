@@ -22,6 +22,7 @@ export interface AssessmentItem {
   id: string;
   clickup_task_id: string;
   location: string;
+  parentTaskName?: string;
   category: string;
   priority: "Urgent" | "High" | "Normal" | "Low" | null;
   status: string | null;

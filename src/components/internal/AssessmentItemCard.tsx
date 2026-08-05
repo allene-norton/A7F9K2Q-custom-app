@@ -50,7 +50,7 @@ export default function AssessmentItemCard({
                   #{index + 1}
                 </span>
                 <span className="text-sm text-gray-600 font-medium">
-                  {item.location}
+                  {item.location}{item.parentTaskName ? ` - ${item.parentTaskName}` : ''}
                 </span>
               </div>
 
