@@ -15,6 +15,19 @@ async function withConcurrency<T>(tasks: (() => Promise<T>)[], limit: number): P
 
 const CLICKUP_BASE = 'https://api.clickup.com/api/v2';
 
+const CATEGORY_FIELD_ID = '3188285b-248d-4f23-b84d-58baddbaba0b';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractCategory(task: any): string {
+  const field = (task.custom_fields ?? []).find((f: { id: string }) => f.id === CATEGORY_FIELD_ID);
+  if (field?.value !== undefined && field?.value !== null && field?.type_config?.options) {
+    const valueAsNumber = typeof field.value === 'string' ? parseInt(field.value, 10) : field.value;
+    const option = field.type_config.options.find((opt: { orderindex: number }) => opt.orderindex === valueAsNumber);
+    if (option) return option.name;
+  }
+  return task.priority?.priority ?? 'Uncategorized';
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function formatTask(task: any) {
   return {
@@ -25,7 +38,7 @@ function formatTask(task: any) {
     status: task.status?.status ?? '',
     statusColor: task.status?.color ?? '#6b7280',
     location: task.list?.name ?? '',
-    category: task.priority?.priority ?? 'Uncategorized',
+    category: extractCategory(task),
     priority: task.priority?.priority?.toLowerCase() ?? null,
     images: (task.attachments ?? [])
       .filter((a: { url?: string }) => a.url)

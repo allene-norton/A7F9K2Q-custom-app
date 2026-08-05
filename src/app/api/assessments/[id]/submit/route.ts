@@ -3,10 +3,7 @@ import { getAssessmentById, getWorkOrderRefs, appendTaskComment, copyTaskComment
 import { markNotificationRead } from '@/lib/assembly/client';
 import { notifyInternalUsersAbout } from '@/lib/notifications';
 import type { StoredComment } from '@/types/types-index';
-import {
-  APPROVAL_NEEDED_FIELD_ID,
-  CUSTOMER_SELECTION_OPTIONS,
-} from '@/lib/constants';
+import { APPROVAL_NEEDED_FIELD_ID } from '@/lib/constants';
 
 async function withConcurrency<T>(tasks: (() => Promise<T>)[], limit: number): Promise<PromiseSettledResult<T>[]> {
   const results: PromiseSettledResult<T>[] = new Array(tasks.length);
@@ -64,10 +61,6 @@ export async function POST(
 
   for (const { clickup_task_id, orderindex, comment } of items as { clickup_task_id: string; orderindex: number; comment?: string }[]) {
     try {
-      const selectedOption = CUSTOMER_SELECTION_OPTIONS.find(
-        (opt) => opt.orderindex === orderindex,
-      );
-
       // 1. Fetch the original subtask to get list ID, name, tags, assignees
       const taskRes = await fetch(
         `${CLICKUP_BASE}/task/${clickup_task_id}`,
@@ -88,7 +81,6 @@ export async function POST(
         headers: authHeaders,
         body: JSON.stringify({
           name: task.name,
-          status: selectedOption?.clickupStatus,
           tags: (task.tags ?? []).map((t: { name: string }) => t.name),
           assignees: (task.assignees ?? []).map((a: { id: number }) => a.id),
         }),
