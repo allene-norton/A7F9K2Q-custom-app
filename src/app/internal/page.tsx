@@ -687,25 +687,42 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   // --- Render: customer/folder selection with tabs ---
   // Helper: match a folder to an Assembly client or company and return a Company-shaped object
   const folderToCompany = (f: ClickUpFolder): Company => {
-    const folderName = f.name.toLowerCase().trim();
-    const fWords = folderName.split(/\s+/).filter((w) => w.length > 2);
+    // Strip punctuation and normalize to a sorted word bag for robust matching
+    const normalize = (s: string) =>
+      s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const wordBag = (s: string) => normalize(s).split(' ').filter((w) => w.length > 1).sort().join(' ');
+
+    const folderNorm = normalize(f.name);
+    const folderBag = wordBag(f.name);
+
     const fuzzy = (name: string) => {
-      const n = name.toLowerCase().trim();
+      if (!name.trim()) return false;
+      const n = normalize(name);
       if (!n) return false;
-      if (n === folderName || n.startsWith(folderName) || folderName.startsWith(n)) return true;
-      const nWords = n.split(/\s+/).filter((w) => w.length > 2);
+      // Exact normalized match
+      if (n === folderNorm) return true;
+      // Prefix match either direction
+      if (n.startsWith(folderNorm) || folderNorm.startsWith(n)) return true;
+      // Word-bag overlap — handles "Last, First" vs "First Last"
+      const nb = wordBag(name);
+      if (nb === folderBag) return true;
+      const nWords = nb.split(' ');
+      const fWords = folderBag.split(' ');
       const overlap = nWords.filter((w) => fWords.includes(w)).length;
       const total = new Set([...nWords, ...fWords]).size;
       return total > 0 && overlap / total >= 0.5;
     };
-    const matchedClient = allClients.find((c) =>
-      fuzzy(`${c.givenName ?? ''} ${c.familyName ?? ''}`)
-    );
+
+    const matchedClient = allClients.find((c) => {
+      const fullName = `${c.givenName ?? ''} ${c.familyName ?? ''}`.trim();
+      const reversedName = `${c.familyName ?? ''} ${c.givenName ?? ''}`.trim();
+      return fuzzy(fullName) || fuzzy(reversedName);
+    });
     const matchedCompany = allCompanies.find((c) => fuzzy(c.name ?? ''));
     return {
       id: f.id,
       name: f.name,
-      createdAt: matchedClient?.createdAt ?? matchedCompany?.createdAt ?? undefined,
+      createdAt: matchedClient?.createdAt ?? matchedCompany?.createdAt ?? (f.date_created ? new Date(parseInt(f.date_created)).toISOString() : undefined),
     };
   };
 
