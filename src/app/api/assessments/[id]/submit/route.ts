@@ -8,6 +8,20 @@ import {
   CUSTOMER_SELECTION_OPTIONS,
 } from '@/lib/constants';
 
+async function withConcurrency<T>(tasks: (() => Promise<T>)[], limit: number): Promise<PromiseSettledResult<T>[]> {
+  const results: PromiseSettledResult<T>[] = new Array(tasks.length);
+  let next = 0;
+  async function run(): Promise<void> {
+    while (next < tasks.length) {
+      const i = next++;
+      try { results[i] = { status: 'fulfilled', value: await tasks[i]() }; }
+      catch (e) { results[i] = { status: 'rejected', reason: e }; }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, run));
+  return results;
+}
+
 const CLICKUP_BASE = 'https://api.clickup.com/api/v2';
 const CUSTOMER_SELECTION_FIELD_ID = 'd82819f0-eaad-45d2-8c67-af1aa08a5949';
 
@@ -42,17 +56,10 @@ export async function POST(
   const now = new Date();
   const formattedDate = `${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getDate().toString().padStart(2, '0')}/${now.getFullYear()}`;
 
-  const results = await Promise.allSettled(
+  const results = await withConcurrency(
     items.map(
-      async ({
-        clickup_task_id,
-        orderindex,
-        comment,
-      }: {
-        clickup_task_id: string;
-        orderindex: number;
-        comment?: string;
-      }) => {
+      ({ clickup_task_id, orderindex, comment }: { clickup_task_id: string; orderindex: number; comment?: string }) =>
+      async () => {
         const selectedOption = CUSTOMER_SELECTION_OPTIONS.find(
           (opt) => opt.orderindex === orderindex,
         );
@@ -163,11 +170,14 @@ export async function POST(
             }),
           });
         }
-      },
-    ),
+      }),
+    3,
   );
 
   const failed = results.filter((r) => r.status === 'rejected').length;
+  results.filter((r) => r.status === 'rejected').forEach((r) => {
+    console.error('[submit] item failed:', (r as PromiseRejectedResult).reason);
+  });
   if (failed === 0) {
     // assessmentId is stored as "assess_{companyId}_{clickupTaskId}" — extract the real ClickUp ID
     const prefix = `assess_${id}_`;
