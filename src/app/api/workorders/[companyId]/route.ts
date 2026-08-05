@@ -41,7 +41,15 @@ function formatTask(task: any) {
     category: extractCategory(task),
     priority: task.priority?.priority?.toLowerCase() ?? null,
     images: (task.attachments ?? [])
-      .filter((a: { url?: string }) => a.url)
+      .filter((a: { url?: string; thumbnail_large?: string; mimetype?: string }) => {
+        if (!a.url) return false;
+        if (!a.thumbnail_large) {
+          const ext = a.url.split('?')[0].toLowerCase();
+          if (ext.endsWith('.heic') || ext.endsWith('.heif')) return false;
+          if (a.mimetype === 'image/heic' || a.mimetype === 'image/heif') return false;
+        }
+        return true;
+      })
       .map((a: { url: string; thumbnail_large?: string }) => a.thumbnail_large || a.url),
     tags: (task.tags ?? []).map((t: { name: string; tag_bg: string }) => ({
       name: t.name,

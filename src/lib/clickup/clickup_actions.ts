@@ -338,6 +338,7 @@ function extractCategory(task: ClickUpTask): AssessmentItem['category'] {
 
 // Transform ClickUp task to AssessmentItem
 function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
+  const description = task.description || task.text_content || '';
   return {
     id: task.id,
     clickup_task_id: task.id,
@@ -348,9 +349,18 @@ function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
       null,
     issue: task.name,
     status: task.status.status,
-    description: task.description || task.text_content || '',
+    description,
     images: (task.attachments || [])
-      .filter((a) => a.url)
+      .filter((a) => {
+        if (!a.url) return false;
+        // HEIC/HEIF files don't render in browsers — only keep if ClickUp has a thumbnail
+        if (!a.thumbnail_large) {
+          const ext = a.url.split('?')[0].toLowerCase();
+          if (ext.endsWith('.heic') || ext.endsWith('.heif')) return false;
+          if (a.mimetype === 'image/heic' || a.mimetype === 'image/heif') return false;
+        }
+        return true;
+      })
       .map((a) => a.thumbnail_large || a.url),
     estimated_cost_min: 0, // Not available without custom fields
     estimated_cost_max: 0, // remove

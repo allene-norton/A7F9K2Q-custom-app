@@ -2,17 +2,33 @@
 
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 
 interface MarkdownContentProps {
   content: string;
   className?: string;
 }
 
+function preprocessClickUpText(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => {
+      const trimmed = line.trimEnd();
+      if (trimmed.endsWith(':') && trimmed.length > 1) {
+        return `**<u>${trimmed}</u>**`;
+      }
+      return line;
+    })
+    .join('\n');
+}
+
 export default function MarkdownContent({ content, className = '' }: MarkdownContentProps) {
+  const processed = preprocessClickUpText(content);
   return (
     <div className={`prose prose-sm max-w-none text-gray-700 ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw]}
         components={{
           // Keep headings reasonably sized within cards
           h1: ({ children }) => <h1 className="text-base font-bold mt-2 mb-1">{children}</h1>,
@@ -47,7 +63,7 @@ export default function MarkdownContent({ content, className = '' }: MarkdownCon
           },
         }}
       >
-        {content}
+        {processed}
       </ReactMarkdown>
     </div>
   );

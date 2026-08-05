@@ -42,11 +42,13 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   const [hourlyFolders, setHourlyFolders] = useState<ClickUpFolder[]>([]);
   const [hourlyLoading, setHourlyLoading] = useState(false);
   const [hourlyLoaded, setHourlyLoaded] = useState(false);
+  const [hourlyError, setHourlyError] = useState<string | null>(null);
 
   // Residential state
   const [residentialFolders, setResidentialFolders] = useState<ClickUpFolder[]>([]);
   const [residentialLoading, setResidentialLoading] = useState(false);
   const [residentialLoaded, setResidentialLoaded] = useState(false);
+  const [residentialError, setResidentialError] = useState<string | null>(null);
 
   // Shared selection state
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
@@ -137,11 +139,14 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     const fetchHourly = async () => {
       try {
         setHourlyLoading(true);
+        setHourlyError(null);
         const folders = await getHourlyFolders();
         setHourlyFolders(folders);
         setHourlyLoaded(true);
       } catch (error) {
         console.error('Failed to fetch hourly folders:', error);
+        setHourlyError(error instanceof Error ? error.message : String(error));
+        setHourlyLoaded(true); // prevent infinite retry
       } finally {
         setHourlyLoading(false);
       }
@@ -155,11 +160,14 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     const fetchResidential = async () => {
       try {
         setResidentialLoading(true);
+        setResidentialError(null);
         const folders = await getResidentialFolders();
         setResidentialFolders(folders);
         setResidentialLoaded(true);
       } catch (error) {
         console.error('Failed to fetch residential folders:', error);
+        setResidentialError(error instanceof Error ? error.message : String(error));
+        setResidentialLoaded(true); // prevent infinite retry
       } finally {
         setResidentialLoading(false);
       }
@@ -722,7 +730,12 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     return {
       id: f.id,
       name: f.name,
-      createdAt: matchedClient?.createdAt ?? matchedCompany?.createdAt ?? (f.date_created ? new Date(parseInt(f.date_created)).toISOString() : undefined),
+      createdAt: matchedClient?.createdAt ?? matchedCompany?.createdAt ?? (() => {
+        if (!f.date_created) return undefined;
+        const ms = parseInt(f.date_created, 10);
+        if (isNaN(ms)) return undefined;
+        try { return new Date(ms).toISOString(); } catch { return undefined; }
+      })(),
     };
   };
 
@@ -773,25 +786,41 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
           onSelect={handleCommercialSelect}
         />
       ) : activeTab === 'hourly' ? (
-        <CustomerSelect
-          companies={hourlyFolders.map(folderToCompany)}
-          loading={hourlyLoading}
-          entityLabel="customer"
-          onSelect={(company) => {
-            const folder = hourlyFolders.find((f) => f.id === company.id);
-            if (folder) handleHourlySelect(folder);
-          }}
-        />
+        hourlyError ? (
+          <div className="max-w-4xl mx-auto py-12 px-4">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-red-700 text-sm font-mono whitespace-pre-wrap">
+              Error loading hourly customers: {hourlyError}
+            </div>
+          </div>
+        ) : (
+          <CustomerSelect
+            companies={hourlyFolders.map(folderToCompany)}
+            loading={hourlyLoading}
+            entityLabel="customer"
+            onSelect={(company) => {
+              const folder = hourlyFolders.find((f) => f.id === company.id);
+              if (folder) handleHourlySelect(folder);
+            }}
+          />
+        )
       ) : (
-        <CustomerSelect
-          companies={residentialFolders.map(folderToCompany)}
-          loading={residentialLoading}
-          entityLabel="customer"
-          onSelect={(company) => {
-            const folder = residentialFolders.find((f) => f.id === company.id);
-            if (folder) handleResidentialSelect(folder);
-          }}
-        />
+        residentialError ? (
+          <div className="max-w-4xl mx-auto py-12 px-4">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-red-700 text-sm font-mono whitespace-pre-wrap">
+              Error loading residential customers: {residentialError}
+            </div>
+          </div>
+        ) : (
+          <CustomerSelect
+            companies={residentialFolders.map(folderToCompany)}
+            loading={residentialLoading}
+            entityLabel="customer"
+            onSelect={(company) => {
+              const folder = residentialFolders.find((f) => f.id === company.id);
+              if (folder) handleResidentialSelect(folder);
+            }}
+          />
+        )
       )}
     </div>
   );

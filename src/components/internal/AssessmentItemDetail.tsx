@@ -68,7 +68,7 @@ export default function AssessmentItemDetail({
           <div className="flex-1 pr-4">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-                {item.location}
+                {item.location}{item.parentTaskName ? ` - ${item.parentTaskName}` : ''}
               </span>
             </div>
             <h2 className="text-xl font-bold text-gray-900">{item.issue}</h2>
@@ -136,7 +136,7 @@ export default function AssessmentItemDetail({
           {/* Description & Recommendations */}
           {item.description && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+              <p className="inline-block text-sm font-semibold text-blue-700 bg-blue-50 rounded-lg px-3 py-1 mb-2 uppercase tracking-wide">
                 Description &amp; Recommendations
               </p>
               <MarkdownContent content={item.description} />

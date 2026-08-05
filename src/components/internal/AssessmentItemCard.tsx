@@ -55,14 +55,16 @@ export default function AssessmentItemCard({
                 </span>
               </div>
 
-              <h4 className="text-lg font-bold text-gray-900 mb-2">
+              <h4 className="text-lg font-bold text-gray-900 mb-3">
                 {item.issue}
               </h4>
+
+              <hr className="border-gray-200 mb-3" />
 
               {/* Description & Recommendations */}
               {item.description && (
                 <div className="mb-3">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                  <p className="inline-block text-sm font-semibold text-blue-700 bg-blue-50 rounded-lg px-3 py-1 mb-2 uppercase tracking-wide">
                     Description &amp; Recommendations
                   </p>
                   <MarkdownContent content={item.description} />
