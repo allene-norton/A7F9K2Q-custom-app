@@ -3,6 +3,16 @@ import { getWorkOrderRefs, getAssessmentsForCompany, getTaskComments, getTaskSta
 import { hexToRgba } from '@/lib/utils';
 import { findMatchingFolders, getFolderLists } from '@/lib/clickup/clickup_actions';
 
+async function withConcurrency<T>(tasks: (() => Promise<T>)[], limit: number): Promise<T[]> {
+  const results: T[] = new Array(tasks.length);
+  let next = 0;
+  async function run(): Promise<void> {
+    while (next < tasks.length) { const i = next++; results[i] = await tasks[i](); }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, run));
+  return results;
+}
+
 const CLICKUP_BASE = 'https://api.clickup.com/api/v2';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -72,8 +82,8 @@ export async function GET(
         }
       }
 
-      const folderItems = await Promise.all(
-        folders.map(async (folder) => {
+      const folderItems = await withConcurrency(
+        folders.map((folder) => async () => {
           const lists = await getFolderLists(folder.id);
           const assessmentsList = lists.find((l) =>
             l.name.toLowerCase().includes('assessment'),
@@ -99,6 +109,7 @@ export async function GET(
             };
           });
         }),
+        5,
       );
 
       const items = folderItems.flat();

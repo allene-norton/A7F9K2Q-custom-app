@@ -34,7 +34,7 @@ interface AssessmentBuilderProps {
 }
 
 type CategoryFilter = 'All' | AssessmentItem['category'];
-type SortOption = 'default' | 'urgency-high' | 'urgency-low' | 'date-old';
+type SortOption = 'default' | 'urgency-high' | 'urgency-low' | 'date-old' | 'name-asc' | 'name-desc';
 
 const CATEGORIES: AssessmentItem['category'][] = [
   'Urgent',
@@ -153,6 +153,10 @@ export default function AssessmentBuilder({
       );
     } else if (sortOption === 'date-old') {
       items.sort((a, b) => (a.created_date ?? '').localeCompare(b.created_date ?? ''));
+    } else if (sortOption === 'name-asc') {
+      items.sort((a, b) => a.issue.localeCompare(b.issue, undefined, { numeric: true, sensitivity: 'base' }));
+    } else if (sortOption === 'name-desc') {
+      items.sort((a, b) => b.issue.localeCompare(a.issue, undefined, { numeric: true, sensitivity: 'base' }));
     } else {
       // default: most recent first
       items.sort((a, b) => (b.created_date ?? '').localeCompare(a.created_date ?? ''));
@@ -568,6 +572,8 @@ export default function AssessmentBuilder({
                   >
                     <option value="default">Most Recent</option>
                     <option value="date-old">Oldest First</option>
+                    <option value="name-asc">Name: A → Z</option>
+                    <option value="name-desc">Name: Z → A</option>
                     <option value="urgency-high">Urgency: High to Low</option>
                     <option value="urgency-low">Urgency: Low to High</option>
                   </select>

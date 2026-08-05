@@ -18,6 +18,23 @@ const RESIDENTIAL_SPACE_ID = '32103279';
 import { APPROVAL_NEEDED_FIELD_ID } from '@/lib/constants';
 import { getFolderMappings } from '@/lib/store';
 
+// Run async tasks with a max concurrency limit to avoid ClickUp rate limits
+async function withConcurrency<T>(
+  tasks: (() => Promise<T>)[],
+  limit: number,
+): Promise<T[]> {
+  const results: T[] = new Array(tasks.length);
+  let next = 0;
+  async function run(): Promise<void> {
+    while (next < tasks.length) {
+      const i = next++;
+      results[i] = await tasks[i]();
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, run));
+  return results;
+}
+
 // ClickUp API types
 export interface ClickUpFolder {
   id: string;
@@ -140,6 +157,18 @@ export async function getFolderLists(folderId: string): Promise<ClickUpList[]> {
   return data.lists;
 }
 
+// Get nested subfolders inside a folder (ClickUp nested folder support)
+async function getFolderSubFolders(folderId: string): Promise<ClickUpFolder[]> {
+  try {
+    const data = await clickupFetch<{ folders: ClickUpFolder[] }>(
+      `/folder/${folderId}/folder`,
+    );
+    return (data.folders ?? []).filter((f) => !f.archived);
+  } catch {
+    return [];
+  }
+}
+
 interface LocationFieldDef {
   id: string;
   options: Array<{ id: string; name: string; orderindex: number }>;
@@ -214,64 +243,71 @@ function normalizeForMatch(str: string): string {
     .trim();
 }
 
-// Return all ClickUp folders matching an Assembly entity (overrides + fuzzy fallback)
+// Return all ClickUp folders matching an Assembly entity (overrides + fuzzy, merged)
 export async function findMatchingFolders(
   companyName: string,
   assemblyId?: string,
 ): Promise<ClickUpFolder[]> {
   const folders = await getCommercialFolders();
+  const fuzzyMatches = findMatchingFoldersFuzzy(companyName, folders);
 
+  // Merge manual overrides that aren't already covered by the fuzzy results
   if (assemblyId) {
     const overrides = await getFolderMappings();
     const mappings = (overrides[assemblyId] ?? []).filter((m) => m.clickupSpace === 'commercial');
-    if (mappings.length > 0) {
-      const found = mappings
-        .map((m) => folders.find((f) => f.id === m.clickupFolderId))
-        .filter(Boolean) as ClickUpFolder[];
-      if (found.length > 0) return found;
+    const seen = new Set(fuzzyMatches.map((f) => f.id));
+    for (const m of mappings) {
+      if (!seen.has(m.clickupFolderId)) {
+        const found = folders.find((f) => f.id === m.clickupFolderId);
+        if (found) {
+          fuzzyMatches.push(found);
+          seen.add(found.id);
+        }
+      }
     }
   }
 
-  const single = await findMatchingFolder(companyName);
-  return single ? [single] : [];
+  return fuzzyMatches;
 }
 
-// Find best matching ClickUp folder for an Assembly company name (fuzzy, no overrides)
+// Find all ClickUp folders matching an Assembly company name (fuzzy, no overrides)
 export async function findMatchingFolder(
   companyName: string,
 ): Promise<ClickUpFolder | null> {
   const folders = await getCommercialFolders();
+  const matches = findMatchingFoldersFuzzy(companyName, folders);
+  return matches[0] ?? null;
+}
+
+function findMatchingFoldersFuzzy(
+  companyName: string,
+  folders: ClickUpFolder[],
+): ClickUpFolder[] {
   const normalizedCompany = normalizeForMatch(companyName);
 
-  // Try exact match first (normalized)
-  let match = folders.find(
-    (f) => normalizeForMatch(f.name) === normalizedCompany,
-  );
-  if (match) return match;
-
-  // Try "starts with" match (e.g., "Duke's Alehouse" matches "Dukes Alehouse and Kitchen")
-  match = folders.find((f) => {
-    const normalizedFolder = normalizeForMatch(f.name);
-    return (
-      normalizedCompany.startsWith(normalizedFolder) ||
-      normalizedFolder.startsWith(normalizedCompany)
-    );
+  // Combine exact + starts-with in one pass so "Kresswood Trails North" matches both the
+  // parent folder AND "Kresswood Trails North - 1", "Kresswood Trails North - 2", etc.
+  // Boundary check: folder must start with the full company name followed by a space or end-of-string,
+  // preventing "Park" from matching "Parking Lot Management".
+  const startsWith = folders.filter((f) => {
+    const nf = normalizeForMatch(f.name);
+    const folderStartsWithCompany =
+      nf.startsWith(normalizedCompany) &&
+      (nf.length === normalizedCompany.length || nf[normalizedCompany.length] === ' ');
+    const companyStartsWithFolder =
+      normalizedCompany.startsWith(nf) &&
+      (normalizedCompany.length === nf.length || normalizedCompany[nf.length] === ' ');
+    return folderStartsWithCompany || companyStartsWithFolder;
   });
-  if (match) return match;
+  if (startsWith.length > 0) return startsWith;
 
-  // Try "contains" match
-  match = folders.find((f) => {
-    const normalizedFolder = normalizeForMatch(f.name);
-    // Check if key words match
-    const companyWords = normalizedCompany
-      .split(' ')
-      .filter((w) => w.length > 2);
-    const folderWords = normalizedFolder.split(' ').filter((w) => w.length > 2);
+  // Word-overlap fallback
+  const companyWords = normalizedCompany.split(' ').filter((w) => w.length > 2);
+  return folders.filter((f) => {
+    const folderWords = normalizeForMatch(f.name).split(' ').filter((w) => w.length > 2);
     const matchingWords = companyWords.filter((w) => folderWords.includes(w));
     return matchingWords.length >= Math.min(2, companyWords.length);
   });
-
-  return match || null;
 }
 
 // Extract category from ClickUp custom field or fall back to priority
@@ -441,8 +477,8 @@ export async function getCommercialAssessmentLocations(
   const folders = await findMatchingFolders(companyName, assemblyId);
   if (folders.length === 0) return [];
 
-  const folderResults = await Promise.all(
-    folders.map(async (folder) => {
+  const folderResults = await withConcurrency(
+    folders.map((folder) => async () => {
       const [assessmentList, locationField] = await Promise.all([
         getAssessmentListForFolder(folder.id),
         getFolderLocationField(folder.id),
@@ -462,6 +498,7 @@ export async function getCommercialAssessmentLocations(
           folderName: folder.name,
         }));
     }),
+    5,
   );
 
   const all = folderResults.flat();

@@ -60,7 +60,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   const [locationsLoading, setLocationsLoading] = useState(false);
   const [locationFilter, setLocationFilter] = useState<string>('All');
   const [folderLocationFilter, setFolderLocationFilter] = useState<string>('All');
-  const [assessmentListSort, setAssessmentListSort] = useState<'date-new' | 'date-old'>('date-new');
+  const [assessmentListSort, setAssessmentListSort] = useState<'date-new' | 'date-old' | 'name-asc' | 'name-desc'>('date-new');
   const [sentAssessments, setSentAssessments] = useState<
     Array<{ assessmentId: string; submittedAt?: string }>
   >([]);
@@ -497,27 +497,30 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
 
                   {/* Filter bar */}
                   <div className="flex flex-wrap items-center gap-4 mb-5">
-                    {/* Filter by folder location (from linked mappings) */}
-                    {selectedCompany?.id && folderOverrides[selectedCompany.id]?.length > 0 && (
-                      <div className="flex items-center gap-2">
-                        <label className="text-sm font-medium text-gray-700">
-                          Filter by folder location:
-                        </label>
-                        <select
-                          value={folderLocationFilter}
-                          onChange={(e) => setFolderLocationFilter(e.target.value)}
-                          className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
-                                     focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]"
-                        >
-                          <option value="All">All</option>
-                          {folderOverrides[selectedCompany.id].map((m) => (
-                            <option key={m.clickupFolderName} value={m.clickupFolderName}>
-                              {m.clickupFolderName}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
+                    {/* Filter by folder location (from loaded assessment locations) */}
+                    {(() => {
+                      const uniqueFolderNames = Array.from(
+                        new Set(assessmentLocations.map((l) => l.folderName).filter(Boolean))
+                      ).sort((a, b) => (a as string).localeCompare(b as string, undefined, { numeric: true, sensitivity: 'base' })) as string[];
+                      return uniqueFolderNames.length > 1 ? (
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm font-medium text-gray-700">
+                            Filter by folder location:
+                          </label>
+                          <select
+                            value={folderLocationFilter}
+                            onChange={(e) => setFolderLocationFilter(e.target.value)}
+                            className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
+                                       focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]"
+                          >
+                            <option value="All">All</option>
+                            {uniqueFolderNames.map((name) => (
+                              <option key={name} value={name}>{name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : null;
+                    })()}
 
                     {/* Filter by location (custom field) */}
                     {(() => {
@@ -556,22 +559,25 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                     <label className="text-sm font-medium text-gray-700">Sort:</label>
                     <select
                       value={assessmentListSort}
-                      onChange={(e) => setAssessmentListSort(e.target.value as 'date-new' | 'date-old')}
+                      onChange={(e) => setAssessmentListSort(e.target.value as 'date-new' | 'date-old' | 'name-asc' | 'name-desc')}
                       className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
                                  focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]"
                     >
                       <option value="date-new">Most Recent</option>
                       <option value="date-old">Oldest First</option>
+                      <option value="name-asc">Name: A → Z</option>
+                      <option value="name-desc">Name: Z → A</option>
                     </select>
                   </div>
 
                   <div className="space-y-3">
                     {[...assessmentLocations]
-                      .sort((a, b) =>
-                        assessmentListSort === 'date-new'
-                          ? (b.date ?? '').localeCompare(a.date ?? '')
-                          : (a.date ?? '').localeCompare(b.date ?? ''),
-                      )
+                      .sort((a, b) => {
+                        if (assessmentListSort === 'date-old') return (a.date ?? '').localeCompare(b.date ?? '');
+                        if (assessmentListSort === 'name-asc') return a.taskName.localeCompare(b.taskName, undefined, { numeric: true, sensitivity: 'base' });
+                        if (assessmentListSort === 'name-desc') return b.taskName.localeCompare(a.taskName, undefined, { numeric: true, sensitivity: 'base' });
+                        return (b.date ?? '').localeCompare(a.date ?? ''); // date-new (default)
+                      })
                       .filter(
                         (loc) =>
                           (locationFilter === 'All' || loc.location === locationFilter) &&
