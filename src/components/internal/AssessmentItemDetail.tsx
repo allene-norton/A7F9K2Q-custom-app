@@ -176,8 +176,14 @@ export default function AssessmentItemDetail({
             )}
             {item.created_date && (
               <span>
-                <span className="font-medium text-gray-500">Date: </span>
+                <span className="font-medium text-gray-500">Created: </span>
                 {item.created_date}
+              </span>
+            )}
+            {item.updated_date && item.updated_date !== item.created_date && (
+              <span>
+                <span className="font-medium text-gray-500">Updated: </span>
+                {item.updated_date}
               </span>
             )}
           </div>

@@ -57,6 +57,8 @@ export interface AssessmentParent {
   taskName: string;
   location: string;
   date: string;
+  created_date: string;
+  updated_date: string;
   status: string;
   statusColor: string;
   folderName?: string;

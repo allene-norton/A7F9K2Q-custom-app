@@ -60,7 +60,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   const [locationsLoading, setLocationsLoading] = useState(false);
   const [locationFilter, setLocationFilter] = useState<string>('All');
   const [folderLocationFilter, setFolderLocationFilter] = useState<string>('All');
-  const [assessmentListSort, setAssessmentListSort] = useState<'date-new' | 'date-old' | 'name-asc' | 'name-desc'>('date-new');
+  const [assessmentListSort, setAssessmentListSort] = useState<'updated-new' | 'updated-old' | 'created-new' | 'created-old' | 'name-asc' | 'name-desc'>('updated-new');
   const [sentAssessments, setSentAssessments] = useState<
     Array<{ assessmentId: string; submittedAt?: string }>
   >([]);
@@ -176,7 +176,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     setLocationsLoading(true);
     setLocationFilter('All');
     setFolderLocationFilter('All');
-    setAssessmentListSort('date-new');
+    setAssessmentListSort('updated-new');
     setSentAssessments([]);
     setInternalView('assessment');
 
@@ -559,12 +559,14 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                     <label className="text-sm font-medium text-gray-700">Sort:</label>
                     <select
                       value={assessmentListSort}
-                      onChange={(e) => setAssessmentListSort(e.target.value as 'date-new' | 'date-old' | 'name-asc' | 'name-desc')}
+                      onChange={(e) => setAssessmentListSort(e.target.value as typeof assessmentListSort)}
                       className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
                                  focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]"
                     >
-                      <option value="date-new">Most Recent</option>
-                      <option value="date-old">Oldest First</option>
+                      <option value="updated-new">Updated: Newest First</option>
+                      <option value="updated-old">Updated: Oldest First</option>
+                      <option value="created-new">Created: Newest First</option>
+                      <option value="created-old">Created: Oldest First</option>
                       <option value="name-asc">Name: A → Z</option>
                       <option value="name-desc">Name: Z → A</option>
                     </select>
@@ -573,10 +575,12 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                   <div className="space-y-3">
                     {[...assessmentLocations]
                       .sort((a, b) => {
-                        if (assessmentListSort === 'date-old') return (a.date ?? '').localeCompare(b.date ?? '');
+                        if (assessmentListSort === 'updated-old') return (a.updated_date ?? '').localeCompare(b.updated_date ?? '');
+                        if (assessmentListSort === 'created-new') return (b.created_date ?? '').localeCompare(a.created_date ?? '');
+                        if (assessmentListSort === 'created-old') return (a.created_date ?? '').localeCompare(b.created_date ?? '');
                         if (assessmentListSort === 'name-asc') return a.taskName.localeCompare(b.taskName, undefined, { numeric: true, sensitivity: 'base' });
                         if (assessmentListSort === 'name-desc') return b.taskName.localeCompare(a.taskName, undefined, { numeric: true, sensitivity: 'base' });
-                        return (b.date ?? '').localeCompare(a.date ?? ''); // date-new (default)
+                        return (b.updated_date ?? '').localeCompare(a.updated_date ?? ''); // updated-new (default)
                       })
                       .filter(
                         (loc) =>
@@ -629,9 +633,12 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                                   </span>
                                 )}
                               </div>
-                              <div className="text-sm text-gray-500 mt-1">
-                                {loc.location ? `${loc.location} · ` : ''}
-                                {loc.date}
+                              <div className="text-sm text-gray-500 mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                                {loc.location && <span>{loc.location}</span>}
+                                {loc.created_date && <span>Created {loc.created_date}</span>}
+                                {loc.updated_date && loc.updated_date !== loc.created_date && (
+                                  <span>Updated {loc.updated_date}</span>
+                                )}
                               </div>
                             </div>
                           </div>

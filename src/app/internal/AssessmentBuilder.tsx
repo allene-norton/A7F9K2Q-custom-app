@@ -34,7 +34,7 @@ interface AssessmentBuilderProps {
 }
 
 type CategoryFilter = 'All' | AssessmentItem['category'];
-type SortOption = 'default' | 'urgency-high' | 'urgency-low' | 'date-old' | 'name-asc' | 'name-desc';
+type SortOption = 'created-new' | 'created-old' | 'updated-new' | 'updated-old' | 'urgency-high' | 'urgency-low' | 'name-asc' | 'name-desc';
 
 const CATEGORIES: AssessmentItem['category'][] = [
   'Urgent',
@@ -65,7 +65,7 @@ export default function AssessmentBuilder({
   isSent,
 }: AssessmentBuilderProps) {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('All');
-  const [sortOption, setSortOption] = useState<SortOption>('default');
+  const [sortOption, setSortOption] = useState<SortOption>('updated-new');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedItem, setSelectedItem] = useState<AssessmentItem | null>(null);
   const [spaceTags, setSpaceTags] = useState<SpaceTag[]>([]);
@@ -144,22 +144,21 @@ export default function AssessmentBuilder({
     }
 
     if (sortOption === 'urgency-high') {
-      items.sort(
-        (a, b) => URGENCY_ORDER[a.category] - URGENCY_ORDER[b.category],
-      );
+      items.sort((a, b) => URGENCY_ORDER[a.category] - URGENCY_ORDER[b.category]);
     } else if (sortOption === 'urgency-low') {
-      items.sort(
-        (a, b) => URGENCY_ORDER[b.category] - URGENCY_ORDER[a.category],
-      );
-    } else if (sortOption === 'date-old') {
+      items.sort((a, b) => URGENCY_ORDER[b.category] - URGENCY_ORDER[a.category]);
+    } else if (sortOption === 'created-new') {
+      items.sort((a, b) => (b.created_date ?? '').localeCompare(a.created_date ?? ''));
+    } else if (sortOption === 'created-old') {
       items.sort((a, b) => (a.created_date ?? '').localeCompare(b.created_date ?? ''));
+    } else if (sortOption === 'updated-old') {
+      items.sort((a, b) => (a.updated_date ?? '').localeCompare(b.updated_date ?? ''));
     } else if (sortOption === 'name-asc') {
       items.sort((a, b) => a.issue.localeCompare(b.issue, undefined, { numeric: true, sensitivity: 'base' }));
     } else if (sortOption === 'name-desc') {
       items.sort((a, b) => b.issue.localeCompare(a.issue, undefined, { numeric: true, sensitivity: 'base' }));
     } else {
-      // default: most recent first
-      items.sort((a, b) => (b.created_date ?? '').localeCompare(a.created_date ?? ''));
+      items.sort((a, b) => (b.updated_date ?? '').localeCompare(a.updated_date ?? ''));
     }
 
     return items;
@@ -167,14 +166,14 @@ export default function AssessmentBuilder({
 
   const clearFilters = () => {
     setCategoryFilter('All');
-    setSortOption('default');
+    setSortOption('updated-new');
     setSearchQuery('');
     setSelectedTags([]);
   };
 
   const hasActiveFilters =
     categoryFilter !== 'All' ||
-    sortOption !== 'default' ||
+    sortOption !== 'updated-new' ||
     searchQuery.trim() !== '' ||
     selectedTags.length > 0;
 
@@ -570,8 +569,10 @@ export default function AssessmentBuilder({
                     className="px-3 py-2 border border-gray-300 rounded-lg bg-white
                                focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-gray"
                   >
-                    <option value="default">Most Recent</option>
-                    <option value="date-old">Oldest First</option>
+                    <option value="updated-new">Updated: Newest First</option>
+                    <option value="updated-old">Updated: Oldest First</option>
+                    <option value="created-new">Created: Newest First</option>
+                    <option value="created-old">Created: Oldest First</option>
                     <option value="name-asc">Name: A → Z</option>
                     <option value="name-desc">Name: Z → A</option>
                     <option value="urgency-high">Urgency: High to Low</option>

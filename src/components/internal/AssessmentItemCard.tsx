@@ -154,8 +154,15 @@ export default function AssessmentItemCard({
             </div>
           )}
 
-          {item.created_date && (
-            <p className="text-xs text-gray-400 mt-3">Created {item.created_date}</p>
+          {(item.created_date || item.updated_date) && (
+            <div className="flex flex-wrap gap-x-3 mt-3">
+              {item.created_date && (
+                <p className="text-xs text-gray-400">Created {item.created_date}</p>
+              )}
+              {item.updated_date && item.updated_date !== item.created_date && (
+                <p className="text-xs text-gray-400">Updated {item.updated_date}</p>
+              )}
+            </div>
           )}
         </div>
       </div>

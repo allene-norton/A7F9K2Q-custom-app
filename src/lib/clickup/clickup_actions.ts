@@ -73,6 +73,7 @@ export interface ClickUpTask {
   assignees: Array<{ username: string }>;
   creator?: { username: string };
   date_created: string;
+  date_updated?: string;
   list: {
     id: string;
     name: string;
@@ -387,9 +388,9 @@ function transformTaskToAssessmentItem(task: ClickUpTask): AssessmentItem {
     created_date: new Date(parseInt(task.date_created))
       .toISOString()
       .split('T')[0],
-    updated_date: new Date(parseInt(task.date_created))
-      .toISOString()
-      .split('T')[0],
+    updated_date: task.date_updated
+      ? new Date(parseInt(task.date_updated)).toISOString().split('T')[0]
+      : new Date(parseInt(task.date_created)).toISOString().split('T')[0],
     technician: task.assignees[0]?.username || '',
   };
 }
@@ -492,7 +493,9 @@ export async function getCommercialAssessmentLocations(
           taskId: t.id,
           taskName: t.name,
           location: extractLocationField(t, locationField),
-          date: new Date(parseInt(t.date_updated)).toISOString().split('T')[0],
+          date: new Date(parseInt(t.date_updated ?? t.date_created)).toISOString().split('T')[0],
+          created_date: new Date(parseInt(t.date_created)).toISOString().split('T')[0],
+          updated_date: new Date(parseInt(t.date_updated ?? t.date_created)).toISOString().split('T')[0],
           status: t.status.status,
           statusColor: t.status.color || '#6b7280',
           folderName: folder.name,

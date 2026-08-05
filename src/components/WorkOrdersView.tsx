@@ -22,7 +22,7 @@ const URGENCY_ORDER: Record<string, number> = {
   'No Issue': 4,
 };
 
-type SortOption = 'default' | 'urgency-high' | 'urgency-low' | 'date-old' | 'name-asc' | 'name-desc';
+type SortOption = 'updated-new' | 'updated-old' | 'created-new' | 'created-old' | 'urgency-high' | 'urgency-low' | 'name-asc' | 'name-desc';
 
 const CATEGORIES = [
   'Urgent',
@@ -229,7 +229,10 @@ function InternalCard({ item, index, companyId, token, isUnread, onMarkRead }: I
               </div>
               <div className="flex items-center gap-3 ml-3 flex-shrink-0">
                 {item.created_date && (
-                  <span className="text-xs text-gray-400">{item.created_date}</span>
+                  <span className="text-xs text-gray-400">Created {item.created_date}</span>
+                )}
+                {item.updated_date && item.updated_date !== item.created_date && (
+                  <span className="text-xs text-gray-400">Updated {item.updated_date}</span>
                 )}
                 <span
                   className="px-2.5 py-1 rounded-full text-xs font-semibold text-white capitalize"
@@ -448,7 +451,7 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortOption, setSortOption] = useState<SortOption>('default');
+  const [sortOption, setSortOption] = useState<SortOption>('updated-new');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('All');
   const [locationFilter, setLocationFilter] = useState('All');
   const [folderFilter, setFolderFilter] = useState('All');
@@ -571,15 +574,18 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
       result.sort((a, b) => (URGENCY_ORDER[a.category] ?? 99) - (URGENCY_ORDER[b.category] ?? 99));
     } else if (sortOption === 'urgency-low') {
       result.sort((a, b) => (URGENCY_ORDER[b.category] ?? 99) - (URGENCY_ORDER[a.category] ?? 99));
-    } else if (sortOption === 'date-old') {
+    } else if (sortOption === 'created-new') {
+      result.sort((a, b) => (b.created_date ?? '').localeCompare(a.created_date ?? ''));
+    } else if (sortOption === 'created-old') {
       result.sort((a, b) => (a.created_date ?? '').localeCompare(b.created_date ?? ''));
+    } else if (sortOption === 'updated-old') {
+      result.sort((a, b) => (a.updated_date ?? '').localeCompare(b.updated_date ?? ''));
     } else if (sortOption === 'name-asc') {
       result.sort((a, b) => a.issue.localeCompare(b.issue, undefined, { numeric: true, sensitivity: 'base' }));
     } else if (sortOption === 'name-desc') {
       result.sort((a, b) => b.issue.localeCompare(a.issue, undefined, { numeric: true, sensitivity: 'base' }));
     } else {
-      // default: most recently created first; status-changed items float to top via unread logic below
-      result.sort((a, b) => (b.created_date ?? '').localeCompare(a.created_date ?? ''));
+      result.sort((a, b) => (b.updated_date ?? '').localeCompare(a.updated_date ?? ''));
     }
 
     // Unread items float to the top
@@ -602,7 +608,7 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
 
   const clearFilters = () => {
     setSearchQuery('');
-    setSortOption('default');
+    setSortOption('updated-new');
     setCategoryFilter('All');
     setLocationFilter('All');
     setFolderFilter('All');
@@ -611,7 +617,7 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
 
   const hasActiveFilters =
     searchQuery.trim() !== '' ||
-    sortOption !== 'default' ||
+    sortOption !== 'updated-new' ||
     categoryFilter !== 'All' ||
     locationFilter !== 'All' ||
     folderFilter !== 'All' ||
@@ -762,8 +768,10 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
               className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm
                          focus:outline-none focus:ring-2 focus:ring-[#174887]"
             >
-              <option value="default">Most Recent</option>
-              <option value="date-old">Oldest First</option>
+              <option value="updated-new">Updated: Newest First</option>
+              <option value="updated-old">Updated: Oldest First</option>
+              <option value="created-new">Created: Newest First</option>
+              <option value="created-old">Created: Oldest First</option>
               <option value="name-asc">Name: A → Z</option>
               <option value="name-desc">Name: Z → A</option>
               <option value="urgency-high">Urgency: High to Low</option>
@@ -924,9 +932,14 @@ export default function WorkOrdersView({ companyId, companyName, mode, authorNam
                         </span>
                       ))}
                     </div>
-                    {item.created_date && (
-                      <span className="text-xs text-gray-400 flex-shrink-0 ml-3">{item.created_date}</span>
-                    )}
+                    <div className="flex flex-col items-end gap-0.5 flex-shrink-0 ml-3">
+                      {item.created_date && (
+                        <span className="text-xs text-gray-400">Created {item.created_date}</span>
+                      )}
+                      {item.updated_date && item.updated_date !== item.created_date && (
+                        <span className="text-xs text-gray-400">Updated {item.updated_date}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
