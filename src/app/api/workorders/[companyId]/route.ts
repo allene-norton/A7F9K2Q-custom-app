@@ -79,13 +79,15 @@ export async function GET(
 
   // Internal mode: fetch top-level tasks directly from ClickUp,
   // then overlay location from stored assessment items.
+  // Redis refs are used as a fallback to catch any submitted work orders
+  // that the folder discovery misses (pagination gaps, folder name mismatch, etc.).
   if (companyName) {
     try {
-      const [folders, storedAssessments] = await Promise.all([
+      const [folders, storedAssessments, redisRefs] = await Promise.all([
         findMatchingFolders(companyName, companyId),
         getAssessmentsForCompany(companyId),
+        getWorkOrderRefs(companyId),
       ]);
-      if (folders.length === 0) return Response.json({ items: [] });
 
       // Build a name→location lookup from all stored assessment items
       const nameToLocation = new Map<string, string>();
@@ -95,39 +97,67 @@ export async function GET(
         }
       }
 
-      const folderItems = await withConcurrency(
-        folders.map((folder) => async () => {
-          const lists = await getFolderLists(folder.id);
-          const assessmentsList = lists.find((l) =>
-            l.name.toLowerCase().includes('assessment'),
-          );
-          if (!assessmentsList) return [];
+      // Build a ref map for location overlay on Redis-sourced tasks
+      const refMap = new Map(redisRefs.map((r) => [r.taskId, r]));
 
-          const res = await fetch(
-            `${CLICKUP_BASE}/list/${assessmentsList.id}/task?subtasks=false&include_closed=true`,
-            { headers: { Authorization: key } },
-          );
-          const data = await res.json();
-          const workOrderTasks = (data.tasks ?? []).filter(
-            (t: { name: string }) => !t.name.toLowerCase().includes('assessment'),
-          );
+      const discoveredItems: ReturnType<typeof formatTask>[] = [];
 
-          return workOrderTasks.map((task: unknown) => {
-            const formatted = formatTask(task);
-            const storedLocation = nameToLocation.get(formatted.issue);
-            return {
-              ...formatted,
-              ...(storedLocation ? { location: storedLocation } : {}),
-              folderName: folder.name,
-            };
-          });
-        }),
-        5,
-      );
+      if (folders.length > 0) {
+        const folderItems = await withConcurrency(
+          folders.map((folder) => async () => {
+            const lists = await getFolderLists(folder.id);
+            const assessmentsList = lists.find((l) =>
+              l.name.toLowerCase().includes('assessment'),
+            );
+            if (!assessmentsList) return [];
 
-      const items = folderItems.flat();
-      return Response.json({ items: await attachThreads(items) });
-    } catch {
+            const res = await fetch(
+              `${CLICKUP_BASE}/list/${assessmentsList.id}/task?subtasks=false&include_closed=true`,
+              { headers: { Authorization: key } },
+            );
+            const data = await res.json();
+            const workOrderTasks = (data.tasks ?? []).filter(
+              (t: { name: string }) => !t.name.toLowerCase().includes('assessment'),
+            );
+
+            return workOrderTasks.map((task: unknown) => {
+              const formatted = formatTask(task);
+              const storedLocation = nameToLocation.get(formatted.issue);
+              return {
+                ...formatted,
+                ...(storedLocation ? { location: storedLocation } : {}),
+                folderName: folder.name,
+              };
+            });
+          }),
+          5,
+        );
+        discoveredItems.push(...folderItems.flat());
+      }
+
+      // Fill in any Redis-known work orders not found by folder discovery
+      const discoveredIds = new Set(discoveredItems.map((i) => i.id));
+      const missingRefs = redisRefs.filter((r) => !discoveredIds.has(r.taskId));
+
+      if (missingRefs.length > 0) {
+        const missingTasks = await Promise.allSettled(
+          missingRefs.map((ref) =>
+            fetch(`${CLICKUP_BASE}/task/${ref.taskId}`, { headers: { Authorization: key } }).then((r) => r.json()),
+          ),
+        );
+        for (const result of missingTasks) {
+          if (result.status === 'fulfilled' && result.value?.id) {
+            const formatted = formatTask(result.value);
+            const ref = refMap.get(formatted.id);
+            if (ref?.location) formatted.location = ref.location;
+            discoveredItems.push(formatted);
+          }
+        }
+      }
+
+      return Response.json({ items: await attachThreads(discoveredItems) });
+    } catch (e) {
+      console.error('[workorders internal] error:', e);
       return Response.json({ items: [] });
     }
   }
