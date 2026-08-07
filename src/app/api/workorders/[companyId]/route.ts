@@ -177,16 +177,26 @@ export async function GET(
   const refMap = new Map(refs.map((r) => [r.taskId, r]));
 
   const headers = { Authorization: key };
-  const tasks = await Promise.allSettled(
-    refs.map((ref) =>
-      fetch(`${CLICKUP_BASE}/task/${ref.taskId}`, { headers }).then((r) => r.json()),
-    ),
+  const taskResults = await withConcurrency(
+    refs.map((ref) => async () => {
+      try {
+        const r = await fetch(`${CLICKUP_BASE}/task/${ref.taskId}`, { headers });
+        if (r.status === 429) {
+          const retryAfter = parseInt(r.headers.get('Retry-After') ?? '1', 10);
+          await new Promise((resolve) => setTimeout(resolve, (retryAfter || 1) * 1000));
+          const r2 = await fetch(`${CLICKUP_BASE}/task/${ref.taskId}`, { headers });
+          return r2.ok ? r2.json() : null;
+        }
+        return r.ok ? r.json() : null;
+      } catch {
+        return null;
+      }
+    }),
+    4,
   );
 
-  const items = tasks
-    .filter((r) => r.status === 'fulfilled')
-    .map((r) => (r as PromiseFulfilledResult<unknown>).value)
-    .filter((task) => (task as { id?: string })?.id)
+  const items = taskResults
+    .filter((task): task is NonNullable<typeof task> => !!(task as { id?: string })?.id)
     .map((task) => {
       const formatted = formatTask(task);
       const ref = refMap.get(formatted.id);

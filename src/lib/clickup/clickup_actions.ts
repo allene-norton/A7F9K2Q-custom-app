@@ -106,7 +106,7 @@ export interface ClickUpTask {
 }
 
 // Helper to make ClickUp API requests
-async function clickupFetch<T>(endpoint: string): Promise<T> {
+async function clickupFetch<T>(endpoint: string, retries = 3): Promise<T> {
   if (!CLICKUP_API_KEY) {
     throw new Error('CLICKUP_KEY is not configured');
   }
@@ -117,6 +117,12 @@ async function clickupFetch<T>(endpoint: string): Promise<T> {
       'Content-Type': 'application/json',
     },
   });
+
+  if (response.status === 429 && retries > 0) {
+    const retryAfter = parseInt(response.headers.get('Retry-After') ?? '1', 10);
+    await new Promise((r) => setTimeout(r, (retryAfter || 1) * 1000));
+    return clickupFetch<T>(endpoint, retries - 1);
+  }
 
   if (!response.ok) {
     throw new Error(
@@ -223,10 +229,11 @@ export async function getAssessmentWithSubtasks(
 ): Promise<ClickUpTask> {
   const task = await getTask(taskId);
 
-  // If subtasks exist but don't have full details, fetch each one
+  // If subtasks exist but don't have full details, fetch each one (throttled to avoid 429s)
   if (task.subtasks && task.subtasks.length > 0) {
-    const fullSubtasks = await Promise.all(
-      task.subtasks.map((subtask) => getTask(subtask.id)),
+    const fullSubtasks = await withConcurrency(
+      task.subtasks.map((subtask) => () => getTask(subtask.id)),
+      4,
     );
     task.subtasks = fullSubtasks;
   }
