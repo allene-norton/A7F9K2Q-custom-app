@@ -121,7 +121,7 @@ export async function GET(
 
             const res = await fetch(
               `${CLICKUP_BASE}/list/${assessmentsList.id}/task?subtasks=false&include_closed=true`,
-              { headers: { Authorization: key } },
+              { headers: { Authorization: key }, next: { revalidate: 30 } },
             );
             const data = await res.json();
             const workOrderTasks = (data.tasks ?? []).filter(
@@ -150,7 +150,7 @@ export async function GET(
       if (missingRefs.length > 0) {
         const missingTasks = await Promise.allSettled(
           missingRefs.map((ref) =>
-            fetch(`${CLICKUP_BASE}/task/${ref.taskId}`, { headers: { Authorization: key } }).then((r) => r.json()),
+            fetch(`${CLICKUP_BASE}/task/${ref.taskId}`, { headers: { Authorization: key }, next: { revalidate: 30 } }).then((r) => r.json()),
           ),
         );
         for (const result of missingTasks) {
@@ -180,11 +180,11 @@ export async function GET(
   const taskResults = await withConcurrency(
     refs.map((ref) => async () => {
       try {
-        const r = await fetch(`${CLICKUP_BASE}/task/${ref.taskId}`, { headers });
+        const r = await fetch(`${CLICKUP_BASE}/task/${ref.taskId}`, { headers, next: { revalidate: 30 } });
         if (r.status === 429) {
           const retryAfter = Math.min(parseInt(r.headers.get('Retry-After') ?? '1', 10), 3);
           await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
-          const r2 = await fetch(`${CLICKUP_BASE}/task/${ref.taskId}`, { headers });
+          const r2 = await fetch(`${CLICKUP_BASE}/task/${ref.taskId}`, { headers, next: { revalidate: 30 } });
           return r2.ok ? r2.json() : null;
         }
         return r.ok ? r.json() : null;

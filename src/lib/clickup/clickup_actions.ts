@@ -116,6 +116,7 @@ async function clickupFetch<T>(endpoint: string, retries = 3): Promise<T> {
       Authorization: CLICKUP_API_KEY,
       'Content-Type': 'application/json',
     },
+    next: { revalidate: 30 },
   });
 
   if (response.status === 429 && retries > 0) {
