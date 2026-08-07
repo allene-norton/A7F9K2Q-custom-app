@@ -182,8 +182,8 @@ export async function GET(
       try {
         const r = await fetch(`${CLICKUP_BASE}/task/${ref.taskId}`, { headers });
         if (r.status === 429) {
-          const retryAfter = parseInt(r.headers.get('Retry-After') ?? '1', 10);
-          await new Promise((resolve) => setTimeout(resolve, (retryAfter || 1) * 1000));
+          const retryAfter = Math.min(parseInt(r.headers.get('Retry-After') ?? '1', 10), 3);
+          await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
           const r2 = await fetch(`${CLICKUP_BASE}/task/${ref.taskId}`, { headers });
           return r2.ok ? r2.json() : null;
         }
@@ -192,7 +192,7 @@ export async function GET(
         return null;
       }
     }),
-    4,
+    8,
   );
 
   const items = taskResults

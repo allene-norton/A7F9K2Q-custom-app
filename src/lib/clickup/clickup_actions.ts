@@ -119,8 +119,8 @@ async function clickupFetch<T>(endpoint: string, retries = 3): Promise<T> {
   });
 
   if (response.status === 429 && retries > 0) {
-    const retryAfter = parseInt(response.headers.get('Retry-After') ?? '1', 10);
-    await new Promise((r) => setTimeout(r, (retryAfter || 1) * 1000));
+    const retryAfter = Math.min(parseInt(response.headers.get('Retry-After') ?? '1', 10), 3);
+    await new Promise((r) => setTimeout(r, retryAfter * 1000));
     return clickupFetch<T>(endpoint, retries - 1);
   }
 
@@ -233,7 +233,7 @@ export async function getAssessmentWithSubtasks(
   if (task.subtasks && task.subtasks.length > 0) {
     const fullSubtasks = await withConcurrency(
       task.subtasks.map((subtask) => () => getTask(subtask.id)),
-      4,
+      8,
     );
     task.subtasks = fullSubtasks;
   }
