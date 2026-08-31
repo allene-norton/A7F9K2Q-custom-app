@@ -505,7 +505,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
 
                   {/* Filter bar */}
                   <div className="flex flex-wrap items-center gap-4 mb-5">
-                    {/* Filter by folder location (from loaded assessment locations) */}
+                    {/* Primary: filter by folder name (the top-level ClickUp folder = location) */}
                     {(() => {
                       const uniqueFolderNames = Array.from(
                         new Set(assessmentLocations.map((l) => l.folderName).filter(Boolean))
@@ -513,7 +513,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                       return uniqueFolderNames.length > 1 ? (
                         <div className="flex items-center gap-2">
                           <label className="text-sm font-medium text-gray-700">
-                            Filter by folder location:
+                            Location:
                           </label>
                           <select
                             value={folderLocationFilter}
@@ -530,7 +530,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                       ) : null;
                     })()}
 
-                    {/* Filter by location (custom field) */}
+                    {/* Secondary: filter by Location/Property custom field (only shown when populated) */}
                     {(() => {
                       const uniqueLocations = Array.from(
                         new Set(
@@ -542,7 +542,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                       return uniqueLocations.length > 1 ? (
                         <div className="flex items-center gap-2">
                           <label className="text-sm font-medium text-gray-700">
-                            Filter by location:
+                            Sub-location:
                           </label>
                           <select
                             value={locationFilter}
