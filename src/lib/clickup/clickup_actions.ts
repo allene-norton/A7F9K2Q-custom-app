@@ -308,6 +308,18 @@ function findMatchingFoldersFuzzy(
       (normalizedCompany.length === nf.length || normalizedCompany[nf.length] === ' ');
     return folderStartsWithCompany || companyStartsWithFolder;
   });
+
+  if (startsWith.length > 1) {
+    // When some matches are prefixes of others (e.g. "PCB" alongside "PCB - Union",
+    // "PCB - Marengo"), drop the less-specific ones and keep only the sub-location folders.
+    const normalizedNames = startsWith.map((f) => normalizeForMatch(f.name));
+    const specific = startsWith.filter((_, i) => {
+      const ni = normalizedNames[i];
+      return !normalizedNames.some((nj, j) => j !== i && nj.startsWith(ni + ' '));
+    });
+    if (specific.length > 0) return specific;
+  }
+
   if (startsWith.length > 0) return startsWith;
 
   // Word-overlap fallback
