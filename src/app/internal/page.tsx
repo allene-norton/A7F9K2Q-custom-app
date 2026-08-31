@@ -530,16 +530,24 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                       ) : null;
                     })()}
 
-                    {/* Secondary: filter by Location/Property custom field (only shown when populated) */}
+                    {/* Secondary: sub-location filter — scoped to selected folder, unit numbers only */}
                     {(() => {
-                      const uniqueLocations = Array.from(
-                        new Set(
-                          assessmentLocations
-                            .map((l) => l.location)
-                            .filter(Boolean),
-                        ),
-                      ).sort();
-                      return uniqueLocations.length > 1 ? (
+                      const isYearValue = (s: string) => {
+                        const nums = s.match(/\d+/g) ?? [];
+                        return nums.some(n => n.length === 4 && parseInt(n, 10) >= 1900 && parseInt(n, 10) <= 2099);
+                      };
+                      const hasUnitNumber = (s: string) => {
+                        const nums = s.match(/\d+/g) ?? [];
+                        return nums.some(n => !(n.length === 4 && parseInt(n, 10) >= 1900 && parseInt(n, 10) <= 2099));
+                      };
+                      const scoped = (folderLocationFilter === 'All'
+                        ? assessmentLocations
+                        : assessmentLocations.filter(l => l.folderName === folderLocationFilter)
+                      ).map(l => l.location).filter(Boolean);
+                      const unitLocations = Array.from(new Set(scoped))
+                        .filter(loc => hasUnitNumber(loc) && !isYearValue(loc))
+                        .sort();
+                      return unitLocations.length > 1 ? (
                         <div className="flex items-center gap-2">
                           <label className="text-sm font-medium text-gray-700">
                             Sub-location:
@@ -551,7 +559,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                                        focus:outline-none focus:ring-2 focus:ring-[#174887] focus:border-[#174887]"
                           >
                             <option value="All">All</option>
-                            {uniqueLocations.map((loc) => (
+                            {unitLocations.map((loc) => (
                               <option key={loc} value={loc}>
                                 {loc}
                               </option>
