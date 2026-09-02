@@ -229,6 +229,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   // "View All Items" — flat cross-location aggregate for the selected company
   const handleViewAllItems = async () => {
     if (!selectedCompany) return;
+    setAssessment(null);
     setAssessmentLoading(true);
     setAssessmentError(null);
     try {

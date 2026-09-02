@@ -586,6 +586,8 @@ export async function buildCommercialAssessmentAll(
         (t) => t.parent && parentMap.has(t.parent) && extractApprovalNeeded(t),
       );
 
+      console.log(`[buildCommercialAssessmentAll] folder="${folder.name}" list="${assessmentList.name}" allTasks=${allTasks.length} parentMap=${parentMap.size} approved=${approved.length} sampleParent=${allTasks[0]?.parent ?? 'n/a'} sampleParentType=${typeof allTasks[0]?.parent}`);
+
       for (const subtask of approved) {
         const parent = parentMap.get(subtask.parent!);
         const unitLabel = parent
