@@ -568,28 +568,37 @@ export async function buildCommercialAssessmentAll(
       ]);
       if (!assessmentList) return;
 
-      const tasks = await getListTasks(assessmentList.id, false);
-      const parentTasks = tasks.filter(
-        (t) => !t.parent && t.name.toLowerCase().includes('assessment'),
+      // Single request: all tasks + subtasks including closed — avoids per-task API calls
+      const data = await clickupFetch<{ tasks: ClickUpTask[] }>(
+        `/list/${assessmentList.id}/task?include_closed=true&subtasks=true`,
+      );
+      const allTasks = data.tasks ?? [];
+
+      // Index parent assessment tasks by ID for location lookup
+      const parentMap = new Map(
+        allTasks
+          .filter((t) => !t.parent && t.name.toLowerCase().includes('assessment'))
+          .map((t) => [t.id, t]),
       );
 
-      await withConcurrency(
-        parentTasks.map((parent) => async () => {
-          const fullTask = await getAssessmentWithSubtasks(parent.id);
-          const approved = (fullTask.subtasks || []).filter(extractApprovalNeeded);
-          const unitLabel = extractLocationField(parent, locationField) || parent.name;
-          for (const subtask of approved) {
-            allItems.push({
-              ...transformTaskToAssessmentItem(subtask),
-              location: folder.name,   // building (folder) = primary location identifier
-              parentTaskName: unitLabel, // unit/sub-location identifier
-            });
-          }
-        }),
-        4,
+      // Subtasks of assessment parents with Approval Needed = true
+      const approved = allTasks.filter(
+        (t) => t.parent && parentMap.has(t.parent) && extractApprovalNeeded(t),
       );
+
+      for (const subtask of approved) {
+        const parent = parentMap.get(subtask.parent!);
+        const unitLabel = parent
+          ? extractLocationField(parent, locationField) || parent.name
+          : '';
+        allItems.push({
+          ...transformTaskToAssessmentItem(subtask),
+          location: folder.name,    // building (folder) = primary location identifier
+          parentTaskName: unitLabel, // unit/sub-location identifier
+        });
+      }
     }),
-    3,
+    5,
   );
 
   return {
