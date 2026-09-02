@@ -548,6 +548,65 @@ export async function buildCommercialAssessment(
   };
 }
 
+// Build a single flat Assessment containing ALL approved subtasks across all folders/locations
+// for a commercial company. Each item's location = folder name (building), parentTaskName =
+// location custom field value (unit). Enables cross-location search and tag filtering.
+export async function buildCommercialAssessmentAll(
+  companyName: string,
+  companyId: string,
+  assemblyId?: string,
+): Promise<Assessment> {
+  const folders = await findMatchingFolders(companyName, assemblyId);
+
+  const allItems: AssessmentItem[] = [];
+
+  await withConcurrency(
+    folders.map((folder) => async () => {
+      const [assessmentList, locationField] = await Promise.all([
+        getAssessmentListForFolder(folder.id),
+        getFolderLocationField(folder.id),
+      ]);
+      if (!assessmentList) return;
+
+      const tasks = await getListTasks(assessmentList.id, false);
+      const parentTasks = tasks.filter(
+        (t) => !t.parent && t.name.toLowerCase().includes('assessment'),
+      );
+
+      await withConcurrency(
+        parentTasks.map((parent) => async () => {
+          const fullTask = await getAssessmentWithSubtasks(parent.id);
+          const approved = (fullTask.subtasks || []).filter(extractApprovalNeeded);
+          const unitLabel = extractLocationField(parent, locationField) || parent.name;
+          for (const subtask of approved) {
+            allItems.push({
+              ...transformTaskToAssessmentItem(subtask),
+              location: folder.name,   // building (folder) = primary location identifier
+              parentTaskName: unitLabel, // unit/sub-location identifier
+            });
+          }
+        }),
+        4,
+      );
+    }),
+    3,
+  );
+
+  return {
+    id: `assess_all_${companyId}`,
+    customer_id: companyId,
+    customer_name: companyName,
+    assessment_name: `All Items — ${companyName}`,
+    assessment_date: new Date().toISOString().split('T')[0],
+    description: '',
+    location: '',
+    technician: null,
+    items: allItems,
+    status: 'draft',
+    created_at: Date.now().toString(),
+  };
+}
+
 // Build an Assessment from all tasks across all lists in an hourly customer folder.
 // Only tasks where Approval Needed = true are included.
 export async function getHourlyAssessmentForFolder(
