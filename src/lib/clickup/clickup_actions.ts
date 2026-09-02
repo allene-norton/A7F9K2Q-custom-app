@@ -562,42 +562,47 @@ export async function buildCommercialAssessmentAll(
 
   await withConcurrency(
     folders.map((folder) => async () => {
-      const [assessmentList, locationField] = await Promise.all([
-        getAssessmentListForFolder(folder.id),
+      const [allLists, locationField] = await Promise.all([
+        getFolderLists(folder.id),
         getFolderLocationField(folder.id),
       ]);
-      if (!assessmentList) return;
 
-      // Single request: all tasks + subtasks including closed — avoids per-task API calls
-      const data = await clickupFetch<{ tasks: ClickUpTask[] }>(
-        `/list/${assessmentList.id}/task?include_closed=true&subtasks=true`,
+      // All lists in this folder whose name contains "assessments" (may be more than one)
+      const assessmentLists = allLists.filter((l) =>
+        l.name.toLowerCase().includes('assessments'),
       );
-      const allTasks = data.tasks ?? [];
+      if (assessmentLists.length === 0) return;
 
-      // Index parent assessment tasks by ID for location lookup
-      const parentMap = new Map(
-        allTasks
-          .filter((t) => !t.parent && t.name.toLowerCase().includes('assessment'))
-          .map((t) => [t.id, t]),
-      );
+      for (const assessmentList of assessmentLists) {
+        // Single request: all tasks + subtasks including closed — avoids per-task API calls
+        const data = await clickupFetch<{ tasks: ClickUpTask[] }>(
+          `/list/${assessmentList.id}/task?include_closed=true&subtasks=true`,
+        );
+        const allTasks = data.tasks ?? [];
 
-      // Subtasks of assessment parents with Approval Needed = true
-      const approved = allTasks.filter(
-        (t) => t.parent && parentMap.has(t.parent) && extractApprovalNeeded(t),
-      );
+        // Index parent assessment tasks by ID for location lookup
+        const parentMap = new Map(
+          allTasks
+            .filter((t) => !t.parent && t.name.toLowerCase().includes('assessment'))
+            .map((t) => [t.id, t]),
+        );
 
-      console.log(`[buildCommercialAssessmentAll] folder="${folder.name}" list="${assessmentList.name}" allTasks=${allTasks.length} parentMap=${parentMap.size} approved=${approved.length} sampleParent=${allTasks[0]?.parent ?? 'n/a'} sampleParentType=${typeof allTasks[0]?.parent}`);
+        // Subtasks of assessment parents with Approval Needed = true
+        const approved = allTasks.filter(
+          (t) => t.parent && parentMap.has(t.parent) && extractApprovalNeeded(t),
+        );
 
-      for (const subtask of approved) {
-        const parent = parentMap.get(subtask.parent!);
-        const unitLabel = parent
-          ? extractLocationField(parent, locationField) || parent.name
-          : '';
-        allItems.push({
-          ...transformTaskToAssessmentItem(subtask),
-          location: folder.name,    // building (folder) = primary location identifier
-          parentTaskName: unitLabel, // unit/sub-location identifier
-        });
+        for (const subtask of approved) {
+          const parent = parentMap.get(subtask.parent!);
+          const unitLabel = parent
+            ? extractLocationField(parent, locationField) || parent.name
+            : '';
+          allItems.push({
+            ...transformTaskToAssessmentItem(subtask),
+            location: assessmentList.name, // list name = building identifier
+            parentTaskName: unitLabel,      // unit/sub-location identifier
+          });
+        }
       }
     }),
     5,
