@@ -332,26 +332,29 @@ function findMatchingFoldersFuzzy(
 }
 
 // Extract category from ClickUp custom field or fall back to priority
+const CATEGORY_FIELD_IDS = [
+  '3188285b-248d-4f23-b84d-58baddbaba0b', // primary urgency/category dropdown
+  '2a8dcc4f-7c19-40b3-b399-3d83ec3e99c3', // secondary field (includes "High")
+];
+
 function extractCategory(task: ClickUpTask): AssessmentItem['category'] {
-  const categoryField = task.custom_fields?.filter(
-    (field) => field.id === '3188285b-248d-4f23-b84d-58baddbaba0b',
-  )[0];
-
-  if (categoryField?.value !== undefined && categoryField?.value !== null) {
-    if (categoryField.type_config?.options) {
-      const valueAsNumber =
-        typeof categoryField.value === 'string'
-          ? parseInt(categoryField.value, 10)
-          : categoryField.value;
-
-      const option = categoryField.type_config.options.find(
-        (opt) => opt.orderindex === valueAsNumber,
-      );
-      if (option) return option.name;
+  for (const fieldId of CATEGORY_FIELD_IDS) {
+    const categoryField = task.custom_fields?.find((f) => f.id === fieldId);
+    if (categoryField?.value !== undefined && categoryField?.value !== null) {
+      if (categoryField.type_config?.options) {
+        const valueAsNumber =
+          typeof categoryField.value === 'string'
+            ? parseInt(categoryField.value, 10)
+            : categoryField.value;
+        const option = categoryField.type_config.options.find(
+          (opt) => opt.orderindex === valueAsNumber,
+        );
+        if (option) return option.name;
+      }
     }
   }
 
-  // Fall back to priority if no custom field
+  // Fall back to priority if no custom field matched
   if (!task.priority) return 'Uncategorized';
   return task.priority.priority;
 }
@@ -414,18 +417,6 @@ export async function getCommercialCustomers(): Promise<
     name: f.name,
     taskCount: parseInt(f.task_count) || 0,
   }));
-}
-
-// --- NEW ARCHITECTURE ---
-
-// Find the "Assessments" list within a folder
-async function getAssessmentListForFolder(
-  folderId: string,
-): Promise<ClickUpList | null> {
-  const lists = await getFolderLists(folderId);
-  return (
-    lists.find((l) => l.name.toLowerCase().includes('assessments')) || null
-  );
 }
 
 // Returns true if the Approval Needed custom field is checked on a task.

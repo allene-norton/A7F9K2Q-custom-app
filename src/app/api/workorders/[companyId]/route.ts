@@ -15,15 +15,20 @@ async function withConcurrency<T>(tasks: (() => Promise<T>)[], limit: number): P
 
 const CLICKUP_BASE = 'https://api.clickup.com/api/v2';
 
-const CATEGORY_FIELD_ID = '3188285b-248d-4f23-b84d-58baddbaba0b';
+const CATEGORY_FIELD_IDS = [
+  '3188285b-248d-4f23-b84d-58baddbaba0b',
+  '2a8dcc4f-7c19-40b3-b399-3d83ec3e99c3',
+];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function extractCategory(task: any): string {
-  const field = (task.custom_fields ?? []).find((f: { id: string }) => f.id === CATEGORY_FIELD_ID);
-  if (field?.value !== undefined && field?.value !== null && field?.type_config?.options) {
-    const valueAsNumber = typeof field.value === 'string' ? parseInt(field.value, 10) : field.value;
-    const option = field.type_config.options.find((opt: { orderindex: number }) => opt.orderindex === valueAsNumber);
-    if (option) return option.name;
+  for (const fieldId of CATEGORY_FIELD_IDS) {
+    const field = (task.custom_fields ?? []).find((f: { id: string }) => f.id === fieldId);
+    if (field?.value !== undefined && field?.value !== null && field?.type_config?.options) {
+      const valueAsNumber = typeof field.value === 'string' ? parseInt(field.value, 10) : field.value;
+      const option = field.type_config.options.find((opt: { orderindex: number }) => opt.orderindex === valueAsNumber);
+      if (option) return option.name;
+    }
   }
   return task.priority?.priority ?? 'Uncategorized';
 }

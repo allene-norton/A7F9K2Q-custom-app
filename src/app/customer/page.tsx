@@ -944,8 +944,8 @@ function CustomerPageInner() {
               {hasActiveFilters && (
                 <p className="text-xs text-gray-500 mb-3 px-1">
                   Showing {filteredAndSortedItems.length} of{' '}
-                  {selectedAssessment!.items.length} item
-                  {selectedAssessment!.items.length !== 1 ? 's' : ''}
+                  {viewingAllItems ? allAssessmentItems.length : selectedAssessment!.items.length} item
+                  {(viewingAllItems ? allAssessmentItems.length : selectedAssessment!.items.length) !== 1 ? 's' : ''}
                 </p>
               )}
 
