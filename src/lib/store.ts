@@ -75,6 +75,13 @@ export async function appendWorkOrderRef(companyId: string, ref: WorkOrderRef): 
   await redis.set(`workorders:${companyId}`, [...without, ref]);
 }
 
+export async function removeWorkOrderRefs(companyId: string, taskIds: string[]): Promise<void> {
+  if (taskIds.length === 0) return;
+  const existing = await getWorkOrderRefs(companyId);
+  const toRemove = new Set(taskIds);
+  await redis.set(`workorders:${companyId}`, existing.filter((r) => !toRemove.has(r.taskId)));
+}
+
 // ─── Task Comments (stored independently per ClickUp task ID) ─────────────────
 
 export async function getTaskComments(taskId: string): Promise<StoredComment[]> {

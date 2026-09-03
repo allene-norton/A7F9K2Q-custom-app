@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getWorkOrderRefs, getAssessmentsForCompany, getTaskComments, getTaskStatuses, setTaskStatus, addUnreadTask } from '@/lib/store';
+import { getWorkOrderRefs, getAssessmentsForCompany, getTaskComments, getTaskStatuses, setTaskStatus, addUnreadTask, removeWorkOrderRefs } from '@/lib/store';
 import { hexToRgba } from '@/lib/utils';
 import { findMatchingFolders, getFolderLists } from '@/lib/clickup/clickup_actions';
 
@@ -153,11 +153,17 @@ export async function GET(
       const missingRefs = redisRefs.filter((r) => !discoveredIds.has(r.taskId));
 
       if (missingRefs.length > 0) {
+        const missingDeletedIds: string[] = [];
         const missingTasks = await Promise.allSettled(
-          missingRefs.map((ref) =>
-            fetch(`${CLICKUP_BASE}/task/${ref.taskId}`, { headers: { Authorization: key }, next: { revalidate: 30 } }).then((r) => r.json()),
-          ),
+          missingRefs.map(async (ref) => {
+            const r = await fetch(`${CLICKUP_BASE}/task/${ref.taskId}`, { headers: { Authorization: key }, next: { revalidate: 30 } });
+            if (r.status === 404) { missingDeletedIds.push(ref.taskId); return null; }
+            return r.ok ? r.json() : null;
+          }),
         );
+        if (missingDeletedIds.length > 0) {
+          await removeWorkOrderRefs(companyId, missingDeletedIds);
+        }
         for (const result of missingTasks) {
           if (result.status === 'fulfilled' && result.value?.id) {
             const formatted = formatTask(result.value);
@@ -182,14 +188,18 @@ export async function GET(
   const refMap = new Map(refs.map((r) => [r.taskId, r]));
 
   const headers = { Authorization: key };
+  const deletedTaskIds: string[] = [];
+
   const taskResults = await withConcurrency(
     refs.map((ref) => async () => {
       try {
         const r = await fetch(`${CLICKUP_BASE}/task/${ref.taskId}`, { headers, next: { revalidate: 30 } });
+        if (r.status === 404) { deletedTaskIds.push(ref.taskId); return null; }
         if (r.status === 429) {
           const retryAfter = Math.min(parseInt(r.headers.get('Retry-After') ?? '1', 10), 3);
           await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
           const r2 = await fetch(`${CLICKUP_BASE}/task/${ref.taskId}`, { headers, next: { revalidate: 30 } });
+          if (r2.status === 404) { deletedTaskIds.push(ref.taskId); return null; }
           return r2.ok ? r2.json() : null;
         }
         return r.ok ? r.json() : null;
@@ -199,6 +209,11 @@ export async function GET(
     }),
     8,
   );
+
+  // Purge refs for tasks that no longer exist in ClickUp
+  if (deletedTaskIds.length > 0) {
+    await removeWorkOrderRefs(companyId, deletedTaskIds);
+  }
 
   const items = taskResults
     .filter((task): task is NonNullable<typeof task> => !!(task as { id?: string })?.id)
