@@ -14,6 +14,7 @@ type ActiveView = 'assessment' | 'workorders';
 
 const CATEGORIES: AssessmentItem['category'][] = [
   'Urgent',
+  'High',
   'Recommended',
   'Cosmetic',
   'Included Maintenance',
@@ -22,10 +23,11 @@ const CATEGORIES: AssessmentItem['category'][] = [
 
 const URGENCY_ORDER: Record<AssessmentItem['category'], number> = {
   Urgent: 0,
-  Recommended: 1,
-  Cosmetic: 2,
-  'Included Maintenance': 3,
-  'No Issue': 4,
+  High: 1,
+  Recommended: 2,
+  Cosmetic: 3,
+  'Included Maintenance': 4,
+  'No Issue': 5,
 };
 
 // ─── Item Detail Modal ────────────────────────────────────────────────────────
@@ -237,6 +239,7 @@ function CustomerPageInner() {
   const [activeView, setActiveView] = useState<ActiveView>('assessment');
   const [unreadTaskIds, setUnreadTaskIds] = useState<Set<string>>(new Set());
   const [assessmentSort, setAssessmentSort] = useState<'date-new' | 'date-old'>('date-new');
+  const [viewingAllItems, setViewingAllItems] = useState(false);
 
   // Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -383,9 +386,14 @@ function CustomerPageInner() {
     return tags;
   }, [selectedAssessment]);
 
+  const allAssessmentItems = useMemo(
+    () => assessments.filter(a => !a.submittedAt).flatMap(a => a.items),
+    [assessments],
+  );
+
   const filteredAndSortedItems = useMemo(() => {
-    if (!selectedAssessment) return [];
-    let items = [...selectedAssessment.items];
+    if (!viewingAllItems && !selectedAssessment) return [];
+    let items = viewingAllItems ? [...allAssessmentItems] : [...selectedAssessment!.items];
 
     if (categoryFilter !== 'All') {
       items = items.filter((item) => item.category === categoryFilter);
@@ -428,6 +436,8 @@ function CustomerPageInner() {
     return items;
   }, [
     selectedAssessment,
+    viewingAllItems,
+    allAssessmentItems,
     categoryFilter,
     searchQuery,
     selectedTags,
@@ -604,7 +614,7 @@ function CustomerPageInner() {
                 Your team will notify you when items are ready for your review.
               </p>
             </div>
-          ) : assessments.length > 1 && !selectedAssessment ? (
+          ) : assessments.length > 1 && !selectedAssessment && !viewingAllItems ? (
             /* Assessment tab — selector */
             <div className="max-w-2xl mx-auto py-8 px-4">
               <h2
@@ -618,15 +628,27 @@ function CustomerPageInner() {
                   You have {assessments.length} {nounPlural} ready for review.
                   Select one to get started.
                 </p>
-                <select
-                  value={assessmentSort}
-                  onChange={(e) => setAssessmentSort(e.target.value as 'date-new' | 'date-old')}
-                  className="text-sm border border-gray-300 rounded-lg px-2 py-1.5 bg-white
-                             focus:outline-none focus:ring-2 focus:ring-[#174887] ml-4 flex-shrink-0"
-                >
-                  <option value="date-new">Most Recent</option>
-                  <option value="date-old">Oldest First</option>
-                </select>
+                <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                  <button
+                    onClick={() => setViewingAllItems(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: '#174887' }}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                    </svg>
+                    View All Items
+                  </button>
+                  <select
+                    value={assessmentSort}
+                    onChange={(e) => setAssessmentSort(e.target.value as 'date-new' | 'date-old')}
+                    className="text-sm border border-gray-300 rounded-lg px-2 py-1.5 bg-white
+                               focus:outline-none focus:ring-2 focus:ring-[#174887]"
+                  >
+                    <option value="date-new">Most Recent</option>
+                    <option value="date-old">Oldest First</option>
+                  </select>
+                </div>
               </div>
               <div className="space-y-3">
                 {[...assessments]
@@ -703,26 +725,16 @@ function CustomerPageInner() {
               </div>
             </div>
           ) : (
-            /* Assessment tab — selected assessment view */
+            /* Assessment tab — selected assessment OR all-items view */
             <div className="max-w-2xl mx-auto py-8 px-4">
-              {/* Back to assessments (multi-assessment only) */}
-              {assessments.length > 1 && (
+              {/* Back button */}
+              {(assessments.length > 1 || viewingAllItems) && (
                 <button
-                  onClick={() => setSelectedAssessment(null)}
+                  onClick={() => { setSelectedAssessment(null); setViewingAllItems(false); }}
                   className="flex items-center gap-2 text-gray-600 hover:text-[#174887] mb-5 transition-colors font-medium text-sm"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 19l-7-7 7-7"
-                    />
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                   All {nounPlural}
                 </button>
@@ -730,35 +742,35 @@ function CustomerPageInner() {
 
               {/* Header card */}
               <div className="bg-white rounded-xl border-2 border-gray-200 p-6 mb-6 shadow-sm">
-                <h2
-                  className="text-2xl font-bold mb-0.5"
-                  style={{ color: '#174887' }}
-                >
-                  {selectedAssessment!.companyName}
+                <h2 className="text-2xl font-bold mb-0.5" style={{ color: '#174887' }}>
+                  {viewingAllItems ? (assessments[0]?.companyName ?? companyName) : selectedAssessment!.companyName}
                 </h2>
                 <p className="text-base font-semibold text-gray-700 mb-1">
-                  {selectedAssessment!.assessmentName}
+                  {viewingAllItems ? 'All Items' : selectedAssessment!.assessmentName}
                 </p>
-                <p className="text-gray-500 text-sm">
-                  Sent{' '}
-                  {new Date(selectedAssessment!.sentAt).toLocaleDateString(
-                    'en-US',
-                    {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    },
-                  )}
-                </p>
-                <p className="text-sm text-gray-600 mt-2">
-                  Tap each item to review details and make your selection. When
-                  you&rsquo;re done, click <strong>Submit Selections</strong> at
-                  the bottom.
-                </p>
-                {selectedAssessment!.items.length > 0 && (
-                  <p className="text-xs text-gray-400 mt-3">
-                    {selectedCount} of {selectedAssessment!.items.length} item
-                    {selectedAssessment!.items.length !== 1 ? 's' : ''} reviewed
+                {!viewingAllItems && (
+                  <>
+                    <p className="text-gray-500 text-sm">
+                      Sent{' '}
+                      {new Date(selectedAssessment!.sentAt).toLocaleDateString('en-US', {
+                        year: 'numeric', month: 'long', day: 'numeric',
+                      })}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-2">
+                      Tap each item to review details and make your selection. When
+                      you&rsquo;re done, click <strong>Submit Selections</strong> at the bottom.
+                    </p>
+                    {selectedAssessment!.items.length > 0 && (
+                      <p className="text-xs text-gray-400 mt-3">
+                        {selectedCount} of {selectedAssessment!.items.length} item
+                        {selectedAssessment!.items.length !== 1 ? 's' : ''} reviewed
+                      </p>
+                    )}
+                  </>
+                )}
+                {viewingAllItems && (
+                  <p className="text-sm text-gray-600 mt-2">
+                    Showing all items across {assessments.filter(a => !a.submittedAt).length} {nounPlural}. Use search or filters to find specific items.
                   </p>
                 )}
               </div>

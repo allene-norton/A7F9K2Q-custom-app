@@ -485,26 +485,37 @@ export async function getCommercialAssessmentLocations(
 
   const folderResults = await withConcurrency(
     folders.map((folder) => async () => {
-      const [assessmentList, locationField] = await Promise.all([
-        getAssessmentListForFolder(folder.id),
+      const [allLists, locationField] = await Promise.all([
+        getFolderLists(folder.id),
         getFolderLocationField(folder.id),
       ]);
-      if (!assessmentList) return [];
 
-      const tasks = await getListTasks(assessmentList.id, false);
-      return tasks
-        .filter((t) => !t.parent && t.name.toLowerCase().includes('assessment'))
-        .map((t) => ({
-          taskId: t.id,
-          taskName: t.name,
-          location: extractLocationField(t, locationField),
-          date: new Date(parseInt(t.date_updated ?? t.date_created)).toISOString().split('T')[0],
-          created_date: new Date(parseInt(t.date_created)).toISOString().split('T')[0],
-          updated_date: new Date(parseInt(t.date_updated ?? t.date_created)).toISOString().split('T')[0],
-          status: t.status.status,
-          statusColor: t.status.color || '#6b7280',
-          folderName: folder.name,
-        }));
+      // All lists whose name contains "assessments" — may be more than one per folder
+      const assessmentLists = allLists.filter((l) =>
+        l.name.toLowerCase().includes('assessments'),
+      );
+      if (assessmentLists.length === 0) return [];
+
+      const listResults = await withConcurrency(
+        assessmentLists.map((assessmentList) => async () => {
+          const tasks = await getListTasks(assessmentList.id, false);
+          return tasks
+            .filter((t) => !t.parent && t.name.toLowerCase().includes('assessment'))
+            .map((t) => ({
+              taskId: t.id,
+              taskName: t.name,
+              location: extractLocationField(t, locationField),
+              date: new Date(parseInt(t.date_updated ?? t.date_created)).toISOString().split('T')[0],
+              created_date: new Date(parseInt(t.date_created)).toISOString().split('T')[0],
+              updated_date: new Date(parseInt(t.date_updated ?? t.date_created)).toISOString().split('T')[0],
+              status: t.status.status,
+              statusColor: t.status.color || '#6b7280',
+              folderName: assessmentList.name, // list name is the building identifier
+            }));
+        }),
+        5,
+      );
+      return listResults.flat();
     }),
     5,
   );

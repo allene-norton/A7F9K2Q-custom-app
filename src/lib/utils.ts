@@ -65,6 +65,8 @@ export function getCategoryColor(category: string): string {
   switch (category) {
     case 'Urgent':
       return 'text-white border-[#FF4081]' + ' ' + 'bg-[#FF4081]';
+    case 'High':
+      return 'text-white border-[#f97316]' + ' ' + 'bg-[#f97316]';
     case 'Recommended':
       return 'text-black border-[#ffc53d]' + ' ' + 'bg-[#ffc53d]';
     case 'Cosmetic':

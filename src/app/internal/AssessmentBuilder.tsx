@@ -38,6 +38,7 @@ type SortOption = 'created-new' | 'created-old' | 'updated-new' | 'updated-old' 
 
 const CATEGORIES: AssessmentItem['category'][] = [
   'Urgent',
+  'High',
   'Recommended',
   'Cosmetic',
   'Included Maintenance',
@@ -46,10 +47,11 @@ const CATEGORIES: AssessmentItem['category'][] = [
 
 const URGENCY_ORDER: Record<AssessmentItem['category'], number> = {
   Urgent: 0,
-  Recommended: 1,
-  Cosmetic: 2,
-  'Included Maintenance': 3,
-  'No Issue': 4,
+  High: 1,
+  Recommended: 2,
+  Cosmetic: 3,
+  'Included Maintenance': 4,
+  'No Issue': 5,
 };
 
 export default function AssessmentBuilder({
