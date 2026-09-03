@@ -323,8 +323,14 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     setInternalView('assessment');
   };
 
-  const handleUnsendAssessment = async (loc: AssessmentParent) => {
+  const handleUnsendAssessment = async (loc: AssessmentParent, isSubmitted: boolean) => {
     if (!selectedCompany) return;
+    if (isSubmitted) {
+      const confirmed = window.confirm(
+        'This assessment was submitted by the customer. Unsending will move the ClickUp work order tasks back as subtasks and reset them to open status. Continue?',
+      );
+      if (!confirmed) return;
+    }
     const assessmentId = `assess_${selectedCompany.id}_${loc.taskId}`;
     setUnsendingId(assessmentId);
     try {
@@ -733,7 +739,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                                 )}
                                 <button
                                   disabled={isThisUnsending}
-                                  onClick={() => handleUnsendAssessment(loc)}
+                                  onClick={() => handleUnsendAssessment(loc, isCustomerSubmitted)}
                                   className="px-4 py-1.5 text-sm font-semibold border-2 border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   {isThisUnsending ? 'Working…' : 'Unsend'}
@@ -778,6 +784,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                 }
                 token={token ?? undefined}
                 isSent={sentAssessments.some((a) => a.assessmentId === assessment.id)}
+                isSubmitted={sentAssessments.some((a) => a.assessmentId === assessment.id && Boolean(a.submittedAt))}
               />
             )}
           </>

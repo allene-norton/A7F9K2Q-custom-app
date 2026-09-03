@@ -32,6 +32,7 @@ interface AssessmentBuilderProps {
   backLabel?: string;
   token?: string;
   isSent?: boolean;
+  isSubmitted?: boolean;
 }
 
 type CategoryFilter = 'All' | AssessmentItem['category'];
@@ -67,6 +68,7 @@ export default function AssessmentBuilder({
   backLabel = 'Companies',
   token,
   isSent,
+  isSubmitted,
 }: AssessmentBuilderProps) {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('All');
   const [sortOption, setSortOption] = useState<SortOption>('updated-new');
@@ -231,6 +233,12 @@ export default function AssessmentBuilder({
 
   const handleUnsend = async (thenModify = false) => {
     if (!company.id) return;
+    if (isSubmitted) {
+      const confirmed = window.confirm(
+        'This assessment was submitted by the customer. Unsending will move the ClickUp work order tasks back as subtasks and reset them to open status. Continue?',
+      );
+      if (!confirmed) return;
+    }
     setIsUnsending(true);
     try {
       await fetch(`/api/assessments/${company.id}/${encodeURIComponent(assessment.id)}`, { method: 'DELETE' });
@@ -319,37 +327,46 @@ export default function AssessmentBuilder({
                 Preview
               </button>
               {sendSuccess ? (
-                <div className="flex items-center gap-2 flex-wrap justify-end">
-                  <div className="px-5 py-3 rounded-lg bg-green-100 text-green-800 font-semibold flex items-center gap-2">
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                <div className="flex flex-col items-end gap-2">
+                  {isSubmitted && (
+                    <p className="text-xs text-amber-700 text-right max-w-xs">
+                      Customer has submitted. Unsending will restore tasks in ClickUp.
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <div className="px-5 py-3 rounded-lg bg-green-100 text-green-800 font-semibold flex items-center gap-2">
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                      {isSubmitted ? 'Submitted' : 'Sent!'}
+                    </div>
+                    {!isSubmitted && (
+                      <button
+                        onClick={() => handleUnsend(true)}
+                        disabled={isUnsending}
+                        className="px-5 py-3 border-2 border-amber-500 text-amber-700 rounded-lg font-semibold hover:bg-amber-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isUnsending ? 'Working…' : 'Modify & Resend'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleUnsend(false)}
+                      disabled={isUnsending}
+                      className="px-5 py-3 border-2 border-red-300 text-red-600 rounded-lg font-semibold hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                    Sent!
+                      {isUnsending ? 'Working…' : 'Unsend'}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleUnsend(true)}
-                    disabled={isUnsending}
-                    className="px-5 py-3 border-2 border-amber-500 text-amber-700 rounded-lg font-semibold hover:bg-amber-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isUnsending ? 'Working…' : 'Modify & Resend'}
-                  </button>
-                  <button
-                    onClick={() => handleUnsend(false)}
-                    disabled={isUnsending}
-                    className="px-5 py-3 border-2 border-red-300 text-red-600 rounded-lg font-semibold hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isUnsending ? 'Working…' : 'Unsend'}
-                  </button>
                 </div>
               ) : (
                 <button
