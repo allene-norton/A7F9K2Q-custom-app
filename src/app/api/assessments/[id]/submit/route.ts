@@ -3,7 +3,7 @@ import { getAssessmentById, getWorkOrderRefs, appendTaskComment, copyTaskComment
 import { markNotificationRead } from '@/lib/assembly/client';
 import { notifyInternalUsersAbout } from '@/lib/notifications';
 import type { StoredComment } from '@/types/types-index';
-import { APPROVAL_NEEDED_FIELD_ID } from '@/lib/constants';
+import { APPROVAL_NEEDED_FIELD_ID, CUSTOMER_SELECTION_FIELD_ID, CUSTOMER_SELECTION_OPTIONS } from '@/lib/constants';
 
 async function withConcurrency<T>(tasks: (() => Promise<T>)[], limit: number): Promise<PromiseSettledResult<T>[]> {
   const results: PromiseSettledResult<T>[] = new Array(tasks.length);
@@ -20,7 +20,8 @@ async function withConcurrency<T>(tasks: (() => Promise<T>)[], limit: number): P
 }
 
 const CLICKUP_BASE = 'https://api.clickup.com/api/v2';
-const CUSTOMER_SELECTION_FIELD_ID = 'd82819f0-eaad-45d2-8c67-af1aa08a5949';
+const PRIMARY_CATEGORY_FIELD_ID = '3188285b-248d-4f23-b84d-58baddbaba0b';
+const HIGH_CATEGORY_FIELD_ID = '2a8dcc4f-7c19-40b3-b399-3d83ec3e99c3';
 
 export async function POST(
   req: NextRequest,
@@ -101,13 +102,25 @@ export async function POST(
 
       // 4. After merge, explicitly set description to the original's content
       //    (ClickUp's merge can concatenate descriptions, causing duplication)
-      //    + Set Customer Selection field + clear Approval Needed
+      //    + Set task status from customer selection + Set Customer Selection field + clear Approval Needed
+      //    + Re-apply category fields — ClickUp merge does not reliably copy custom fields
       const originalDescription = task.description ?? task.text_content ?? '';
+      const selectionOption = CUSTOMER_SELECTION_OPTIONS.find((o) => o.orderindex === orderindex);
+
+      // Extract category field values from the original task to re-apply after merge
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const getFieldValue = (fieldId: string) => (task.custom_fields ?? []).find((f: any) => f.id === fieldId)?.value;
+      const primaryCategoryValue = getFieldValue(PRIMARY_CATEGORY_FIELD_ID);
+      const highCategoryValue = getFieldValue(HIGH_CATEGORY_FIELD_ID);
+
       await Promise.all([
         fetch(`${CLICKUP_BASE}/task/${newTaskId}`, {
           method: 'PUT',
           headers: authHeaders,
-          body: JSON.stringify({ description: originalDescription }),
+          body: JSON.stringify({
+            description: originalDescription,
+            ...(selectionOption ? { status: selectionOption.clickupStatus } : {}),
+          }),
         }),
         fetch(
           `${CLICKUP_BASE}/task/${newTaskId}/field/${CUSTOMER_SELECTION_FIELD_ID}`,
@@ -125,6 +138,20 @@ export async function POST(
             body: JSON.stringify({ value: false }),
           },
         ),
+        ...(primaryCategoryValue !== undefined && primaryCategoryValue !== null
+          ? [fetch(`${CLICKUP_BASE}/task/${newTaskId}/field/${PRIMARY_CATEGORY_FIELD_ID}`, {
+              method: 'POST',
+              headers: authHeaders,
+              body: JSON.stringify({ value: primaryCategoryValue }),
+            })]
+          : []),
+        ...(highCategoryValue !== undefined && highCategoryValue !== null
+          ? [fetch(`${CLICKUP_BASE}/task/${newTaskId}/field/${HIGH_CATEGORY_FIELD_ID}`, {
+              method: 'POST',
+              headers: authHeaders,
+              body: JSON.stringify({ value: highCategoryValue }),
+            })]
+          : []),
       ]);
 
       // 5b. Copy any pre-submission notes from old task ID to new work order task ID

@@ -717,18 +717,20 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                                 )}
                               </div>
                             </div>
-                            {isSent && !isCustomerSubmitted && (
+                            {isSent && (
                               <div
                                 className="flex gap-2 px-5 pb-4"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                <button
-                                  disabled={isThisUnsending}
-                                  onClick={() => handleModifyAndResend(loc)}
-                                  className="px-4 py-1.5 text-sm font-semibold border-2 border-amber-500 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  {isThisUnsending ? 'Working…' : 'Modify & Resend'}
-                                </button>
+                                {!isCustomerSubmitted && (
+                                  <button
+                                    disabled={isThisUnsending}
+                                    onClick={() => handleModifyAndResend(loc)}
+                                    className="px-4 py-1.5 text-sm font-semibold border-2 border-amber-500 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {isThisUnsending ? 'Working…' : 'Modify & Resend'}
+                                  </button>
+                                )}
                                 <button
                                   disabled={isThisUnsending}
                                   onClick={() => handleUnsendAssessment(loc)}
