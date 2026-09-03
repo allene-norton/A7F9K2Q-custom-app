@@ -77,6 +77,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
   const [internalView, setInternalView] = useState<InternalView>('assessment');
   const [unsendingId, setUnsendingId] = useState<string | null>(null);
+  const [unsendedIds, setUnsendedIds] = useState<Set<string>>(new Set());
 
   // Fetch Assembly companies filtered to only those with a matching ClickUp folder
   useEffect(() => {
@@ -336,6 +337,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     try {
       await fetch(`/api/assessments/${selectedCompany.id}/${encodeURIComponent(assessmentId)}`, { method: 'DELETE' });
       setSentAssessments((prev) => prev.filter((a) => a.assessmentId !== assessmentId));
+      setUnsendedIds((prev) => new Set([...prev, assessmentId]));
     } finally {
       setUnsendingId(null);
     }
@@ -348,6 +350,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     try {
       await fetch(`/api/assessments/${selectedCompany.id}/${encodeURIComponent(assessmentId)}`, { method: 'DELETE' });
       setSentAssessments((prev) => prev.filter((a) => a.assessmentId !== assessmentId));
+      setUnsendedIds((prev) => new Set([...prev, assessmentId]));
     } finally {
       setUnsendingId(null);
     }
@@ -734,15 +737,15 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                                     onClick={() => handleModifyAndResend(loc)}
                                     className="px-4 py-1.5 text-sm font-semibold border-2 border-amber-500 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
-                                    {isThisUnsending ? 'Working…' : 'Modify & Resend'}
+                                    {isThisUnsending ? 'Working…' : 'Modify'}
                                   </button>
                                 )}
                                 <button
-                                  disabled={isThisUnsending}
+                                  disabled={isThisUnsending || unsendedIds.has(cardAssessmentId)}
                                   onClick={() => handleUnsendAssessment(loc, isCustomerSubmitted)}
                                   className="px-4 py-1.5 text-sm font-semibold border-2 border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                  {isThisUnsending ? 'Working…' : 'Unsend'}
+                                  {isThisUnsending ? 'Working…' : unsendedIds.has(cardAssessmentId) ? 'Unsent' : 'Unsend'}
                                 </button>
                               </div>
                             )}

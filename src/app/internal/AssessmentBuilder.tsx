@@ -356,7 +356,7 @@ export default function AssessmentBuilder({
                         disabled={isUnsending}
                         className="px-5 py-3 border-2 border-amber-500 text-amber-700 rounded-lg font-semibold hover:bg-amber-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {isUnsending ? 'Working…' : 'Modify & Resend'}
+                        {isUnsending ? 'Working…' : 'Modify'}
                       </button>
                     )}
                     <button
