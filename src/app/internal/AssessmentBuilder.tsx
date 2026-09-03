@@ -26,6 +26,7 @@ interface AssessmentBuilderProps {
   onBack: () => void;
   onBackToAssessments?: () => void;
   onSendSuccess?: (assessmentId: string) => void;
+  onUnsend?: (assessmentId: string) => void;
   isHourly?: boolean;
   spaceId?: string;
   backLabel?: string;
@@ -60,6 +61,7 @@ export default function AssessmentBuilder({
   onBack,
   onBackToAssessments,
   onSendSuccess,
+  onUnsend,
   isHourly,
   spaceId,
   backLabel = 'Companies',
@@ -86,6 +88,7 @@ export default function AssessmentBuilder({
   const [showPreview, setShowPreview] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
+  const [isUnsending, setIsUnsending] = useState(false);
 
   // Keep displayItems in sync when assessment changes (keyed on ID)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -226,6 +229,22 @@ export default function AssessmentBuilder({
     }
   };
 
+  const handleUnsend = async (thenModify = false) => {
+    if (!company.id) return;
+    setIsUnsending(true);
+    try {
+      await fetch(`/api/assessments/${company.id}/${encodeURIComponent(assessment.id)}`, { method: 'DELETE' });
+      onUnsend?.(assessment.id);
+      if (thenModify) {
+        setSendSuccess(false);
+      } else {
+        onBack();
+      }
+    } finally {
+      setIsUnsending(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto py-8 px-4">
@@ -300,21 +319,37 @@ export default function AssessmentBuilder({
                 Preview
               </button>
               {sendSuccess ? (
-                <div className="px-5 py-3 rounded-lg bg-green-100 text-green-800 font-semibold flex items-center gap-2">
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <div className="px-5 py-3 rounded-lg bg-green-100 text-green-800 font-semibold flex items-center gap-2">
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    Sent!
+                  </div>
+                  <button
+                    onClick={() => handleUnsend(true)}
+                    disabled={isUnsending}
+                    className="px-5 py-3 border-2 border-amber-500 text-amber-700 rounded-lg font-semibold hover:bg-amber-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  Sent!
+                    {isUnsending ? 'Working…' : 'Modify & Resend'}
+                  </button>
+                  <button
+                    onClick={() => handleUnsend(false)}
+                    disabled={isUnsending}
+                    className="px-5 py-3 border-2 border-red-300 text-red-600 rounded-lg font-semibold hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isUnsending ? 'Working…' : 'Unsend'}
+                  </button>
                 </div>
               ) : (
                 <button

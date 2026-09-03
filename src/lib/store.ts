@@ -48,6 +48,12 @@ export async function appendAssessment(companyId: string, data: StoredAssessment
   await redis.set(`assessments:${companyId}`, [...without, data]);
 }
 
+export async function deleteAssessment(companyId: string, assessmentId: string): Promise<void> {
+  const existing = await getAssessmentsForCompany(companyId);
+  const updated = existing.filter((a) => a.assessmentId !== assessmentId);
+  await redis.set(`assessments:${companyId}`, updated);
+}
+
 // ─── Work Orders ──────────────────────────────────────────────────────────────
 
 export async function getWorkOrderRefs(companyId: string): Promise<WorkOrderRef[]> {

@@ -76,6 +76,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   const [assessmentLoading, setAssessmentLoading] = useState(false);
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
   const [internalView, setInternalView] = useState<InternalView>('assessment');
+  const [unsendingId, setUnsendingId] = useState<string | null>(null);
 
   // Fetch Assembly companies filtered to only those with a matching ClickUp folder
   useEffect(() => {
@@ -320,6 +321,31 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
     setAssessment(null);
     setAssessmentError(null);
     setInternalView('assessment');
+  };
+
+  const handleUnsendAssessment = async (loc: AssessmentParent) => {
+    if (!selectedCompany) return;
+    const assessmentId = `assess_${selectedCompany.id}_${loc.taskId}`;
+    setUnsendingId(assessmentId);
+    try {
+      await fetch(`/api/assessments/${selectedCompany.id}/${encodeURIComponent(assessmentId)}`, { method: 'DELETE' });
+      setSentAssessments((prev) => prev.filter((a) => a.assessmentId !== assessmentId));
+    } finally {
+      setUnsendingId(null);
+    }
+  };
+
+  const handleModifyAndResend = async (loc: AssessmentParent) => {
+    if (!selectedCompany) return;
+    const assessmentId = `assess_${selectedCompany.id}_${loc.taskId}`;
+    setUnsendingId(assessmentId);
+    try {
+      await fetch(`/api/assessments/${selectedCompany.id}/${encodeURIComponent(assessmentId)}`, { method: 'DELETE' });
+      setSentAssessments((prev) => prev.filter((a) => a.assessmentId !== assessmentId));
+    } finally {
+      setUnsendingId(null);
+    }
+    await handleLocationSelect(loc);
   };
 
   // Residential folder selected — identical flow to hourly
@@ -647,6 +673,8 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                         const isCustomerSubmitted = Boolean(
                           sentAssessment?.submittedAt,
                         );
+                        const cardAssessmentId = `assess_${selectedCompany.id}_${loc.taskId}`;
+                        const isThisUnsending = unsendingId === cardAssessmentId;
                         return (
                           <div
                             key={loc.taskId}
@@ -659,9 +687,7 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                               !isSent && handleLocationSelect(loc)
                             }
                           >
-                            <div
-                              className={`p-5 text-left ${isSent ? 'opacity-60' : ''}`}
-                            >
+                            <div className={`p-5 text-left ${isSent && !isCustomerSubmitted ? 'opacity-70' : isSent ? 'opacity-60' : ''}`}>
                               <div className="flex items-center flex-wrap gap-2">
                                 <span className="font-semibold text-gray-900 text-lg">
                                   {loc.taskName}
@@ -691,6 +717,27 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                                 )}
                               </div>
                             </div>
+                            {isSent && !isCustomerSubmitted && (
+                              <div
+                                className="flex gap-2 px-5 pb-4"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  disabled={isThisUnsending}
+                                  onClick={() => handleModifyAndResend(loc)}
+                                  className="px-4 py-1.5 text-sm font-semibold border-2 border-amber-500 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {isThisUnsending ? 'Working…' : 'Modify & Resend'}
+                                </button>
+                                <button
+                                  disabled={isThisUnsending}
+                                  onClick={() => handleUnsendAssessment(loc)}
+                                  className="px-4 py-1.5 text-sm font-semibold border-2 border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {isThisUnsending ? 'Working…' : 'Unsend'}
+                                </button>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -714,6 +761,9 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                     ...prev.filter((a) => a.assessmentId !== assessmentId),
                     { assessmentId },
                   ])
+                }
+                onUnsend={(assessmentId) =>
+                  setSentAssessments((prev) => prev.filter((a) => a.assessmentId !== assessmentId))
                 }
                 isHourly={Boolean(selectedHourlyFolder)}
                 backLabel={backLabel}
