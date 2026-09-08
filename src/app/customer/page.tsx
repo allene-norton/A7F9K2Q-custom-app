@@ -391,6 +391,16 @@ function CustomerPageInner() {
     [assessments],
   );
 
+  const itemAssessmentNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of assessments) {
+      for (const item of a.items) {
+        map.set(item.id, a.assessmentName);
+      }
+    }
+    return map;
+  }, [assessments]);
+
   const filteredAndSortedItems = useMemo(() => {
     if (!viewingAllItems && !selectedAssessment) return [];
     let items = viewingAllItems ? [...allAssessmentItems] : [...selectedAssessment!.items];
@@ -980,7 +990,9 @@ function CustomerPageInner() {
                                   {index + 1}
                                 </span>
                                 <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-                                  {item.location}
+                                  {viewingAllItems && itemAssessmentNameMap.get(item.id)
+                                    ? `${itemAssessmentNameMap.get(item.id)} · ${item.location}`
+                                    : item.location}
                                 </span>
                               </div>
                               <h3 className="text-base font-bold text-gray-900 leading-tight pr-4">
