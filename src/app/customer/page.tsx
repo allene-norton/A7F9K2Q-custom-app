@@ -416,7 +416,8 @@ function CustomerPageInner() {
           item.issue?.toLowerCase().includes(q) ||
           item.location?.toLowerCase().includes(q) ||
           item.description?.toLowerCase().includes(q) ||
-          item.tags.some((tag) => tag.name.toLowerCase().includes(q)),
+          item.tags.some((tag) => tag.name.toLowerCase().includes(q)) ||
+          (viewingAllItems && itemAssessmentNameMap.get(item.id)?.toLowerCase().includes(q)),
       );
     }
 
@@ -448,6 +449,7 @@ function CustomerPageInner() {
     selectedAssessment,
     viewingAllItems,
     allAssessmentItems,
+    itemAssessmentNameMap,
     categoryFilter,
     searchQuery,
     selectedTags,
