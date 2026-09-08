@@ -7,7 +7,6 @@ import { Assessment, AssessmentParent } from '@/types/types-index';
 import {
   getCommercialAssessmentLocations,
   buildCommercialAssessment,
-  buildCommercialAssessmentAll,
   getHourlyFolders,
   getHourlyAssessmentForFolder,
   getResidentialFolders,
@@ -226,27 +225,6 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
   const handleLocationSelect = async (location: AssessmentParent) => {
     if (!selectedCompany) return;
     await loadCommercialAssessment(location, selectedCompany);
-  };
-
-  // "View All Items" — flat cross-location aggregate for the selected company
-  const handleViewAllItems = async () => {
-    if (!selectedCompany) return;
-    setAssessment(null);
-    setAssessmentLoading(true);
-    setAssessmentError(null);
-    try {
-      const result = await buildCommercialAssessmentAll(
-        selectedCompany.name || '',
-        selectedCompany.id || '',
-        selectedCompany.id,
-      );
-      setAssessment(result);
-    } catch (error) {
-      console.error('Failed to build all-items assessment:', error);
-      setAssessmentError(error instanceof Error ? error.message : 'Failed to load items');
-    } finally {
-      setAssessmentLoading(false);
-    }
   };
 
   const loadCommercialAssessment = async (
@@ -550,24 +528,12 @@ export default function InternalPage({ searchParams }: InternalPageProps) {
                     Back to {backLabel.toLowerCase()}
                   </button>
 
-                  <div className="flex items-start justify-between mb-2">
-                    <h2
-                      className="text-2xl font-bold"
-                      style={{ color: '#174887' }}
-                    >
-                      {selectedCompany.name}
-                    </h2>
-                    <button
-                      onClick={handleViewAllItems}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90"
-                      style={{ backgroundColor: '#174887' }}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                      </svg>
-                      View All Items
-                    </button>
-                  </div>
+                  <h2
+                    className="text-2xl font-bold mb-2"
+                    style={{ color: '#174887' }}
+                  >
+                    {selectedCompany.name}
+                  </h2>
                   <p className="text-gray-600 mb-4">
                     Multiple assessments found. Select a location to view:
                   </p>
