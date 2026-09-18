@@ -370,12 +370,19 @@ function CustomerPageInner() {
       (item: AssessmentItem) => selections[item.id] !== undefined,
     );
 
-  // Derive unique tags from assessment items
+  const allAssessmentItems = useMemo(
+    () => assessments.filter(a => !a.submittedAt).flatMap(a => a.items),
+    [assessments],
+  );
+
+  // Derive unique tags from the items currently in view
   const itemTags = useMemo(() => {
-    if (!selectedAssessment) return [];
+    const source = viewingAllItems
+      ? allAssessmentItems
+      : (selectedAssessment?.items ?? []);
     const seen = new Set<string>();
     const tags: AssessmentItem['tags'] = [];
-    for (const item of selectedAssessment.items) {
+    for (const item of source) {
       for (const tag of item.tags) {
         if (!seen.has(tag.name)) {
           seen.add(tag.name);
@@ -384,12 +391,7 @@ function CustomerPageInner() {
       }
     }
     return tags;
-  }, [selectedAssessment]);
-
-  const allAssessmentItems = useMemo(
-    () => assessments.filter(a => !a.submittedAt).flatMap(a => a.items),
-    [assessments],
-  );
+  }, [viewingAllItems, allAssessmentItems, selectedAssessment]);
 
   const itemAssessmentNameMap = useMemo(() => {
     const map = new Map<string, string>();
